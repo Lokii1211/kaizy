@@ -5,6 +5,27 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ═══════════════════════════════════════════════════════
+-- DROP OLD TABLES (from previous schema) to recreate cleanly
+-- Order matters due to foreign key dependencies
+-- ═══════════════════════════════════════════════════════
+DROP TABLE IF EXISTS earnings CASCADE;
+DROP TABLE IF EXISTS worker_locations CASCADE;
+DROP TABLE IF EXISTS reviews CASCADE;
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS job_alerts CASCADE;
+DROP TABLE IF EXISTS bookings CASCADE;
+DROP TABLE IF EXISTS jobs CASCADE;
+DROP TABLE IF EXISTS pricing_rules CASCADE;
+DROP TABLE IF EXISTS worker_profiles CASCADE;
+DROP TABLE IF EXISTS otp_codes CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Also drop old functions/triggers
+DROP FUNCTION IF EXISTS accept_job(UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS update_timestamp() CASCADE;
+
 -- ══ USERS ══
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
