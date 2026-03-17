@@ -31,13 +31,18 @@ export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2
 export async function findNearbyWorkers(
   trade: string, lat: number, lng: number, radiusKm: number = 5, limit: number = 10
 ) {
-  const { data: workers } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('worker_profiles')
     .select('*, users(id, name, phone, profile_photo, fcm_token)')
     .eq('is_online', true)
-    .eq('is_available', true)
-    .ilike('trade_primary', trade)
-    .limit(50);
+    .eq('is_available', true);
+
+  // Only filter by trade if specified
+  if (trade && trade.trim() !== '') {
+    query = query.ilike('trade_primary', trade.trim());
+  }
+
+  const { data: workers } = await query.limit(50);
 
   if (!workers?.length) return [];
 
