@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito, Syne, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import MobileNav from "@/components/MobileNav";
 import I18nProvider from "@/components/I18nProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
@@ -10,17 +10,11 @@ import { BookingProvider } from "@/stores/BookingStore";
 import { ToastProvider, ToastDemo } from "@/components/ToastNotification";
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-nunito",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "600", "700", "800", "900"],
-});
-const syne = Syne({
-  variable: "--font-syne",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["700", "800"],
 });
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
@@ -35,7 +29,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#090909",
+  themeColor: "#000000",
 };
 
 export const metadata: Metadata = {
@@ -57,13 +51,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className={`${nunito.variable} ${syne.variable} ${jetbrains.variable} antialiased`}
-            style={{ fontFamily: "'Nunito', sans-serif" }}>
+      <body className={`${inter.variable} ${jetbrains.variable} antialiased`}
+            style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
         <ThemeProvider>
           <BookingProvider>
             <ToastProvider>
               <I18nProvider>
-                {children}
+                <main style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative" }}>
+                  {children}
+                </main>
                 <MobileNav />
                 <ToastDemo />
                 <PWAInstallPrompt />
