@@ -3,12 +3,44 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 // ═══════════════════════════════════════
 // POST /api/auth/send-otp
-// Send OTP to phone number (real production)
+// Real OTP — sends SMS via Fast2SMS API
 // ═══════════════════════════════════════
+
+const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
+
+async function sendSMS(phone: string, otp: string): Promise<boolean> {
+  if (!FAST2SMS_KEY) {
+    console.log(`[OTP] No SMS key configured. OTP for ${phone}: ${otp}`);
+    return false;
+  }
+
+  try {
+    // Fast2SMS DLT / Quick Transactional SMS
+    const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+      method: 'POST',
+      headers: {
+        'authorization': FAST2SMS_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        route: 'otp',
+        variables_values: otp,
+        flash: '0',
+        numbers: phone.replace('+91', ''),
+      }),
+    });
+    const data = await res.json();
+    console.log(`[SMS] ${phone}: ${data.return ? 'SENT' : 'FAILED'}`, data.message);
+    return data.return === true;
+  } catch (e) {
+    console.error('[SMS error]', e);
+    return false;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { phone, userType } = await req.json();
+    const { phone } = await req.json();
 
     // Validate Indian phone format
     const cleanPhone = phone?.replace(/\s/g, '');
@@ -29,24 +61,23 @@ export async function POST(req: NextRequest) {
 
     // Generate 6-digit OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // Store OTP
+    // Store OTP in database
     await supabaseAdmin.from('otp_codes').insert({ phone: cleanPhone, otp, expires_at: expiresAt });
 
-    // For development: log the OTP (in production, send via WhatsApp/SMS)
-    console.log(`[KAIZY OTP] ${cleanPhone}: ${otp}`);
-
-    // TODO: Send via Gupshup WhatsApp when ready
-    // await sendWhatsAppOTP(cleanPhone, otp);
+    // Send real SMS
+    const smsSent = await sendSMS(cleanPhone, otp);
 
     return NextResponse.json({
       success: true,
-      message: 'OTP sent successfully',
+      message: smsSent ? 'OTP sent to your phone' : 'OTP generated',
       expires_in: 600,
-      // Always return OTP until SMS/WhatsApp gateway is connected
-      // Remove this line once Gupshup is integrated
-      data: { debug_otp: otp },
+      data: {
+        sms_sent: smsSent,
+        // Only show OTP on screen if SMS gateway is not configured
+        debug_otp: smsSent ? undefined : otp,
+      },
     });
   } catch (error) {
     console.error('[send-otp error]', error);

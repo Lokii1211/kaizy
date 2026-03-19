@@ -43,9 +43,51 @@ export default function HomePage() {
   const [workers, setWorkers] = useState<RealWorker[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveTime, setLiveTime] = useState("");
+  const [userLat, setUserLat] = useState(11.0168);
+  const [userLng, setUserLng] = useState(76.9558);
+  const [locationName, setLocationName] = useState("Detecting location...");
+  const [gpsReady, setGpsReady] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const markersRef = useRef<unknown[]>([]);
+
+  // Get REAL GPS location
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationName("Coimbatore");
+      setGpsReady(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserLat(lat);
+        setUserLng(lng);
+        setGpsReady(true);
+        // Reverse geocode with Mapbox
+        if (MAPBOX_TOKEN) {
+          try {
+            const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=locality,place,neighborhood`);
+            const data = await res.json();
+            if (data.features?.[0]) {
+              setLocationName(data.features[0].place_name?.split(',').slice(0, 2).join(',') || data.features[0].text);
+            }
+          } catch { setLocationName(`${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E`); }
+        }
+        // Move map to real location
+        if (mapRef.current) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (mapRef.current as any).flyTo({ center: [lng, lat], zoom: 14, duration: 2000 });
+        }
+      },
+      () => {
+        setLocationName("Coimbatore (GPS off)");
+        setGpsReady(true);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
 
   // Live clock + greeting
   useEffect(() => {
@@ -84,7 +126,7 @@ export default function HomePage() {
         const map = new mapboxgl.Map({
           container: mapContainer.current,
           style: isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12",
-          center: [76.9558, 11.0168], // Coimbatore
+          center: [userLng, userLat],
           zoom: 13,
           attributionControl: false,
           pitch: 20,
@@ -98,7 +140,7 @@ export default function HomePage() {
             <div style="position:absolute;inset:0;border-radius:50%;background:rgba(96,165,250,0.15);animation:map-pulse 2s ease-out infinite"></div>
             <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 0 8px rgba(59,130,246,0.4)"></div>
           </div>`;
-          new mapboxgl.Marker({ element: userEl }).setLngLat([76.9558, 11.0168]).addTo(map);
+          new mapboxgl.Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
         });
 
         mapRef.current = map;
@@ -160,11 +202,11 @@ export default function HomePage() {
     addMarkers();
   }, [workers]);
 
-  // Fetch REAL workers
+  // Fetch REAL workers using GPS coordinates
   const fetchWorkers = async (trade?: string) => {
     try {
       setLoading(true);
-      const url = `/api/workers/nearby?trade=${trade || ''}&lat=11.0168&lng=76.9558&radius=10&limit=10`;
+      const url = `/api/workers/nearby?trade=${trade || ''}&lat=${userLat}&lng=${userLng}&radius=15&limit=10`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.success && json.data?.workers) setWorkers(json.data.workers);
@@ -181,12 +223,14 @@ export default function HomePage() {
     } catch {}
   };
 
+  // Fetch workers once GPS is ready
   useEffect(() => {
+    if (!gpsReady) return;
     fetchWorkers();
     fetchOnlineCount();
     const id = setInterval(() => { fetchWorkers(activeTrade >= 0 ? trades[activeTrade].key : undefined); fetchOnlineCount(); }, 30000);
     return () => clearInterval(id);
-  }, []);
+  }, [gpsReady]);
 
   const handleTradeClick = (i: number) => {
     if (activeTrade === i) { setActiveTrade(-1); fetchWorkers(); }
@@ -227,7 +271,7 @@ export default function HomePage() {
         <div className="mb-3">
           <div className="flex items-center gap-1.5">
             <span style={{ color: "var(--brand)", fontSize: 14 }}>📍</span>
-            <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Gandhipuram, Coimbatore</span>
+            <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{locationName}</span>
           </div>
           <p className="text-[11px] mt-0.5" style={{ color: "var(--text-3)" }}>
             {greeting} · <span className="live-badge" style={{ color: "var(--success)" }}>{onlineCount} workers online</span>

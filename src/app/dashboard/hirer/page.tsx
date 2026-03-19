@@ -36,8 +36,29 @@ export default function HirerDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [userName, setUserName] = useState("Hey there!");
+  const [locationLabel, setLocationLabel] = useState("Detecting...");
 
   useEffect(() => {
+    // Fetch user info
+    fetch("/api/auth/me").then(r => r.json()).then(j => {
+      if (j.success && j.data?.name) setUserName(j.data.name);
+      else if (j.success && j.data?.phone) setUserName(j.data.phone.replace('+91', ''));
+    }).catch(() => {});
+
+    // GPS reverse geocode
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+        if (token) {
+          fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place`)
+            .then(r => r.json())
+            .then(d => { if (d.features?.[0]) setLocationLabel(d.features[0].text); })
+            .catch(() => setLocationLabel("Your area"));
+        }
+      }, () => setLocationLabel("Location off"));
+    }
+
     const fetchBookings = async () => {
       try {
         const { data } = await supabase
@@ -69,7 +90,7 @@ export default function HirerDashboard() {
         <div className="flex justify-between items-center mb-3">
           <div>
             <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{greeting}</p>
-            <h1 className="text-[22px] font-black" style={{ color: "var(--text-1)" }}>Hey there! 👋</h1>
+            <h1 className="text-[22px] font-black" style={{ color: "var(--text-1)" }}>{userName} 👋</h1>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={toggle} className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90"
@@ -84,7 +105,7 @@ export default function HirerDashboard() {
         </div>
 
         <p className="text-[11px] mb-3" style={{ color: "var(--text-3)" }}>
-          📍 Coimbatore · <span style={{ color: "var(--success)" }}>{onlineCount} workers online</span>
+          📍 {locationLabel} · <span style={{ color: "var(--success)" }}>{onlineCount} workers online</span>
         </p>
 
         {/* Quick actions */}
