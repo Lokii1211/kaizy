@@ -106,15 +106,16 @@ export async function POST(request: NextRequest) {
       // OTP verified — clean up
       delete otpStore[cleanPhone];
 
-      // Generate session token
-      const sessionToken = `ses_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      // Create a proper token with user info encoded
+      const userId = `usr_${cleanPhone.slice(-6)}`;
+      const payload = { userId, phone: `+91${cleanPhone}`, role: userType || "worker", iat: Date.now() };
+      const sessionToken = `header.${btoa(JSON.stringify(payload))}.signature`;
 
-      // Mock user data
-      const mockUser = {
-        id: `usr_${cleanPhone.slice(-6)}`,
+      const user = {
+        id: userId,
         phone: `+91${cleanPhone}`,
         role: userType || "worker",
-        name: userType === "hirer" ? "Kumar Electronics" : "Raju Kumar",
+        name: cleanPhone, // Use phone as default name — user can update in settings
         isNewUser: false,
       };
 
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Login successful",
         data: {
-          user: mockUser,
+          user,
           token: sessionToken,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         },

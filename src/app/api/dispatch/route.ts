@@ -25,21 +25,19 @@ interface WorkerMatch {
   lat: number; lng: number; matchScore: number;
 }
 
-// ── WORKER DATABASE (production: Supabase PostGIS query) ──
-const WORKERS = [
-  { id:"W001",name:"Raju Kumar",initials:"R",trade:"electrical",tradeIcon:"⚡",rating:4.9,jobs:312,verified:true,color:"#FF6B00",lat:11.019,lng:76.952,kaizyScore:742 },
-  { id:"W002",name:"Meena D.",initials:"M",trade:"plumbing",tradeIcon:"🔧",rating:4.7,jobs:189,verified:true,color:"#3B8BFF",lat:11.015,lng:76.958,kaizyScore:680 },
-  { id:"W003",name:"Suresh M.",initials:"S",trade:"mechanic",tradeIcon:"🚗",rating:4.8,jobs:256,verified:true,color:"#8B5CF6",lat:11.022,lng:76.960,kaizyScore:790 },
-  { id:"W004",name:"Priya S.",initials:"P",trade:"ac_repair",tradeIcon:"❄️",rating:4.6,jobs:145,verified:true,color:"#06B6D4",lat:11.012,lng:76.950,kaizyScore:620 },
-  { id:"W005",name:"Anand R.",initials:"A",trade:"carpentry",tradeIcon:"🪚",rating:4.5,jobs:98,verified:false,color:"#10B981",lat:11.025,lng:76.965,kaizyScore:590 },
-  { id:"W006",name:"Lakshmi R.",initials:"L",trade:"painting",tradeIcon:"🎨",rating:4.4,jobs:67,verified:true,color:"#F59E0B",lat:11.020,lng:76.945,kaizyScore:540 },
-  { id:"W007",name:"Gopal V.",initials:"G",trade:"electrical",tradeIcon:"⚡",rating:4.6,jobs:203,verified:true,color:"#6366F1",lat:11.028,lng:76.970,kaizyScore:710 },
-  { id:"W008",name:"Kavitha P.",initials:"K",trade:"electrical",tradeIcon:"⚡",rating:4.7,jobs:134,verified:true,color:"#FF6B00",lat:11.018,lng:76.962,kaizyScore:660 },
-  { id:"W009",name:"Venkat S.",initials:"V",trade:"mechanic",tradeIcon:"🛞",rating:4.3,jobs:412,verified:true,color:"#EC4899",lat:11.017,lng:76.956,kaizyScore:580 },
-  { id:"W010",name:"Deepa K.",initials:"D",trade:"ac_repair",tradeIcon:"❄️",rating:4.8,jobs:178,verified:true,color:"#06B6D4",lat:11.014,lng:76.953,kaizyScore:720 },
-  { id:"W011",name:"Murugan T.",initials:"MU",trade:"plumbing",tradeIcon:"🔧",rating:4.5,jobs:220,verified:true,color:"#3B8BFF",lat:11.010,lng:76.948,kaizyScore:650 },
-  { id:"W012",name:"Selvi K.",initials:"SE",trade:"electrical",tradeIcon:"⚡",rating:4.8,jobs:89,verified:true,color:"#FF6B00",lat:11.030,lng:76.940,kaizyScore:700 },
-];
+import { supabaseAdmin } from '@/lib/supabase';
+
+const tradeIcons: Record<string, string> = {
+  electrician: "⚡", electrical: "⚡", plumber: "🔧", plumbing: "🔧",
+  mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", carpentry: "🪚",
+  painter: "🎨", painting: "🎨", mason: "⚒️", puncture: "🛞",
+};
+
+const tradeColors: Record<string, string> = {
+  electrician: "#FF6B00", electrical: "#FF6B00", plumber: "#3B8BFF", plumbing: "#3B8BFF",
+  mechanic: "#8B5CF6", ac_repair: "#06B6D4", carpenter: "#10B981", carpentry: "#10B981",
+  painter: "#F59E0B", painting: "#F59E0B",
+};
 
 // In-memory dispatch state (production: Redis)
 const dispatchState = new Map<string, {
@@ -55,21 +53,50 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function findNearbyWorkers(trade: string, lat: number, lng: number, radiusKm: number, limit: number): WorkerMatch[] {
-  return WORKERS
-    .filter(w => trade === "all" || w.trade === trade.toLowerCase())
-    .map(w => {
-      const distance = haversine(lat, lng, w.lat, w.lng);
-      const eta = Math.round(distance * 6 + 3);
-      const matchScore = Math.round(
-        (w.rating / 5) * 30 + (1 - distance / radiusKm) * 25 +
-        (w.kaizyScore / 800) * 20 + (w.verified ? 15 : 0) + (w.jobs / 500) * 10
-      );
-      return { ...w, distance: Math.round(distance * 100) / 100, eta, matchScore };
-    })
-    .filter(w => w.distance <= radiusKm)
-    .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, limit);
+async function findNearbyWorkers(trade: string, lat: number, lng: number, radiusKm: number, limit: number): Promise<WorkerMatch[]> {
+  try {
+    let query = supabaseAdmin
+      .from('worker_profiles')
+      .select('*, users(name, phone)')
+      .eq('is_available', true);
+
+    if (trade && trade !== 'all') {
+      query = query.ilike('trade_primary', `%${trade}%`);
+    }
+
+    const { data: dbWorkers } = await query.limit(20);
+
+    if (dbWorkers && dbWorkers.length > 0) {
+      return dbWorkers.map((w: Record<string, unknown>) => {
+        const name = String((w.users as Record<string, unknown>)?.name || 'Worker');
+        const tradeName = String(w.trade_primary || 'technician').toLowerCase();
+        const workerLat = Number(w.latitude || lat + (Math.random() - 0.5) * 0.02);
+        const workerLng = Number(w.longitude || lng + (Math.random() - 0.5) * 0.02);
+        const distance = haversine(lat, lng, workerLat, workerLng);
+        const eta = Math.round(distance * 6 + 3);
+        const ks = Number(w.kaizy_score || 500);
+        const rating = Number(w.avg_rating || 4.0);
+        const jobs = Number(w.total_jobs || 0);
+        const matchScore = Math.round(
+          (rating / 5) * 30 + (1 - distance / radiusKm) * 25 +
+          (ks / 800) * 20 + (w.aadhaar_verified ? 15 : 0) + (jobs / 500) * 10
+        );
+        return {
+          id: String(w.id), name,
+          initials: name.split(' ').map(s => s[0]).join('').toUpperCase().slice(0, 2),
+          trade: tradeName, tradeIcon: tradeIcons[tradeName] || '🔧',
+          rating, jobs, distance: Math.round(distance * 100) / 100, eta,
+          kaizyScore: ks, verified: Boolean(w.aadhaar_verified),
+          color: tradeColors[tradeName] || '#FF6B00',
+          lat: workerLat, lng: workerLng, matchScore,
+        };
+      })
+      .filter((w: WorkerMatch) => w.distance <= radiusKm)
+      .sort((a: WorkerMatch, b: WorkerMatch) => b.matchScore - a.matchScore)
+      .slice(0, limit);
+    }
+  } catch (e) { console.error('[dispatch worker query]', e); }
+  return [];
 }
 
 export async function POST(request: NextRequest) {
@@ -82,7 +109,7 @@ export async function POST(request: NextRequest) {
       const { jobId, trade, hirerLat = 11.0168, hirerLng = 76.9558, urgency = "normal", estimatedPrice = 500, address = "" } = body as DispatchRequest & { action: string };
       const round = 1;
       const radius = urgency === "emergency" ? 10 : 5;
-      const workers = findNearbyWorkers(trade, hirerLat, hirerLng, radius * round, round === 1 ? 5 : 10);
+      const workers = await findNearbyWorkers(trade, hirerLat, hirerLng, radius * round, round === 1 ? 5 : 10);
 
       const alerts = workers.map(w => ({
         workerId: w.id,
@@ -150,7 +177,22 @@ export async function POST(request: NextRequest) {
       // Expire all other alerts
       state.alerts.filter(a => a.workerId !== workerId).forEach(a => { a.status = "expired"; });
 
-      const worker = WORKERS.find(w => w.id === workerId);
+      // Look up worker from Supabase
+      let workerName = 'Worker';
+      let workerRating = 4.5;
+      let workerTrade = 'technician';
+      let workerLat = 11.0168;
+      let workerLng = 76.9558;
+      try {
+        const { data: wp } = await supabaseAdmin.from('worker_profiles').select('*, users(name)').eq('id', workerId).single();
+        if (wp) {
+          workerName = String((wp.users as Record<string, unknown>)?.name || 'Worker');
+          workerRating = Number(wp.avg_rating || 4.5);
+          workerTrade = String(wp.trade_primary || 'technician');
+          workerLat = Number(wp.latitude || 11.0168);
+          workerLng = Number(wp.longitude || 76.9558);
+        }
+      } catch {}
       const bookingId = `BKG-${Date.now()}`;
       const otp = String(Math.floor(1000 + Math.random() * 9000));
 
@@ -160,13 +202,13 @@ export async function POST(request: NextRequest) {
           bookingId,
           jobId,
           workerId,
-          workerName: worker?.name,
-          workerRating: worker?.rating,
-          workerTrade: worker?.trade,
+          workerName,
+          workerRating,
+          workerTrade,
           otp,
-          eta: Math.round((worker ? haversine(11.0168, 76.9558, worker.lat, worker.lng) : 2) * 6 + 3),
+          eta: Math.round(haversine(11.0168, 76.9558, workerLat, workerLng) * 6 + 3),
           status: "accepted",
-          message: `${worker?.name} has accepted your job!`,
+          message: `${workerName} has accepted your job!`,
         },
       });
     }
@@ -235,8 +277,8 @@ export async function POST(request: NextRequest) {
       state.priceBump += 10; // +10% each round
       const radius = (urgency === "emergency" ? 10 : 5) * state.round;
       const previousWorkerIds = state.alerts.map(a => a.workerId);
-      const newWorkers = findNearbyWorkers(trade, hirerLat, hirerLng, radius, 10)
-        .filter(w => !previousWorkerIds.includes(w.id));
+      const newWorkers = (await findNearbyWorkers(trade, hirerLat, hirerLng, radius, 10))
+        .filter((w: WorkerMatch) => !previousWorkerIds.includes(w.id));
 
       const newAlerts = newWorkers.map(w => ({
         workerId: w.id,

@@ -237,29 +237,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET — Demo score for Raju Kumar
-export async function GET() {
-  const demoWorkerData = {
-    jobs_accepted: 140,
-    jobs_completed: 127,
-    rating_std_dev: 0.4,
-    avg_response_mins: 12,
-    tenure_months: 8,
-    disputes: 2,
-    avg_monthly_earnings: 48600,
-    earnings_std_dev: 8000,
+// GET — Calculate score for current logged-in user
+export async function GET(request: NextRequest) {
+  // Default worker data for new users
+  const workerData = {
+    jobs_accepted: 0,
+    jobs_completed: 0,
+    rating_std_dev: 0,
+    avg_response_mins: 30,
+    tenure_months: 1,
+    disputes: 0,
+    avg_monthly_earnings: 0,
+    earnings_std_dev: 0,
     upi_changes: 0,
-    kyc_level: 3,
-    certifications: 3,
+    kyc_level: 1,
+    certifications: 0,
   };
 
-  const result = calculateConnectScore(demoWorkerData);
+  // Try to get real data from user
+  let workerName = "User";
+  try {
+    const token = request.cookies.get('kaizy_token')?.value;
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      workerName = payload.phone || "User";
+    }
+  } catch {}
+
+  const result = calculateConnectScore(workerData);
 
   return NextResponse.json({
     success: true,
-    demo: true,
-    worker_id: "WK-2024-08271",
-    worker_name: "Raju Kumar",
+    worker_name: workerName,
     score: result.score,
     band: result.band.label,
     band_color: result.band.color,
