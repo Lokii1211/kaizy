@@ -1,26 +1,92 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
-import { useBooking } from "@/stores/BookingStore";
 
 const emergencies = [
-  { icon: "🚗", name: "Vehicle Breakdown", eta: "~8 min", color: "#8B5CF6" },
-  { icon: "🛞", name: "Tyre Puncture", eta: "~5 min", color: "#EC4899" },
-  { icon: "💧", name: "Pipe Burst", eta: "~12 min", color: "#3B8BFF" },
-  { icon: "⚡", name: "Power Failure", eta: "~10 min", color: "#FF6B00" },
-  { icon: "🔒", name: "Lock Broken", eta: "~15 min", color: "#F59E0B" },
-  { icon: "❄️", name: "AC Emergency", eta: "~11 min", color: "#06B6D4" },
+  { icon: "🚗", key: "vehicle_breakdown", name: "Vehicle Breakdown", color: "#8B5CF6" },
+  { icon: "🛞", key: "tyre_puncture", name: "Tyre Puncture", color: "#EC4899" },
+  { icon: "💧", key: "pipe_burst", name: "Pipe Burst", color: "#3B82F6" },
+  { icon: "⚡", key: "power_failure", name: "Power Failure", color: "#FF6B00" },
+  { icon: "🔒", key: "lock_broken", name: "Lock Broken", color: "#F59E0B" },
+  { icon: "❄️", key: "ac_emergency", name: "AC Emergency", color: "#06B6D4" },
 ];
 
 export default function EmergencyPage() {
   const { isDark } = useTheme();
-  const { startSearch } = useBooking();
+  const router = useRouter();
   const [selected, setSelected] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [result, setResult] = useState<{ workersNotified: number; jobId: string } | null>(null);
+  const [error, setError] = useState("");
 
-  const handleFind = () => {
-    startSearch("All", `SOS: ${emergencies[selected].name}`);
+  const handleFind = async () => {
+    setSearching(true);
+    setError("");
+
+    // Get real GPS location
+    const getLocation = (): Promise<{ lat: number; lng: number }> =>
+      new Promise((resolve) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve({ lat: 11.0168, lng: 76.9558 }) // Coimbatore fallback
+          );
+        } else {
+          resolve({ lat: 11.0168, lng: 76.9558 });
+        }
+      });
+
+    try {
+      const { lat, lng } = await getLocation();
+      const res = await fetch("/api/emergency/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat, lng,
+          problemType: emergencies[selected].key,
+          description: `EMERGENCY: ${emergencies[selected].name}`,
+        }),
+      });
+      const json = await res.json();
+
+      if (json.success && json.data?.workersNotified > 0) {
+        setResult({ workersNotified: json.data.workersNotified, jobId: json.data.jobId });
+      } else {
+        setError("No workers available nearby. Please call local emergency services.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSearching(false);
+    }
   };
+
+  // Success state
+  if (result) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6 anim-pop"
+             style={{ background: "var(--success)", boxShadow: "0 8px 32px rgba(52,211,153,0.3)" }}>
+          <span className="text-white text-[40px]">✓</span>
+        </div>
+        <h1 className="text-[22px] font-black text-center" style={{ color: "var(--text-1)" }}>Help is on the way!</h1>
+        <p className="text-[14px] mt-2 text-center" style={{ color: "var(--text-2)" }}>
+          <span className="font-bold" style={{ color: "var(--brand)" }}>{result.workersNotified} workers</span> have been alerted
+        </p>
+        <p className="text-[12px] mt-1 text-center" style={{ color: "var(--text-3)" }}>
+          They have 45 seconds to respond. First one wins.
+        </p>
+        <div className="flex gap-3 mt-8 w-full">
+          <Link href="/" className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold active:scale-95"
+                style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-1)" }}>Home</Link>
+          <Link href="/notifications" className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold text-white active:scale-95"
+                style={{ background: "var(--brand)" }}>Track Status →</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-app)" }}>
@@ -31,51 +97,62 @@ export default function EmergencyPage() {
                 style={{ background: "var(--bg-card)" }}><span className="text-[14px]">←</span></Link>
           <span className="text-[11px] font-bold" style={{ color: "var(--text-3)" }}>📶 🔋</span>
         </div>
-        <span className="inline-block rounded-[20px] px-3 py-1 text-[10px] font-extrabold text-white tracking-wider mb-2"
-              style={{ background: "var(--danger)", letterSpacing: "1px" }}>🆘 EMERGENCY</span>
-        <h1 className="text-[24px] font-black" style={{ color: "var(--text-1)", fontFamily: "var(--font-syne), 'Syne', sans-serif" }}>Need Help Now?</h1>
-        <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Finding nearest expert in minutes</p>
+        <span className="inline-block rounded-full px-3 py-1 text-[10px] font-bold text-white tracking-wider mb-2"
+              style={{ background: "var(--danger)" }}>🆘 EMERGENCY</span>
+        <h1 className="text-[24px] font-black" style={{ color: "var(--text-1)" }}>Need Help Now?</h1>
+        <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>We&apos;ll alert nearest workers within 15km</p>
       </div>
 
       {/* Location */}
-      <div className="mx-4 mt-3 flex items-center gap-3 rounded-[14px] p-3"
-           style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", borderLeft: "4px solid var(--brand)" }}>
-        <div className="shrink-0 rounded-full" style={{ width: 10, height: 10, background: "var(--brand)", boxShadow: "var(--shadow-brand)" }} />
+      <div className="mx-4 mt-3 flex items-center gap-3 rounded-xl p-3"
+           style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", borderLeft: "4px solid var(--danger)" }}>
+        <div className="shrink-0 rounded-full online-dot" style={{ width: 10, height: 10, background: "var(--danger)" }} />
         <div className="flex-1">
-          <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>NH-544, Near Ukkadam, CBE</p>
-          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>📡 Auto-detected</p>
+          <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Your GPS Location</p>
+          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>📡 Auto-detecting when you tap Find Help</p>
         </div>
-        <button className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Change</button>
       </div>
 
       {/* Emergency grid */}
       <div className="px-4 mt-4 flex-1">
-        <p className="text-[12px] font-extrabold mb-2" style={{ color: "var(--text-1)" }}>What happened?</p>
-        <div className="grid grid-cols-2 gap-2">
+        <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-1)" }}>What happened?</p>
+        <div className="grid grid-cols-2 gap-2 stagger">
           {emergencies.map((e, i) => (
-            <button key={e.name} onClick={() => setSelected(i)}
-                    className="flex items-center gap-2.5 rounded-[14px] p-3.5 transition-all active:scale-95 text-left"
+            <button key={e.key} onClick={() => setSelected(i)}
+                    className="flex items-center gap-2.5 rounded-xl p-3.5 transition-all active:scale-95 text-left"
                     style={{
                       background: selected === i ? "var(--brand-tint)" : "var(--bg-card)",
                       border: selected === i ? "2px solid var(--brand)" : "2px solid transparent",
                     }}>
               <span className="text-[24px]">{e.icon}</span>
-              <div>
-                <p className="text-[12px] font-extrabold" style={{ color: "var(--text-1)" }}>{e.name}</p>
-                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-3)" }}>{e.eta}</p>
-              </div>
+              <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{e.name}</p>
             </button>
           ))}
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="mx-4 mt-3 rounded-xl p-3 text-center" style={{ background: "var(--danger-tint)", border: "1px solid var(--danger)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--danger)" }}>{error}</p>
+        </div>
+      )}
+
       {/* CTA */}
       <div className="px-4 pb-20 mt-3">
-        <Link href="/booking" onClick={handleFind}
-              className="block w-full rounded-[14px] py-4 text-center text-[14px] font-black text-white active:scale-[0.98] transition-transform"
-              style={{ background: "var(--danger)", boxShadow: "0 8px 32px rgba(255,59,59,0.35)" }}>
-          🔍 Find Help Now
-        </Link>
+        <button onClick={handleFind} disabled={searching}
+                className="w-full rounded-xl py-4 text-center text-[14px] font-black text-white active:scale-[0.98] transition-transform disabled:opacity-60"
+                style={{ background: "var(--danger)", boxShadow: "0 8px 32px rgba(239,68,68,0.35)" }}>
+          {searching ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "#fff", borderTopColor: "transparent" }} />
+              Finding nearest workers...
+            </span>
+          ) : "🔍 Find Help Now"}
+        </button>
+        <p className="text-[10px] text-center mt-2" style={{ color: "var(--text-3)" }}>
+          Emergency pricing applies (1.8× normal rate)
+        </p>
       </div>
     </div>
   );

@@ -1,196 +1,179 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
-import { useBooking } from "@/stores/BookingStore";
+import { supabase } from "@/lib/supabase";
 
 // ============================================================
-// Kaizy — REAL-TIME CHAT (WhatsApp/Uber style)
-// Full screen chat with typing indicator, quick replies
+// REAL-TIME CHAT — Supabase Realtime subscriptions
 // ============================================================
+
+interface Message {
+  id: string; booking_id: string; sender_id: string;
+  content: string; message_type: string; is_read: boolean;
+  created_at: string;
+}
 
 const quickReplies = [
-  "Where are you?",
-  "How long?",
-  "Bring extra tools",
-  "I'm waiting outside",
-  "Call me",
-  "Coming!",
+  "On my way! 🚶", "5 more minutes", "I've arrived", "Job done ✅",
+  "Need more materials", "Can you share location?",
 ];
 
 export default function ChatPage() {
   const { isDark } = useTheme();
-  const { state, sendMessage } = useBooking();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const chatRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const worker = state.selectedWorker;
+  const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const currentUserId = "a1111111-1111-1111-1111-111111111111"; // Demo
 
-  // Auto-scroll on new messages
+  // Fetch messages
   useEffect(() => {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
-  }, [state.messages.length]);
-
-  // Simulate typing indicator
-  useEffect(() => {
-    if (state.messages.length > 0) {
-      const lastMsg = state.messages[state.messages.length - 1];
-      if (lastMsg.sender === "user") {
-        setIsTyping(true);
-        const t = setTimeout(() => setIsTyping(false), 2500);
-        return () => clearTimeout(t);
+    const fetchMessages = async () => {
+      try {
+        const { data } = await supabase
+          .from("messages")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .limit(100);
+        if (data) setMessages(data);
+      } catch (e) {
+        console.error("[chat]", e);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [state.messages.length]);
+    };
+    fetchMessages();
 
-  const handleSend = (text?: string) => {
-    const msg = text || input.trim();
-    if (!msg) return;
-    sendMessage(msg);
-    setInput("");
-    inputRef.current?.focus();
+    // Real-time subscription
+    const channel = supabase
+      .channel("chat-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        setMessages(prev => [...prev, payload.new as Message]);
+        if (navigator.vibrate) navigator.vibrate(100);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  // Send message
+  const sendMessage = async (text?: string) => {
+    const content = text || input.trim();
+    if (!content) return;
+
+    try {
+      await supabase.from("messages").insert({
+        sender_id: currentUserId,
+        content,
+        message_type: "text",
+      });
+      setInput("");
+    } catch (e) {
+      console.error("[send]", e);
+    }
   };
 
-  const formatTime = (ts: number) =>
-    new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-app)" }}>
+    <div className="flex flex-col min-h-screen" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="shrink-0 px-4 pt-3 pb-3 flex items-center gap-3 glass" style={{ borderBottom: "1px solid var(--border-1)" }}>
-        <Link href="/booking" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90 shrink-0"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <span className="text-[14px]">←</span>
+      <div className="flex items-center gap-3 px-4 py-3 glass" style={{ borderBottom: "1px solid var(--border-1)" }}>
+        <Link href="/" className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90"
+              style={{ background: "var(--bg-elevated)" }}>
+          <span className="text-[13px]">←</span>
         </Link>
-        {worker ? (
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <div className="relative shrink-0">
-              <div className="rounded-full flex items-center justify-center text-[14px] font-black text-white"
-                   style={{ width: 38, height: 38, background: worker.color }}>{worker.initials}</div>
-              <div className="absolute -bottom-0.5 -right-0.5 rounded-full online-pulse"
-                   style={{ width: 10, height: 10, background: "var(--success)", border: "2px solid var(--bg-app)" }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[13px] font-extrabold truncate" style={{ color: "var(--text-1)" }}>{worker.name}</p>
-              <p className="text-[10px]" style={{ color: "var(--success)" }}>
-                {isTyping ? "typing..." : "Online"}
-              </p>
-            </div>
-          </div>
-        ) : (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
+             style={{ background: "var(--brand)" }}>RK</div>
+        <div className="flex-1">
           <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Chat</p>
-        )}
-        <div className="flex gap-2 shrink-0">
-          <a href="tel:+919876543210" className="w-9 h-9 rounded-full flex items-center justify-center"
-             style={{ background: "var(--success-tint)", border: "1px solid var(--success)" }}>
-            <span className="text-[14px]">📞</span>
-          </a>
-          <button className="w-9 h-9 rounded-full flex items-center justify-center"
-                  style={{ background: "var(--danger-tint)", border: "1px solid var(--danger)" }}>
-            <span className="text-[14px]">🛡️</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full online-dot" style={{ background: "var(--success)" }} />
+            <p className="text-[10px]" style={{ color: "var(--success)" }}>Real-time · Supabase</p>
+          </div>
         </div>
+        <Link href="/booking" className="text-[11px] font-bold px-3 py-1.5 rounded-lg active:scale-95"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>📞 Call</Link>
       </div>
 
-      {/* Chat messages */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ paddingBottom: 140 }}>
-        {/* Date separator */}
-        <div className="text-center py-2">
-          <span className="text-[10px] font-bold px-3 py-1 rounded-full"
-                style={{ background: "var(--bg-elevated)", color: "var(--text-3)" }}>Today</span>
-        </div>
-
-        {state.messages.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-[40px] mb-3">💬</p>
-            <p className="text-[14px] font-bold" style={{ color: "var(--text-3)" }}>No messages yet</p>
-            <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>Start a conversation with your worker</p>
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5" style={{ paddingBottom: 140 }}>
+        {loading && (
+          <div className="text-center py-8">
+            <div className="w-6 h-6 border-2 rounded-full mx-auto animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
           </div>
         )}
 
-        {state.messages.map((msg, i) => (
-          <div key={msg.id}
-               className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-slide-up`}
-               style={{ animationDelay: `${i * 0.05}s` }}>
-            {msg.sender === "system" ? (
-              <div className="text-center w-full py-1">
-                <span className="text-[10px] font-bold px-3 py-1 rounded-full inline-block"
-                      style={{ background: "var(--bg-elevated)", color: "var(--text-3)" }}>
-                  {msg.text}
-                </span>
-              </div>
-            ) : (
-              <div className="max-w-[78%]">
-                <div className="rounded-[16px] px-3.5 py-2.5"
-                     style={{
-                       background: msg.sender === "user" ? "var(--brand)" : "var(--bg-card)",
-                       borderBottomRightRadius: msg.sender === "user" ? "4px" : "16px",
-                       borderBottomLeftRadius: msg.sender === "worker" ? "4px" : "16px",
-                       border: msg.sender === "worker" ? "1px solid var(--border-1)" : "none",
-                     }}>
-                  <p className="text-[13px] leading-relaxed"
-                     style={{ color: msg.sender === "user" ? "#fff" : "var(--text-1)" }}>{msg.text}</p>
-                </div>
-                <p className="text-[9px] mt-[3px] px-1"
-                   style={{ color: "var(--text-3)", textAlign: msg.sender === "user" ? "right" : "left" }}>
-                  {formatTime(msg.timestamp)}
-                  {msg.sender === "user" && <span className="ml-1">{msg.read ? "✓✓" : "✓"}</span>}
+        {!loading && messages.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-[32px] mb-2">💬</p>
+            <p className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>Start a conversation</p>
+            <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
+              Messages appear here in real-time via Supabase
+            </p>
+          </div>
+        )}
+
+        {messages.map(m => {
+          const isMine = m.sender_id === currentUserId;
+          return (
+            <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+              <div className="max-w-[80%] rounded-2xl px-3.5 py-2.5"
+                   style={{
+                     background: isMine ? "var(--brand)" : "var(--bg-card)",
+                     borderBottomRightRadius: isMine ? 4 : 16,
+                     borderBottomLeftRadius: isMine ? 16 : 4,
+                     border: isMine ? "none" : "1px solid var(--border-1)",
+                   }}>
+                <p className="text-[13px]" style={{ color: isMine ? "#fff" : "var(--text-1)" }}>{m.content}</p>
+                <p className="text-[9px] mt-1 text-right" style={{ color: isMine ? "rgba(255,255,255,0.6)" : "var(--text-3)" }}>
+                  {formatTime(m.created_at)}
                 </p>
               </div>
-            )}
-          </div>
-        ))}
-
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="rounded-[16px] px-4 py-3 flex gap-1.5"
-                 style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", borderBottomLeftRadius: "4px" }}>
-              <div className="w-2 h-2 rounded-full typing-dot" style={{ background: "var(--text-3)" }} />
-              <div className="w-2 h-2 rounded-full typing-dot" style={{ background: "var(--text-3)" }} />
-              <div className="w-2 h-2 rounded-full typing-dot" style={{ background: "var(--text-3)" }} />
             </div>
-          </div>
-        )}
+          );
+        })}
       </div>
 
       {/* Quick replies */}
-      <div className="absolute left-0 right-0 overflow-hidden" style={{ bottom: 72 }}>
-        <div className="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar">
-          {quickReplies.map(reply => (
-            <button key={reply} onClick={() => handleSend(reply)}
-                    className="shrink-0 rounded-[20px] px-3 py-[6px] text-[11px] font-bold active:scale-95 transition-all"
-                    style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-2)" }}>
-              {reply}
+      <div className="px-4 pb-1" style={{ background: "var(--bg-app)" }}>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+          {quickReplies.map(r => (
+            <button key={r} onClick={() => sendMessage(r)}
+                    className="shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold active:scale-95"
+                    style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>
+              {r}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Input bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-3 flex items-center gap-2 glass"
-           style={{ borderTop: "1px solid var(--border-1)" }}>
-        <button className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:scale-90"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <span className="text-[16px]">📷</span>
-        </button>
-        <div className="flex-1 flex items-center rounded-[24px] px-4 py-2.5"
-             style={{ background: "var(--bg-input)", border: "1px solid var(--border-1)" }}>
-          <input ref={inputRef} value={input}
-                 onChange={e => setInput(e.target.value)}
-                 onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
-                 placeholder="Type a message..." className="flex-1 text-[13px] font-semibold outline-none bg-transparent"
-                 style={{ color: "var(--text-1)" }} />
-          <button className="ml-2 text-[16px] active:scale-90">🎤</button>
+      {/* Input */}
+      <div className="px-4 pb-4 pt-2" style={{ background: "var(--bg-app)" }}>
+        <div className="flex gap-2">
+          <input value={input} onChange={e => setInput(e.target.value)}
+                 onKeyDown={e => e.key === "Enter" && sendMessage()}
+                 placeholder="Type a message..."
+                 className="flex-1 rounded-xl px-4 py-3 text-[13px] outline-none"
+                 style={{
+                   background: isDark ? "rgba(255,255,255,0.95)" : "#fff",
+                   color: "#111",
+                   border: "1px solid var(--border-2)",
+                 }} />
+          <button onClick={() => sendMessage()} disabled={!input.trim()}
+                  className="w-11 h-11 rounded-xl flex items-center justify-center active:scale-90 disabled:opacity-40"
+                  style={{ background: "var(--brand)" }}>
+            <span className="text-white text-[16px]">↑</span>
+          </button>
         </div>
-        <button onClick={() => handleSend()}
-                disabled={!input.trim()}
-                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-all disabled:opacity-30"
-                style={{ background: "var(--brand)", boxShadow: input.trim() ? "var(--shadow-brand)" : "none" }}>
-          <span className="text-white text-[16px]">➤</span>
-        </button>
       </div>
     </div>
   );
