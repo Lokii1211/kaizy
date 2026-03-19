@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'OTP sent successfully',
       expires_in: 600,
-      // Remove this in production — only for testing
-      _dev_otp: process.env.NODE_ENV === 'development' ? otp : undefined,
+      // Always return OTP until SMS/WhatsApp gateway is connected
+      // Remove this line once Gupshup is integrated
+      data: { debug_otp: otp },
     });
   } catch (error) {
     console.error('[send-otp error]', error);

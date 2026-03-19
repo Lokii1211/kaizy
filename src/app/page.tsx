@@ -334,7 +334,7 @@ export default function HomePage() {
                         </div>
                         <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{w.distance}km · {w.eta}m</p>
                       </div>
-                      <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>₹{w.rate}<span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
+                      <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}><span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>from </span>₹{w.rate}<span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
                     </div>
                   </Link>
                 );

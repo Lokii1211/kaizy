@@ -170,8 +170,8 @@ export default function MarketplacePage() {
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>₹{w.rate}</p>
-                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>per hour</p>
+                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>starts</p>
+                <p className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>₹{w.rate}<span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
                 <p className="text-[9px] font-semibold mt-0.5" style={{ color: "var(--success)" }}>~{w.eta}m ETA</p>
               </div>
             </Link>

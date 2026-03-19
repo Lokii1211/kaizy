@@ -152,7 +152,7 @@ export default function BookingPage() {
 
           <div className="flex flex-col gap-2 mb-3 max-h-[240px] overflow-y-auto">
             {state.matchedWorkers.map((w, i) => {
-              const pricing = calculatePricing(w.price, w.dist, "now");
+              const pricing = calculatePricing(w.price, w.dist, "normal");
               return (
                 <button key={w.id} onClick={() => selectWorker(w)}
                         className="flex items-center gap-3 rounded-[14px] p-3 text-left active:scale-[0.98] transition-all"
@@ -172,6 +172,7 @@ export default function BookingPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[13px] font-black" style={{ color: "var(--success)" }}>{w.eta} min</p>
+                    <p className="text-[9px]" style={{ color: "var(--text-3)" }}>from</p>
                     <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>₹{pricing.grandTotal}</p>
                   </div>
                 </button>
@@ -182,17 +183,13 @@ export default function BookingPage() {
           {/* Pricing breakdown */}
           {state.pricing && (
             <div className="rounded-[12px] p-3 mb-3 animate-scale-in" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-3)" }}>PRICE BREAKDOWN</p>
+              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-3)" }}>PRICE ESTIMATE</p>
               <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Base rate</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Distance ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>
-                {state.pricing.urgencyMultiplier > 1 && <div className="flex justify-between"><span style={{ color: "var(--warning)" }}>Urgency ({state.pricing.urgencyMultiplier}x)</span><span style={{ color: "var(--warning)" }} className="font-bold">Applied</span></div>}
-                {state.pricing.peakMultiplier > 1 && <div className="flex justify-between"><span style={{ color: "var(--brand)" }}>Peak hours ({state.pricing.peakMultiplier}x)</span><span style={{ color: "var(--brand)" }} className="font-bold">Applied</span></div>}
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Platform fee (10%)</span><span style={{ color: "var(--text-3)" }} className="font-bold">₹{state.pricing.platformFee}</span></div>
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Insurance</span><span style={{ color: "var(--text-3)" }} className="font-bold">₹{state.pricing.insurance}</span></div>
+                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
+                {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Distance ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>}
                 <div className="border-t pt-1 mt-1 flex justify-between" style={{ borderColor: "var(--border-1)" }}>
                   <span className="font-extrabold" style={{ color: "var(--text-1)" }}>Total</span>
-                  <span className="text-[14px] font-black" style={{ color: "var(--text-1)" }}>₹{state.pricing.grandTotal}</span>
+                  <span className="text-[14px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing.grandTotal}</span>
                 </div>
               </div>
             </div>
@@ -455,11 +452,12 @@ export default function BookingPage() {
 
           {/* Price breakdown */}
           <div className="rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Payment Breakdown</p>
+            <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Payment Summary</p>
             <div className="space-y-1">
-              <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Service charge</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.total}</span></div>
-              <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Platform fee (10%)</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.platformFee}</span></div>
-              <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Insurance</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.insurance}</span></div>
+              <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.base}</span></div>
+              {(state.pricing?.distanceFee || 0) > 0 && (
+                <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Distance fee</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.distanceFee}</span></div>
+              )}
               <div className="h-px my-1" style={{ background: "var(--border-1)" }} />
               <div className="flex justify-between text-[14px]"><span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span><span className="font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</span></div>
             </div>

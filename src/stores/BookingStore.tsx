@@ -98,22 +98,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const etaTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const moveTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
-  // ── DYNAMIC PRICING ENGINE ──
+  // ── PRICING: Worker sets their rate, user pays that. No hidden fees. ──
+  // Platform takes 10% internally from worker payout (not shown to user)
+  // Urgency only applies when user MANUALLY selects "Emergency/SOS"
   const calculatePricing = useCallback((base: number, distance: number, urgency: "normal" | "now" | "sos"): PricingBreakdown => {
-    const h = new Date().getHours();
-    const isPeak = (h >= 6 && h <= 9) || (h >= 17 && h <= 20);
-    const isNight = h >= 22 || h <= 6;
-    const isWeekend = [0, 6].includes(new Date().getDay());
+    const distanceFee = Math.round(distance * 10); // ₹10/km travel
+    
+    // Only apply multiplier if user explicitly chose SOS/Emergency
+    const urgencyMultiplier = urgency === "sos" ? 1.5 : 1.0;
+    const peakMultiplier = 1.0; // No auto peak pricing
 
-    const distanceFee = Math.round(distance * 15);
-    const urgencyMultiplier = urgency === "sos" ? 1.5 : urgency === "now" ? 1.2 : 1.0;
-    const peakMultiplier = isNight ? 1.4 : isPeak ? 1.3 : isWeekend ? 1.2 : 1.0;
-
-    const subtotal = Math.round((base + distanceFee) * urgencyMultiplier * peakMultiplier);
-    const platformFee = Math.round(subtotal * 0.10);
-    const insurance = 5;
-    const grandTotal = subtotal + platformFee + insurance;
-    const workerPayout = subtotal - Math.round(subtotal * 0.05);
+    const subtotal = Math.round((base + distanceFee) * urgencyMultiplier);
+    const platformFee = 0; // Hidden from user — taken from worker payout internally
+    const insurance = 0;
+    const grandTotal = subtotal; // User pays exactly what's shown
+    const workerPayout = Math.round(subtotal * 0.90); // Platform keeps 10% internally
 
     return { base, distanceFee, urgencyMultiplier, peakMultiplier, total: subtotal, platformFee, insurance, grandTotal, workerPayout };
   }, []);
@@ -164,15 +163,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ── SELECT WORKER + CALC PRICE ──
+  // ── SELECT WORKER ──
   const selectWorker = useCallback((worker: NearbyWorker) => {
     const pricing = calculatePricing(
-      BASE_RATES[worker.trade] || Number(worker.price) || 400,
+      Number(worker.price) || BASE_RATES[worker.trade] || 400,
       worker.dist,
-      state.selectedProblem.includes("SOS") ? "sos" : "now"
+      "normal" // Only 'sos' if user explicitly chose emergency
     );
     setState(prev => ({ ...prev, selectedWorker: worker, pricing }));
-  }, [calculatePricing, state.selectedProblem]);
+  }, [calculatePricing]);
 
   // ── CONFIRM BOOKING: Create real job via API ──
   const confirmBooking = useCallback(async () => {
