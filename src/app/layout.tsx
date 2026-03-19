@@ -7,7 +7,7 @@ import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import NetworkStatus from "@/components/NetworkStatus";
 import { ThemeProvider } from "@/stores/ThemeStore";
 import { BookingProvider } from "@/stores/BookingStore";
-import { ToastProvider, ToastDemo } from "@/components/ToastNotification";
+import { ToastProvider } from "@/components/ToastNotification";
 import "./globals.css";
 
 const inter = Inter({
@@ -61,7 +61,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   {children}
                 </main>
                 <MobileNav />
-                <ToastDemo />
+
                 <PWAInstallPrompt />
                 <NetworkStatus />
                 <ServiceWorkerRegistration />
