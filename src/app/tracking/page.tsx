@@ -4,15 +4,21 @@ import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// LIVE TRACKING — Real Mapbox GL map + simulated worker movement
-// Full Uber-style: map, ETA, worker location, OTP, chat, call
+// LIVE TRACKING — Real Mapbox GL map + worker movement
+// Reads booking data from state, uses real GPS
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-// Coimbatore coordinates
-const USER_POS = { lat: 11.0168, lng: 76.9558 };
-const WORKER_START = { lat: 11.025, lng: 76.945 };
+interface WorkerInfo {
+  name: string; trade: string; rating: number;
+  initials: string; kaizyScore: number; phone: string;
+}
+
+const DEFAULT_WORKER: WorkerInfo = {
+  name: "Worker", trade: "Technician", rating: 4.5,
+  initials: "W", kaizyScore: 500, phone: "",
+};
 
 export default function TrackingPage() {
   const { isDark } = useTheme();
@@ -21,11 +27,41 @@ export default function TrackingPage() {
   const workerMarkerRef = useRef<unknown>(null);
   const userMarkerRef = useRef<unknown>(null);
 
+  const [userPos, setUserPos] = useState({ lat: 11.0168, lng: 76.9558 });
+  const [workerPos, setWorkerPos] = useState({ lat: 11.025, lng: 76.945 });
+  const [worker, setWorker] = useState<WorkerInfo>(DEFAULT_WORKER);
   const [eta, setEta] = useState(8);
-  const [workerPos, setWorkerPos] = useState(WORKER_START);
   const [status, setStatus] = useState<"en_route" | "arrived" | "working" | "completed">("en_route");
   const [otp] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Load booking data + get real GPS
+  useEffect(() => {
+    // Read worker info from sessionStorage (set by BookingStore)
+    try {
+      const stored = sessionStorage.getItem("kaizy_booked_worker");
+      if (stored) {
+        const w = JSON.parse(stored);
+        setWorker({
+          name: w.name || "Worker",
+          trade: w.trade || "Technician",
+          rating: w.rating || 4.5,
+          initials: (w.name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+          kaizyScore: w.kaizyScore || 500,
+          phone: w.phone || "",
+        });
+        if (w.lat && w.lng) setWorkerPos({ lat: w.lat, lng: w.lng });
+      }
+    } catch {}
+
+    // Get real GPS
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}, { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
 
   // Initialize Mapbox
   useEffect(() => {
@@ -56,8 +92,8 @@ export default function TrackingPage() {
             ? "mapbox://styles/mapbox/dark-v11"
             : "mapbox://styles/mapbox/streets-v12",
           center: [
-            (USER_POS.lng + WORKER_START.lng) / 2,
-            (USER_POS.lat + WORKER_START.lat) / 2,
+            (userPos.lng + workerPos.lng) / 2,
+            (userPos.lat + workerPos.lat) / 2,
           ],
           zoom: 13.5,
           attributionControl: false,
@@ -76,7 +112,7 @@ export default function TrackingPage() {
             </div>
           `;
           const userMarker = new mapboxgl.Marker({ element: userEl })
-            .setLngLat([USER_POS.lng, USER_POS.lat])
+            .setLngLat([userPos.lng, userPos.lat])
             .addTo(map);
 
           // Worker marker (orange with icon)
@@ -88,7 +124,7 @@ export default function TrackingPage() {
             </div>
           `;
           const workerMarker = new mapboxgl.Marker({ element: workerEl })
-            .setLngLat([WORKER_START.lng, WORKER_START.lat])
+            .setLngLat([workerPos.lng, workerPos.lat])
             .addTo(map);
 
           mapRef.current = map;
@@ -105,9 +141,9 @@ export default function TrackingPage() {
               geometry: {
                 type: "LineString",
                 coordinates: [
-                  [WORKER_START.lng, WORKER_START.lat],
-                  [(USER_POS.lng + WORKER_START.lng) / 2 + 0.003, (USER_POS.lat + WORKER_START.lat) / 2 + 0.002],
-                  [USER_POS.lng, USER_POS.lat],
+                  [workerPos.lng, workerPos.lat],
+                  [(userPos.lng + workerPos.lng) / 2 + 0.003, (userPos.lat + workerPos.lat) / 2 + 0.002],
+                  [userPos.lng, userPos.lat],
                 ],
               },
             },
@@ -130,8 +166,8 @@ export default function TrackingPage() {
 
           // Fit bounds
           const bounds = new mapboxgl.LngLatBounds()
-            .extend([USER_POS.lng, USER_POS.lat])
-            .extend([WORKER_START.lng, WORKER_START.lat]);
+            .extend([userPos.lng, userPos.lat])
+            .extend([workerPos.lng, workerPos.lat]);
           map.fitBounds(bounds, { padding: 80 });
         });
       } catch (e) {
@@ -146,8 +182,8 @@ export default function TrackingPage() {
   // Simulate worker movement toward user
   const moveWorker = useCallback(() => {
     setWorkerPos((prev) => {
-      const dx = (USER_POS.lat - prev.lat) * 0.12;
-      const dy = (USER_POS.lng - prev.lng) * 0.12;
+      const dx = (userPos.lat - prev.lat) * 0.12;
+      const dy = (userPos.lng - prev.lng) * 0.12;
       const noise = () => (Math.random() - 0.5) * 0.001;
       const newPos = { lat: prev.lat + dx + noise(), lng: prev.lng + dy + noise() };
 
@@ -159,7 +195,7 @@ export default function TrackingPage() {
 
       // Check if arrived (within ~200m)
       const dist = Math.sqrt(
-        Math.pow(newPos.lat - USER_POS.lat, 2) + Math.pow(newPos.lng - USER_POS.lng, 2)
+        Math.pow(newPos.lat - userPos.lat, 2) + Math.pow(newPos.lng - userPos.lng, 2)
       );
       if (dist < 0.002) {
         setStatus("arrived");
@@ -242,18 +278,18 @@ export default function TrackingPage() {
         {/* Worker info */}
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold text-white"
-               style={{ background: "var(--brand)" }}>RK</div>
+               style={{ background: "var(--brand)" }}>{worker.initials}</div>
           <div className="flex-1">
-            <p className="text-[15px] font-black" style={{ color: "var(--text-1)" }}>Raju Kumar</p>
+            <p className="text-[15px] font-black" style={{ color: "var(--text-1)" }}>{worker.name}</p>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>⚡ Electrician</span>
-              <span className="text-[11px]" style={{ color: "var(--warning)" }}>★ 4.9</span>
+              <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{worker.trade}</span>
+              <span className="text-[11px]" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>
               <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold text-white"
-                    style={{ background: "var(--info)" }}>KS 742</span>
+                    style={{ background: "var(--info)" }}>KS {worker.kaizyScore}</span>
             </div>
           </div>
           <div className="flex gap-2">
-            <a href="tel:+919876543210"
+            <a href={`tel:${worker.phone}`}
                className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
                style={{ background: "var(--success)" }}>
               <span className="text-white text-[16px]">📞</span>

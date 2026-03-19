@@ -50,35 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export const useToast = () => useContext(ToastContext);
 
-// ── DEMO: Auto-fire toasts to simulate real-time ──
-export function ToastDemo() {
-  const { addToast } = useToast();
-
-  useEffect(() => {
-    const demoToasts: Omit<Toast, "id">[] = [
-      { type: "booking", icon: "📋", title: "New Job Request!", body: "MCB Panel repair at RS Puram — ₹800", duration: 8000 },
-      { type: "alert", icon: "🆘", title: "SOS Alert Nearby", body: "Plumber needed urgently in Gandhipuram", duration: 10000 },
-      { type: "payment", icon: "💰", title: "Payment Received", body: "₹600 credited to your Kaizy wallet", duration: 6000 },
-      { type: "success", icon: "⭐", title: "New 5-Star Review!", body: "Vinod rated your work ⭐⭐⭐⭐⭐", duration: 6000 },
-      { type: "info", icon: "📍", title: "Worker En Route", body: "Suresh is 3 min away from your location", duration: 7000 },
-    ];
-
-    // Fire a random toast every 12-20 seconds
-    const interval = setInterval(() => {
-      const t = demoToasts[Math.floor(Math.random() * demoToasts.length)];
-      addToast(t);
-    }, 12000 + Math.random() * 8000);
-
-    // Fire first toast after 5s
-    const first = setTimeout(() => {
-      addToast(demoToasts[0]);
-    }, 5000);
-
-    return () => { clearInterval(interval); clearTimeout(first); };
-  }, [addToast]);
-
-  return null;
-}
+// ToastDemo removed — production uses real notifications only
 
 // ── Toast Container (renders at top of screen) ──
 function ToastContainer() {

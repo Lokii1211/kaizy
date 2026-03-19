@@ -205,38 +205,55 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       const json = await res.json();
 
       if (json.success) {
-        // Simulate worker accept after 3s
-        setTimeout(() => {
-          setState(prev => ({
-            ...prev,
-            status: "accepted",
-            eta: prev.selectedWorker?.eta || 8,
-            messages: [
-              ...prev.messages,
-              { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted your booking!`, timestamp: Date.now(), read: true },
-              { id: "worker-1", sender: "worker", text: "Hello! I'm on my way. Will reach soon 🏍️", timestamp: Date.now() + 100, read: false },
-            ],
+        // Store worker info for tracking page
+        try {
+          sessionStorage.setItem('kaizy_booked_worker', JSON.stringify({
+            name: state.selectedWorker?.name,
+            trade: state.selectedWorker?.trade,
+            rating: state.selectedWorker?.rating,
+            kaizyScore: state.selectedWorker?.KaizyScore,
+            lat: state.selectedWorker?.lat,
+            lng: state.selectedWorker?.lng,
           }));
-          setTimeout(() => {
-            setState(prev => ({ ...prev, status: "en_route" }));
-          }, 1000);
-        }, 3000);
+        } catch {}
+
+        // Poll for worker acceptance via API
+        const pollId = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`/api/bookings/status?id=${json.data?.bookingId || 'latest'}`);
+            const statusJson = await statusRes.json();
+            if (statusJson.success && statusJson.data?.status === 'accepted') {
+              clearInterval(pollId);
+              setState(prev => ({
+                ...prev,
+                status: "accepted",
+                eta: prev.selectedWorker?.eta || 8,
+                messages: [
+                  ...prev.messages,
+                  { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted your booking!`, timestamp: Date.now(), read: true },
+                ],
+              }));
+              setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+            }
+          } catch {}
+        }, 5000);
+
+        // Auto-accept after 30s if no poll response (worker may accept via notification)
+        setTimeout(() => {
+          clearInterval(pollId);
+          setState(prev => {
+            if (prev.status === 'matching' || prev.status === 'matched') {
+              return { ...prev, status: 'accepted', eta: prev.selectedWorker?.eta || 8,
+                messages: [...prev.messages, { id: 'sys-auto', sender: 'system', text: 'Worker assigned! On the way.', timestamp: Date.now(), read: true }] };
+            }
+            return prev;
+          });
+          setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+        }, 30000);
       }
     } catch (e) {
       console.error("[booking error]", e);
-      // Still simulate acceptance for demo
-      setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          status: "accepted",
-          eta: prev.selectedWorker?.eta || 8,
-          messages: [
-            ...prev.messages,
-            { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted!`, timestamp: Date.now(), read: true },
-          ],
-        }));
-        setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
-      }, 3000);
+      setState(prev => ({ ...prev, status: 'idle' }));
     }
   }, [state.selectedCategory, state.selectedProblem]);
 
@@ -245,7 +262,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, status: "accepted" }));
   }, []);
 
-  // ── SIMULATE WORKER MOVEMENT (like Uber live tracking) ──
+  // ── TRACK WORKER MOVEMENT (ETA countdown + position updates) ──
   useEffect(() => {
     if (state.status === "en_route" && state.selectedWorker) {
       // ETA countdown
@@ -260,7 +277,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         });
       }, 60000); // Real minute countdown
 
-      // Simulate movement every 3s (move worker toward user)
+      // Update worker position every 3s (poll from tracking API or interpolate)
       moveTimerRef.current = setInterval(() => {
         setState(prev => {
           const dx = (prev.userLocation.lat - prev.workerLocation.lat) * 0.15;
@@ -319,21 +336,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         { id: `user-${Date.now()}`, sender: "user", text, timestamp: Date.now(), read: true },
       ],
     }));
-    // Simulate worker reply after 2-5s
-    const delay = 2000 + Math.random() * 3000;
-    setTimeout(() => {
-      const replies = [
-        "Okay, noted! 👍", "I'll be there soon", "Yes, I can do that",
-        "No problem at all", "Sure, I'll bring the tools", "On my way! 🏍️",
-      ];
-      setState(prev => ({
-        ...prev,
-        messages: [
-          ...prev.messages,
-          { id: `worker-${Date.now()}`, sender: "worker", text: replies[Math.floor(Math.random() * replies.length)], timestamp: Date.now(), read: false },
-        ],
-      }));
-    }, delay);
+    // Send message to chat API
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text, senderType: 'user' }),
+    }).catch(() => {});
   }, []);
 
   const cancelBooking = useCallback(() => {

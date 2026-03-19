@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   Star, MapPin, CheckCircle2, BadgeCheck, Clock, IndianRupee, QrCode,
   ArrowRight, Phone, Calendar, Shield, Award, TrendingUp, Briefcase,
@@ -9,55 +10,69 @@ import {
   User, Globe, Languages, Zap, Eye,
 } from "lucide-react";
 
-const workerProfile = {
-  id: "KON-2024-08271",
-  name: "Raju Kumar",
-  initials: "RK",
-  skill: "Electrician",
-  city: "Coimbatore",
-  state: "Tamil Nadu",
-  bio: "Expert electrician with 10+ years in residential and commercial projects. Specialized in MCB panel installation, house wiring, and solar panel systems. NSDC certified.",
-  rating: 4.8,
-  totalJobs: 127,
-  totalEarnings: "₹4,86,000",
-  konnectScore: 780,
-  verified: true,
-  available: true,
-  memberSince: "Jan 2024",
-  experience: "10+ years",
-  languages: ["Tamil", "Hindi", "Basic English"],
-  responseTime: "< 15 min",
-  completionRate: "98%",
-  rate: { min: 800, max: 1800 },
-  specializations: [
-    { name: "House Wiring", level: "Expert", verified: true, jobs: 52 },
-    { name: "MCB / Distribution Panel", level: "Expert", verified: true, jobs: 38 },
-    { name: "Solar Panel Installation", level: "Advanced", verified: false, jobs: 22 },
-    { name: "Industrial Wiring", level: "Intermediate", verified: false, jobs: 15 },
-  ],
-  certifications: [
-    { name: "NSDC Electrician Level 4", issuer: "National Skill Development Corporation", year: "2022", verified: true },
-    { name: "Solar PV Installation", issuer: "PMKVY", year: "2023", verified: true },
-    { name: "Industrial Safety", issuer: "ITI Coimbatore", year: "2020", verified: true },
-  ],
-  reviews: [
-    { name: "Vinod Agarwal", business: "Kumar Electronics", rating: 5, text: "Raju did excellent work rewiring my entire shop. Very professional and clean work. Completed ahead of time.", date: "Mar 2024" },
-    { name: "Priya Nair", business: "Homeowner", rating: 5, text: "Installed MCB panel and new wiring in 2 rooms. Very knowledgeable and explains everything clearly. Highly recommend!", date: "Feb 2024" },
-    { name: "Suresh Menon", business: "Apex Apartments", rating: 4, text: "Good work on the common area electrical repair. Came on time and finished quickly. Minor cleanup issue but overall satisfied.", date: "Feb 2024" },
-    { name: "Anita Sharma", business: "Green Homes", rating: 5, text: "Solar panel wiring was done perfectly. Very careful with the installation and tested everything thoroughly before leaving.", date: "Jan 2024" },
-  ],
-  jobHistory: [
-    { title: "Shop Rewiring", client: "Kumar Electronics", amount: 1800, date: "Mar 14, 2024", rating: 5 },
-    { title: "MCB Installation", client: "Apex Apartments", amount: 2500, date: "Mar 13, 2024", rating: 4 },
-    { title: "Solar Panel Wiring", client: "Green Homes", amount: 4500, date: "Mar 10, 2024", rating: 5 },
-    { title: "Office Electrical Audit", client: "TechPark", amount: 1200, date: "Mar 8, 2024", rating: 5 },
-    { title: "Home Wiring", client: "Priya Nair", amount: 3200, date: "Mar 5, 2024", rating: 5 },
-  ],
-};
+interface WorkerProfile {
+  id: string; name: string; initials: string; skill: string;
+  city: string; state: string; bio: string; rating: number;
+  totalJobs: number; konnectScore: number; verified: boolean;
+  available: boolean; experience: string; languages: string[];
+  responseTime: string; completionRate: string;
+  rate: { min: number; max: number };
+  specializations: Array<{ name: string; level: string; verified: boolean; jobs: number }>;
+  certifications: Array<{ name: string; issuer: string; year: string; verified: boolean }>;
+  reviews: Array<{ name: string; business: string; rating: number; text: string; date: string }>;
+  jobHistory: Array<{ title: string; client: string; amount: number; date: string; rating: number }>;
+}
 
 export default function WorkerProfilePage() {
+  const params = useParams();
   const [activeTab, setActiveTab] = useState<"overview" | "reviews" | "history">("overview");
-  const w = workerProfile;
+  const [w, setW] = useState<WorkerProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWorker = async () => {
+      try {
+        const res = await fetch(`/api/workers/${params.id}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          const d = json.data;
+          setW({
+            id: d.id || params.id,
+            name: d.name || d.users?.name || "Worker",
+            initials: (d.name || d.users?.name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+            skill: d.trade_primary || "Technician",
+            city: d.users?.city || "India",
+            state: "Tamil Nadu",
+            bio: d.bio || "",
+            rating: d.avg_rating || 0,
+            totalJobs: d.total_jobs || 0,
+            konnectScore: d.kaizy_score || 0,
+            verified: d.aadhaar_verified || false,
+            available: d.is_available || false,
+            experience: `${d.experience_years || 0} years`,
+            languages: ["Tamil", "Hindi"],
+            responseTime: "< 15 min",
+            completionRate: d.total_jobs > 0 ? `${Math.round((d.total_jobs / (d.total_jobs + 2)) * 100)}%` : "—",
+            rate: { min: d.rate_hourly || 300, max: (d.rate_hourly || 300) * 2.5 },
+            specializations: [],
+            certifications: [],
+            reviews: [],
+            jobHistory: [],
+          });
+        }
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    };
+    fetchWorker();
+  }, [params.id]);
+
+  if (loading || !w) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
+        <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-surface)] pb-24">
@@ -279,7 +294,7 @@ export default function WorkerProfilePage() {
                   {[
                     { icon: MapPin, label: "Location", value: `${w.city}, ${w.state}` },
                     { icon: Languages, label: "Languages", value: w.languages.join(", ") },
-                    { icon: Calendar, label: "Member Since", value: w.memberSince },
+                    { icon: Calendar, label: "Experience", value: w.experience },
                     { icon: IndianRupee, label: "Rate Range", value: `₹${w.rate.min} – ₹${w.rate.max}` },
                   ].map((d, i) => (
                     <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface)]">

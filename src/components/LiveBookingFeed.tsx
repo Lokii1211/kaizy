@@ -21,30 +21,45 @@ interface LiveBooking {
   color: string;
 }
 
-const mockBookings: LiveBooking[] = [
-  { id: "LB-001", hirer: "Vinod A.", problem: "MCB Tripping", icon: "⚡", location: "RS Puram, CBE", distance: "1.2 km", price: 500, urgency: "now", expiresIn: 30, color: "#FF6B00" },
-  { id: "LB-002", hirer: "Anita S.", problem: "Pipe Leak", icon: "🔧", location: "Peelamedu, CBE", distance: "0.8 km", price: 400, urgency: "sos", expiresIn: 20, color: "#3B8BFF" },
-  { id: "LB-003", hirer: "Kumar P.", problem: "Car Breakdown", icon: "🚗", location: "Ukkadam, CBE", distance: "2.3 km", price: 600, urgency: "sos", expiresIn: 15, color: "#8B5CF6" },
-  { id: "LB-004", hirer: "Deepa K.", problem: "AC Not Cooling", icon: "❄️", location: "Saibaba Colony", distance: "1.8 km", price: 700, urgency: "normal", expiresIn: 45, color: "#06B6D4" },
-];
+const tradeIcons: Record<string, string> = {
+  electrician: "⚡", plumber: "🔧", mechanic: "🚗",
+  ac_repair: "❄️", carpenter: "🪚", painter: "🎨",
+};
 
 export default function LiveBookingFeed() {
   const [bookings, setBookings] = useState<LiveBooking[]>([]);
   const [accepted, setAccepted] = useState<string[]>([]);
   const [declined, setDeclined] = useState<string[]>([]);
 
-  // Simulate new bookings arriving
+  // Fetch real job alerts from API
   useEffect(() => {
-    // Initial load
-    setBookings(mockBookings.slice(0, 2));
-
-    // Add more bookings over time
-    const timers = [
-      setTimeout(() => setBookings(prev => [...prev, mockBookings[2]]), 8000),
-      setTimeout(() => setBookings(prev => [...prev, mockBookings[3]]), 18000),
-    ];
-
-    return () => timers.forEach(clearTimeout);
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch("/api/notifications?limit=5");
+        const json = await res.json();
+        if (json.success && json.data?.length) {
+          const alerts: LiveBooking[] = json.data
+            .filter((n: { type: string }) => n.type === "JOB_ALERT" || n.type === "EMERGENCY_ALERT")
+            .slice(0, 4)
+            .map((n: { id: string; data: Record<string, unknown>; type: string; body: string }) => ({
+              id: n.id,
+              hirer: String(n.data?.hirerName || "Customer"),
+              problem: String(n.data?.problemType || "Service needed"),
+              icon: tradeIcons[String(n.data?.trade || "").toLowerCase()] || "🔧",
+              location: String(n.data?.address || "Nearby"),
+              distance: `${Number(n.data?.distance || 0).toFixed(1)} km`,
+              price: Number(n.data?.price || 0),
+              urgency: n.type === "EMERGENCY_ALERT" ? "sos" as const : "now" as const,
+              expiresIn: 45,
+              color: n.type === "EMERGENCY_ALERT" ? "#EF4444" : "#FF6B00",
+            }));
+          setBookings(alerts);
+        }
+      } catch {}
+    };
+    fetchAlerts();
+    const id = setInterval(fetchAlerts, 30000);
+    return () => clearInterval(id);
   }, []);
 
   // Countdown timers

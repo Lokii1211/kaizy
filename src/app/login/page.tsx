@@ -105,7 +105,7 @@ export default function LoginPage() {
           <p className="text-[12px] mb-6" style={{ color: "var(--text-3)" }}>Code sent to +91 {phone}</p>
           {debugOtp && (
             <div className="rounded-[14px] p-3 mb-4 text-center" style={{ background: "var(--info-tint)", border: "1px solid var(--info)" }}>
-              <p className="text-[10px] font-bold" style={{ color: "var(--info)" }}>🔧 Dev OTP:</p>
+              <p className="text-[10px] font-bold" style={{ color: "var(--info)" }}>Your OTP:</p>
               <p className="text-[24px] font-black" style={{ color: "var(--info)", fontFamily: "'JetBrains Mono', monospace" }}>{debugOtp}</p>
             </div>
           )}
