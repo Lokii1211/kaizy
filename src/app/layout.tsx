@@ -50,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" />
       </head>
       <body className={`${inter.variable} ${jetbrains.variable} antialiased`}
             style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
