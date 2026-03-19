@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
-import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // REAL-TIME CHAT — Supabase Realtime subscriptions
@@ -25,36 +24,26 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const currentUserId = "a1111111-1111-1111-1111-111111111111"; // Demo
+  const currentUserId = "current-user";
 
-  // Fetch messages
+  // Fetch messages via API
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch("/api/chat?limit=100");
+      const json = await res.json();
+      if (json.success && json.data) setMessages(json.data);
+    } catch (e) {
+      console.error("[chat]", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const { data } = await supabase
-          .from("messages")
-          .select("*")
-          .order("created_at", { ascending: true })
-          .limit(100);
-        if (data) setMessages(data);
-      } catch (e) {
-        console.error("[chat]", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchMessages();
-
-    // Real-time subscription
-    const channel = supabase
-      .channel("chat-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Message]);
-        if (navigator.vibrate) navigator.vibrate(100);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    // Poll every 5 seconds for new messages
+    const id = setInterval(fetchMessages, 5000);
+    return () => clearInterval(id);
   }, []);
 
   // Auto-scroll
@@ -68,12 +57,13 @@ export default function ChatPage() {
     if (!content) return;
 
     try {
-      await supabase.from("messages").insert({
-        sender_id: currentUserId,
-        content,
-        message_type: "text",
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, senderType: "user" }),
       });
       setInput("");
+      fetchMessages();
     } catch (e) {
       console.error("[send]", e);
     }

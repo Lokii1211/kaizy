@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
-import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // EARNINGS — Real data from Supabase earnings ledger
@@ -25,26 +24,12 @@ export default function EarningsPage() {
     const fetchEarnings = async () => {
       setLoading(true);
       try {
-        const now = new Date();
-        let startDate: Date;
-        if (period === "today") {
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        } else if (period === "week") {
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        } else {
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        }
-
-        const { data } = await supabase
-          .from("earnings")
-          .select("*")
-          .gte("created_at", startDate.toISOString())
-          .order("created_at", { ascending: false });
-
-        if (data) {
-          setEarnings(data);
-          setTotalEarnings(data.reduce((sum, e) => sum + Number(e.amount), 0));
-          setTotalJobs(data.filter(e => e.type === "job_payment").length);
+        const res = await fetch(`/api/earnings?period=${period}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setEarnings(json.data);
+          setTotalEarnings(json.data.reduce((sum: number, e: EarningEntry) => sum + Number(e.amount), 0));
+          setTotalJobs(json.data.filter((e: EarningEntry) => e.type === "job_payment").length);
         }
       } catch (e) {
         console.error("[earnings]", e);

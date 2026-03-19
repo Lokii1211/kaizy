@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // NOTIFICATIONS — Real Supabase data + working Accept/Decline
@@ -31,35 +30,24 @@ export default function NotificationsPage() {
   const [accepted, setAccepted] = useState<string[]>([]);
   const [declined, setDeclined] = useState<string[]>([]);
 
-  // Fetch real notifications from Supabase
+  // Fetch real notifications via API
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch("/api/notifications?limit=50");
+      const json = await res.json();
+      if (json.success && json.data) setNotifications(json.data);
+    } catch (e) {
+      console.error("[notifications]", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const { data } = await supabase
-          .from("notifications")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (data) setNotifications(data);
-      } catch (e) {
-        console.error("[notifications]", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchNotifications();
-
-    // Real-time subscription for new notifications
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev]);
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    // Poll for new notifications every 15 seconds
+    const id = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(id);
   }, []);
 
   // Accept job alert
@@ -75,7 +63,7 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           alertId: alertId || notif.id,
-          workerId: "a1111111-1111-1111-1111-111111111111", // Demo worker
+          workerId: "current-user", // Server will resolve from auth token
         }),
       });
       const json = await res.json();
@@ -100,7 +88,7 @@ export default function NotificationsPage() {
 
   // Mark all read
   const markAllRead = async () => {
-    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    try { await fetch("/api/notifications", { method: "PATCH" }); } catch {}
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 

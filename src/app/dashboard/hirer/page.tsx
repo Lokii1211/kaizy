@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
-import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // HIRER DASHBOARD — Real bookings from Supabase
@@ -61,12 +60,9 @@ export default function HirerDashboard() {
 
     const fetchBookings = async () => {
       try {
-        const { data } = await supabase
-          .from("bookings")
-          .select("*, jobs(trade, description)")
-          .order("created_at", { ascending: false })
-          .limit(10);
-        if (data) setBookings(data as unknown as Booking[]);
+        const res = await fetch("/api/bookings?limit=10");
+        const json = await res.json();
+        if (json.success && json.data) setBookings(json.data);
       } catch (e) { console.error("[bookings]", e); }
       finally { setLoading(false); }
     };

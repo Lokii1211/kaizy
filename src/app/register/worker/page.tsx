@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
-import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // WORKER REGISTRATION — Multi-step form with real Supabase save
@@ -38,41 +37,24 @@ export default function WorkerRegisterPage() {
     setError("");
 
     try {
-      // Create user
-      const { data: user, error: userErr } = await supabase
-        .from("users")
-        .insert({
+      const res = await fetch("/api/auth/register-worker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           phone: phone.startsWith("+91") ? phone : `+91${phone}`,
-          name,
-          user_type: "worker",
-          city,
-        })
-        .select()
-        .single();
-
-      if (userErr) {
-        if (userErr.message.includes("duplicate")) {
-          setError("This phone number is already registered. Try logging in.");
-        } else {
-          setError(userErr.message);
-        }
-        setSaving(false);
-        return;
-      }
-
-      // Create worker profile
-      await supabase.from("worker_profiles").insert({
-        id: user.id,
-        trade_primary: trade,
-        experience_years: parseInt(experience) || 0,
-        rate_hourly: parseFloat(rate) || 400,
-        bio,
-        upi_id: upiId,
-        is_online: false,
-        is_available: true,
+          name, city, trade,
+          experience: parseInt(experience) || 0,
+          rate: parseFloat(rate) || 400,
+          bio, upiId,
+        }),
       });
+      const json = await res.json();
 
-      setStep(4); // Success
+      if (json.success) {
+        setStep(4);
+      } else {
+        setError(json.error || "Registration failed");
+      }
     } catch (e) {
       setError("Registration failed. Please try again.");
       console.error("[register]", e);

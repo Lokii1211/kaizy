@@ -5,15 +5,22 @@ import { createClient } from '@supabase/supabase-js';
 // Public client (browser) + Admin client (server-only)
 // ═══════════════════════════════════════════════════════
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
 
 // Public client — safe for browser, uses anon key + RLS
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Only create if credentials exist (prevents crash on client if env vars missing)
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null as unknown as ReturnType<typeof createClient>;
 
 // Admin client — server-side only, bypasses RLS
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+export const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : (supabaseUrl && supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null as unknown as ReturnType<typeof createClient>;
 
 // ═══ HELPER: Calculate distance between two GPS points (Haversine) ═══
 export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
