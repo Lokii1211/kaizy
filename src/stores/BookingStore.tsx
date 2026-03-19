@@ -69,19 +69,23 @@ const defaultState: BookingState = {
 
 const BookingContext = createContext<BookingCtx>({} as BookingCtx);
 
-// ── NEARBY WORKERS MOCK DATABASE ──
-const WORKERS_DB: NearbyWorker[] = [
-  { id: "W001", name: "Raju Kumar", initials: "R", trade: "Electrician", tradeIcon: "⚡", rating: 4.9, jobs: 312, dist: 1.2, price: 500, color: "#FF6B00", verified: true, online: true, eta: 8, lat: 11.019, lng: 76.952, experience: "10yr", KaizyScore: 742 },
-  { id: "W002", name: "Meena D.", initials: "M", trade: "Plumber", tradeIcon: "🔧", rating: 4.7, jobs: 189, dist: 0.8, price: 400, color: "#3B8BFF", verified: true, online: true, eta: 5, lat: 11.015, lng: 76.958, experience: "8yr", KaizyScore: 680 },
-  { id: "W003", name: "Suresh M.", initials: "S", trade: "Mechanic", tradeIcon: "🚗", rating: 4.8, jobs: 256, dist: 2.1, price: 600, color: "#8B5CF6", verified: true, online: true, eta: 12, lat: 11.022, lng: 76.960, experience: "15yr", KaizyScore: 790 },
-  { id: "W004", name: "Priya S.", initials: "P", trade: "AC Repair", tradeIcon: "❄️", rating: 4.6, jobs: 145, dist: 1.5, price: 700, color: "#06B6D4", verified: true, online: false, eta: 10, lat: 11.012, lng: 76.950, experience: "6yr", KaizyScore: 620 },
-  { id: "W005", name: "Anand R.", initials: "A", trade: "Carpenter", tradeIcon: "🪚", rating: 4.5, jobs: 98, dist: 3.2, price: 450, color: "#10B981", verified: false, online: true, eta: 18, lat: 11.025, lng: 76.965, experience: "12yr", KaizyScore: 590 },
-  { id: "W006", name: "Lakshmi R.", initials: "L", trade: "Painter", tradeIcon: "🎨", rating: 4.4, jobs: 67, dist: 2.8, price: 350, color: "#F59E0B", verified: true, online: true, eta: 15, lat: 11.020, lng: 76.945, experience: "5yr", KaizyScore: 540 },
-  { id: "W007", name: "Gopal V.", initials: "G", trade: "Mason", tradeIcon: "⚒️", rating: 4.6, jobs: 203, dist: 4.1, price: 550, color: "#6366F1", verified: true, online: true, eta: 22, lat: 11.028, lng: 76.970, experience: "20yr", KaizyScore: 710 },
-  { id: "W008", name: "Kavitha P.", initials: "K", trade: "Electrician", tradeIcon: "⚡", rating: 4.7, jobs: 134, dist: 1.9, price: 480, color: "#FF6B00", verified: true, online: true, eta: 11, lat: 11.018, lng: 76.962, experience: "7yr", KaizyScore: 660 },
-  { id: "W009", name: "Venkat S.", initials: "V", trade: "Puncture", tradeIcon: "🛞", rating: 4.3, jobs: 412, dist: 0.5, price: 150, color: "#EC4899", verified: true, online: true, eta: 3, lat: 11.017, lng: 76.956, experience: "8yr", KaizyScore: 580 },
-  { id: "W010", name: "Deepa K.", initials: "D", trade: "AC Repair", tradeIcon: "❄️", rating: 4.8, jobs: 178, dist: 1.1, price: 650, color: "#06B6D4", verified: true, online: true, eta: 7, lat: 11.014, lng: 76.953, experience: "9yr", KaizyScore: 720 },
-];
+// ── NEARBY WORKERS: Fetched from real Supabase via API ──
+
+// Trade name mapping for API
+const TRADE_API_MAP: Record<string, string> = {
+  "Electrician": "electrician", "Plumber": "plumber", "Mechanic": "mechanic",
+  "AC Repair": "ac_repair", "Carpenter": "carpenter", "Painter": "painter",
+  "Mason": "mason", "Puncture": "mechanic", "All": "",
+};
+
+const TRADE_COLORS: Record<string, string> = {
+  electrician: "#FF6B00", plumber: "#3B82F6", mechanic: "#8B5CF6",
+  ac_repair: "#06B6D4", carpenter: "#F59E0B", painter: "#10B981", mason: "#6366F1",
+};
+const TRADE_ICONS: Record<string, string> = {
+  electrician: "⚡", plumber: "🔧", mechanic: "🚗",
+  ac_repair: "❄️", carpenter: "🪚", painter: "🎨", mason: "⚒️",
+};
 
 // ── BASE RATES PER TRADE ──
 const BASE_RATES: Record<string, number> = {
@@ -109,46 +113,69 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const platformFee = Math.round(subtotal * 0.10);
     const insurance = 5;
     const grandTotal = subtotal + platformFee + insurance;
-    const workerPayout = subtotal - Math.round(subtotal * 0.05); // Worker gets 95% of subtotal
+    const workerPayout = subtotal - Math.round(subtotal * 0.05);
 
     return { base, distanceFee, urgencyMultiplier, peakMultiplier, total: subtotal, platformFee, insurance, grandTotal, workerPayout };
   }, []);
 
-  // ── SEARCH: Find nearby workers ──
-  const startSearch = useCallback((category: string, problem: string) => {
+  // ── SEARCH: Fetch REAL workers from Supabase via API ──
+  const startSearch = useCallback(async (category: string, problem: string) => {
     setState(prev => ({ ...prev, status: "searching", selectedCategory: category, selectedProblem: problem }));
     
-    // Simulate 2s search delay (like Uber spinning)
-    setTimeout(() => {
-      const matched = WORKERS_DB
-        .filter(w => w.online && (category === "All" || w.trade === category))
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, 5);
+    try {
+      const trade = TRADE_API_MAP[category] || category.toLowerCase();
+      const res = await fetch(`/api/workers/nearby?trade=${trade}&lat=11.0168&lng=76.9558&radius=10&limit=8`);
+      const json = await res.json();
 
-      setState(prev => ({
-        ...prev,
-        status: "matching",
-        nearbyWorkers: WORKERS_DB.filter(w => w.online),
-        matchedWorkers: matched.map(w => ({
-          ...w,
-          price: Math.round((BASE_RATES[w.trade] || 400) * (w.rating > 4.7 ? 1.1 : 1.0)),
-        })),
-      }));
-    }, 2000);
+      if (json.success && json.data?.workers?.length > 0) {
+        const matched: NearbyWorker[] = json.data.workers.map((w: Record<string, unknown>) => ({
+          id: w.id as string,
+          name: w.name as string,
+          initials: ((w.name as string)?.[0] || "?"),
+          trade: w.trade as string,
+          tradeIcon: TRADE_ICONS[(w.trade as string)] || "🔧",
+          rating: Number(w.rating),
+          jobs: Number(w.totalJobs),
+          dist: Number(w.distance),
+          price: Number(w.rate),
+          color: TRADE_COLORS[(w.trade as string)] || "#FF6B00",
+          verified: Boolean(w.verified),
+          online: true,
+          eta: Number(w.eta),
+          lat: Number(w.lat),
+          lng: Number(w.lng),
+          experience: `${w.experience}yr`,
+          KaizyScore: Number(w.kaizyScore),
+        }));
+
+        setState(prev => ({
+          ...prev,
+          status: "matching",
+          nearbyWorkers: matched,
+          matchedWorkers: matched.slice(0, 5),
+        }));
+      } else {
+        // No workers found
+        setState(prev => ({ ...prev, status: "matching", matchedWorkers: [], nearbyWorkers: [] }));
+      }
+    } catch (e) {
+      console.error("[search error]", e);
+      setState(prev => ({ ...prev, status: "matching", matchedWorkers: [], nearbyWorkers: [] }));
+    }
   }, []);
 
   // ── SELECT WORKER + CALC PRICE ──
   const selectWorker = useCallback((worker: NearbyWorker) => {
     const pricing = calculatePricing(
-      BASE_RATES[worker.trade] || 400,
+      BASE_RATES[worker.trade] || Number(worker.price) || 400,
       worker.dist,
       state.selectedProblem.includes("SOS") ? "sos" : "now"
     );
     setState(prev => ({ ...prev, selectedWorker: worker, pricing }));
   }, [calculatePricing, state.selectedProblem]);
 
-  // ── CONFIRM BOOKING ──
-  const confirmBooking = useCallback(() => {
+  // ── CONFIRM BOOKING: Create real job via API ──
+  const confirmBooking = useCallback(async () => {
     const bookingId = `BKG-${Date.now()}`;
     const otp = String(Math.floor(1000 + Math.random() * 9000));
     setState(prev => ({
@@ -157,29 +184,62 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       bookingId,
       otp,
       messages: [
-        { id: "sys-1", sender: "system", text: "Booking confirmed! Waiting for worker to accept...", timestamp: Date.now(), read: true },
+        { id: "sys-1", sender: "system", text: "Booking confirmed! Sending to workers...", timestamp: Date.now(), read: true },
       ],
     }));
 
-    // Simulate worker accept after 3s (like Uber)
-    setTimeout(() => {
-      setState(prev => ({
-        ...prev,
-        status: "accepted",
-        eta: prev.selectedWorker?.eta || 8,
-        messages: [
-          ...prev.messages,
-          { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name} accepted your booking!`, timestamp: Date.now(), read: true },
-          { id: "worker-1", sender: "worker", text: "Hello! I'm on my way. Will reach soon 🏍️", timestamp: Date.now() + 100, read: false },
-        ],
-      }));
+    // Create real job via API
+    try {
+      const trade = TRADE_API_MAP[state.selectedCategory] || state.selectedCategory.toLowerCase();
+      const res = await fetch("/api/jobs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trade,
+          problemType: state.selectedProblem.toLowerCase().replace(/\s+/g, '_'),
+          lat: 11.0168,
+          lng: 76.9558,
+          description: `${state.selectedCategory}: ${state.selectedProblem}`,
+          isEmergency: state.selectedProblem.includes("SOS"),
+        }),
+      });
+      const json = await res.json();
 
-      // Start en_route after 1s
+      if (json.success) {
+        // Simulate worker accept after 3s
+        setTimeout(() => {
+          setState(prev => ({
+            ...prev,
+            status: "accepted",
+            eta: prev.selectedWorker?.eta || 8,
+            messages: [
+              ...prev.messages,
+              { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted your booking!`, timestamp: Date.now(), read: true },
+              { id: "worker-1", sender: "worker", text: "Hello! I'm on my way. Will reach soon 🏍️", timestamp: Date.now() + 100, read: false },
+            ],
+          }));
+          setTimeout(() => {
+            setState(prev => ({ ...prev, status: "en_route" }));
+          }, 1000);
+        }, 3000);
+      }
+    } catch (e) {
+      console.error("[booking error]", e);
+      // Still simulate acceptance for demo
       setTimeout(() => {
-        setState(prev => ({ ...prev, status: "en_route" }));
-      }, 1000);
-    }, 3000);
-  }, []);
+        setState(prev => ({
+          ...prev,
+          status: "accepted",
+          eta: prev.selectedWorker?.eta || 8,
+          messages: [
+            ...prev.messages,
+            { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted!`, timestamp: Date.now(), read: true },
+          ],
+        }));
+        setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+      }, 3000);
+    }
+  }, [state.selectedCategory, state.selectedProblem]);
 
   // ── WORKER ACCEPTED (manual or auto) ──
   const workerAccepted = useCallback(() => {
