@@ -1,361 +1,258 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Zap,
-  Phone,
-  ArrowRight,
-  ArrowLeft,
-  Shield,
-  CheckCircle2,
-  User,
-  Mic,
-  Camera,
-  MapPin,
-  CircuitBoard,
-  Droplets,
-  Hammer,
-  Paintbrush,
-  Wind,
-  Wrench,
-  Scissors,
-  Flame,
-  Cog,
-  Languages,
-  QrCode,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "@/stores/ThemeStore";
+import { supabase } from "@/lib/supabase";
 
-const skills = [
-  { id: "electrician", name: "Electrician", nameHi: "इलेक्ट्रीशियन", icon: CircuitBoard, color: "#FF6B2C" },
-  { id: "plumber", name: "Plumber", nameHi: "प्लंबर", icon: Droplets, color: "#3B82F6" },
-  { id: "carpenter", name: "Carpenter", nameHi: "बढ़ई", icon: Hammer, color: "#8B5CF6" },
-  { id: "painter", name: "Painter", nameHi: "पेंटर", icon: Paintbrush, color: "#22C55E" },
-  { id: "ac_tech", name: "AC Technician", nameHi: "AC तकनीशियन", icon: Wind, color: "#00C9A7" },
-  { id: "welder", name: "Welder", nameHi: "वेल्डर", icon: Wrench, color: "#F59E0B" },
-  { id: "tailor", name: "Tailor", nameHi: "दर्जी", icon: Scissors, color: "#EC4899" },
-  { id: "mason", name: "Mason", nameHi: "राजमिस्त्री", icon: Cog, color: "#6366F1" },
-];
+// ============================================================
+// WORKER REGISTRATION — Multi-step form with real Supabase save
+// ============================================================
 
-const languages = [
-  { id: "hi", name: "Hindi", native: "हिन्दी" },
-  { id: "ta", name: "Tamil", native: "தமிழ்" },
-  { id: "bn", name: "Bengali", native: "বাংলা" },
-  { id: "te", name: "Telugu", native: "తెలుగు" },
-  { id: "kn", name: "Kannada", native: "ಕನ್ನಡ" },
-  { id: "mr", name: "Marathi", native: "मराठी" },
-  { id: "gu", name: "Gujarati", native: "ગુજરાતી" },
-  { id: "od", name: "Odia", native: "ଓଡ଼ିଆ" },
+const trades = [
+  { key: "electrician", icon: "⚡", name: "Electrician" },
+  { key: "plumber", icon: "🔧", name: "Plumber" },
+  { key: "mechanic", icon: "🚗", name: "Mechanic" },
+  { key: "ac_repair", icon: "❄️", name: "AC Repair" },
+  { key: "carpenter", icon: "🪚", name: "Carpenter" },
+  { key: "painter", icon: "🎨", name: "Painter" },
 ];
 
 export default function WorkerRegisterPage() {
+  const { isDark } = useTheme();
+  const router = useRouter();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    otp: "",
-    language: "hi",
-    selectedSkills: [] as string[],
-    city: "",
-    experience: "",
-  });
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [trade, setTrade] = useState("");
+  const [experience, setExperience] = useState("");
+  const [rate, setRate] = useState("400");
+  const [upiId, setUpiId] = useState("");
+  const [city, setCity] = useState("Coimbatore");
+  const [bio, setBio] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const totalSteps = 5;
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError("");
 
-  const toggleSkill = (skillId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedSkills: prev.selectedSkills.includes(skillId)
-        ? prev.selectedSkills.filter((s) => s !== skillId)
-        : [...prev.selectedSkills, skillId],
-    }));
+    try {
+      // Create user
+      const { data: user, error: userErr } = await supabase
+        .from("users")
+        .insert({
+          phone: phone.startsWith("+91") ? phone : `+91${phone}`,
+          name,
+          user_type: "worker",
+          city,
+        })
+        .select()
+        .single();
+
+      if (userErr) {
+        if (userErr.message.includes("duplicate")) {
+          setError("This phone number is already registered. Try logging in.");
+        } else {
+          setError(userErr.message);
+        }
+        setSaving(false);
+        return;
+      }
+
+      // Create worker profile
+      await supabase.from("worker_profiles").insert({
+        id: user.id,
+        trade_primary: trade,
+        experience_years: parseInt(experience) || 0,
+        rate_hourly: parseFloat(rate) || 400,
+        bio,
+        upi_id: upiId,
+        is_online: false,
+        is_available: true,
+      });
+
+      setStep(4); // Success
+    } catch (e) {
+      setError("Registration failed. Please try again.");
+      console.error("[register]", e);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-[#FF6B2C] to-orange-700 pt-3 pb-5 px-5 rounded-b-[28px]">
-        <div className="flex items-center justify-between mb-3">
-          <Link href="/" className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center active:scale-90 transition-transform">
-            <ArrowLeft className="w-4 h-4 text-white" />
-          </Link>
-          <span className="text-white font-bold text-sm">Worker Registration</span>
-          <span className="text-white/50 text-xs">{step}/{totalSteps}</span>
+  // Success step
+  if (step === 4) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce-in"
+             style={{ background: "var(--success)", boxShadow: "0 8px 32px rgba(52,211,153,0.3)" }}>
+          <span className="text-white text-[32px]">✓</span>
         </div>
-        <div className="flex gap-1">
-          {Array.from({ length: totalSteps }, (_, i) => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${i < step ? "bg-white" : "bg-white/20"}`} />
+        <h1 className="text-[22px] font-black text-center" style={{ color: "var(--text-1)" }}>Welcome, {name}! 🎉</h1>
+        <p className="text-[14px] mt-2 text-center" style={{ color: "var(--text-2)" }}>
+          Your worker profile is live
+        </p>
+        <p className="text-[12px] mt-1 text-center" style={{ color: "var(--text-3)" }}>
+          Log in to start receiving job alerts
+        </p>
+        <Link href="/login" className="mt-6 rounded-xl px-8 py-4 text-[14px] font-black text-white active:scale-95"
+              style={{ background: "var(--brand)" }}>Login Now →</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-3 mb-4">
+          <Link href="/login" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
+                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <span className="text-[14px]">←</span>
+          </Link>
+          <div>
+            <h1 className="text-[18px] font-black" style={{ color: "var(--text-1)" }}>Register as Worker</h1>
+            <p className="text-[11px]" style={{ color: "var(--text-3)" }}>Step {step} of 3</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="flex gap-1 mb-4">
+          {[1,2,3].map(s => (
+            <div key={s} className="flex-1 h-1 rounded-full" style={{ background: s <= step ? "var(--brand)" : "var(--bg-elevated)" }} />
           ))}
         </div>
       </div>
 
-      <div className="px-4 py-5">
-          {/* Step 1: Language Selection */}
-          {step === 1 && (
-            <div className="animate-slide-up">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center">
-                  <Languages className="w-6 h-6 text-[#FF6B2C]" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-[var(--foreground)]">Choose Your Language</h2>
-                  <p className="text-[var(--color-muted)] text-sm">अपनी भाषा चुनें</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {languages.map((lang) => (
-                  <button
-                    key={lang.id}
-                    onClick={() => setFormData((p) => ({ ...p, language: lang.id }))}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      formData.language === lang.id
-                        ? "border-[#FF6B2C] bg-[#FF6B2C]/5"
-                        : "border-[#E2E8F0] hover:border-[#FF6B2C]/50"
-                    }`}
-                  >
-                    <p className="font-bold text-[var(--foreground)]">{lang.native}</p>
-                    <p className="text-xs text-[var(--color-muted)]">{lang.name}</p>
-                  </button>
-                ))}
+      <div className="px-4">
+        {/* Step 1: Basic info */}
+        {step === 1 && (
+          <div className="space-y-4 stagger">
+            <div>
+              <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>Full Name *</label>
+              <input value={name} onChange={e => setName(e.target.value)}
+                     className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none"
+                     style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                     placeholder="e.g. Raju Kumar" />
+            </div>
+            <div>
+              <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>Phone Number *</label>
+              <div className="flex rounded-xl overflow-hidden" style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", border: "1px solid var(--border-2)" }}>
+                <span className="flex items-center px-3 text-[13px] font-bold" style={{ background: "rgba(0,0,0,0.05)", color: "#333" }}>🇮🇳 +91</span>
+                <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                       className="flex-1 px-3 py-3 text-[14px] font-medium outline-none bg-transparent" style={{ color: "#111" }}
+                       placeholder="98765 43210" inputMode="numeric" />
               </div>
             </div>
-          )}
-
-          {/* Step 2: Phone + OTP */}
-          {step === 2 && (
-            <div className="animate-slide-up">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-[#FF6B2C]" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-[var(--foreground)]">Your Phone Number</h2>
-                  <p className="text-[var(--color-muted)] text-sm">We&apos;ll send jobs to this number via WhatsApp</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    className="input"
-                    placeholder="Enter your name"
-                    value={formData.name}
-                    onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Phone Number</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)] text-sm font-medium">+91</span>
-                    <input
-                      type="tel"
-                      className="input !pl-14"
-                      placeholder="10-digit mobile number"
-                      value={formData.phone}
-                      onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                      maxLength={10}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">City / Town</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className="input !pl-10"
-                      placeholder="e.g., Coimbatore, Lucknow"
-                      value={formData.city}
-                      onChange={(e) => setFormData((p) => ({ ...p, city: e.target.value }))}
-                    />
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted)]" />
-                  </div>
-                </div>
-              </div>
+            <div>
+              <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>City</label>
+              <input value={city} onChange={e => setCity(e.target.value)}
+                     className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none"
+                     style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                     placeholder="Coimbatore" />
             </div>
-          )}
+            <button onClick={() => { if (name && phone.length === 10) setStep(2); else setError("Name and phone required"); }}
+                    disabled={!name || phone.length !== 10}
+                    className="w-full rounded-xl py-4 text-[14px] font-black text-white active:scale-[0.98] disabled:opacity-40"
+                    style={{ background: "var(--brand)" }}>
+              Next → Trade Selection
+            </button>
+          </div>
+        )}
 
-          {/* Step 3: Skill Selection */}
-          {step === 3 && (
-            <div className="animate-slide-up">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center">
-                  <Wrench className="w-6 h-6 text-[#FF6B2C]" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-[var(--foreground)]">Select Your Skills</h2>
-                  <p className="text-[var(--color-muted)] text-sm">Tap all skills you can do (select multiple)</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {skills.map((skill) => {
-                  const selected = formData.selectedSkills.includes(skill.id);
-                  return (
-                    <button
-                      key={skill.id}
-                      onClick={() => toggleSkill(skill.id)}
-                      className={`p-4 rounded-xl border-2 text-left transition-all group ${
-                        selected
-                          ? "border-[#FF6B2C] bg-[#FF6B2C]/5"
-                          : "border-[#E2E8F0] hover:border-[#FF6B2C]/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110"
-                          style={{ background: `${skill.color}15` }}
-                        >
-                          <skill.icon className="w-5 h-5" style={{ color: skill.color }} />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm text-[var(--foreground)]">{skill.name}</p>
-                          <p className="text-xs text-[var(--color-muted)]">{skill.nameHi}</p>
-                        </div>
-                      </div>
-                      {selected && (
-                        <CheckCircle2 className="w-5 h-5 text-[#FF6B2C] absolute top-3 right-3" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium mb-2">Years of Experience</label>
-                <select
-                  className="input"
-                  value={formData.experience}
-                  onChange={(e) => setFormData((p) => ({ ...p, experience: e.target.value }))}
-                >
-                  <option value="">Select experience</option>
-                  <option value="0-2">0–2 years</option>
-                  <option value="2-5">2–5 years</option>
-                  <option value="5-10">5–10 years</option>
-                  <option value="10+">10+ years</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Selfie + Voice */}
-          {step === 4 && (
-            <div className="animate-slide-up">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-[#FF6B2C]" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-[var(--foreground)]">Verify Your Identity</h2>
-                  <p className="text-[var(--color-muted)] text-sm">Quick photo & voice for secure verification</p>
-                </div>
-              </div>
-              <div className="space-y-6">
-                <div className="border-2 border-dashed border-[#E2E8F0] rounded-2xl p-8 text-center hover:border-[#FF6B2C] transition-colors cursor-pointer">
-                  <div className="w-16 h-16 rounded-2xl bg-[#FF6B2C]/10 flex items-center justify-center mx-auto mb-4">
-                    <Camera className="w-8 h-8 text-[#FF6B2C]" />
-                  </div>
-                  <p className="font-semibold text-[var(--foreground)] mb-1">Take a Selfie</p>
-                  <p className="text-sm text-[var(--color-muted)]">Clear face photo for your KonnectPassport</p>
-                </div>
-                <div className="border-2 border-dashed border-[#E2E8F0] rounded-2xl p-8 text-center hover:border-[#3B82F6] transition-colors cursor-pointer">
-                  <div className="w-16 h-16 rounded-2xl bg-[#3B82F6]/10 flex items-center justify-center mx-auto mb-4">
-                    <Mic className="w-8 h-8 text-[#3B82F6]" />
-                  </div>
-                  <p className="font-semibold text-[var(--foreground)] mb-1">Voice Introduction</p>
-                  <p className="text-sm text-[var(--color-muted)]">Say your name and skills in your language (30 sec)</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Success — KonnectID */}
-          {step === 5 && (
-            <div className="animate-scale-in text-center">
-              <div className="w-20 h-20 rounded-2xl bg-[#3B82F6]/10 flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-10 h-10 text-[#3B82F6]" />
-              </div>
-              <h2 className="text-3xl font-bold text-[var(--foreground)] mb-2">
-                Welcome to KonnectOn! 🎉
-              </h2>
-              <p className="text-[var(--color-muted)] mb-8">
-                Your KonnectPassport is ready. Share your QR code to get hired directly.
-              </p>
-
-              {/* Mock KonnectID Card */}
-              <div className="card !p-0 overflow-hidden max-w-sm mx-auto mb-8">
-                <div className="p-6" style={{ background: "var(--gradient-primary)" }}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-white" />
-                      <span className="text-white font-bold text-sm">KonnectPassport</span>
-                    </div>
-                    <span className="badge bg-white/20 text-white text-[10px]">VERIFIED</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-white/20 flex items-center justify-center text-white text-2xl font-bold">
-                      {formData.name ? formData.name[0]?.toUpperCase() : "R"}K
-                    </div>
-                    <div className="text-left">
-                      <p className="text-white font-bold">{formData.name || "Raju Kumar"}</p>
-                      <p className="text-white/60 text-sm">
-                        {formData.selectedSkills.map((s) => skills.find((sk) => sk.id === s)?.name).join(", ") || "Electrician"}
-                      </p>
-                      <p className="text-white/60 text-xs flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {formData.city || "Coimbatore"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-[var(--color-muted)]">KonnectID</p>
-                    <p className="font-mono font-bold text-sm">KON-2024-08271</p>
-                  </div>
-                  <div className="w-16 h-16 rounded-lg bg-[#F8FAFC] flex items-center justify-center">
-                    <QrCode className="w-10 h-10 text-[var(--foreground)]" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Link href="/dashboard/worker" className="btn-primary !w-full !justify-center !py-3.5">
-                  Go to Dashboard
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <button className="btn-secondary !w-full !justify-center !py-3.5">
-                  Share KonnectID on WhatsApp
+        {/* Step 2: Trade selection */}
+        {step === 2 && (
+          <div className="stagger">
+            <p className="text-[14px] font-bold mb-3" style={{ color: "var(--text-1)" }}>What&apos;s your primary trade?</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {trades.map(t => (
+                <button key={t.key} onClick={() => setTrade(t.key)}
+                        className="flex items-center gap-3 rounded-xl p-4 text-left active:scale-95 transition-all"
+                        style={{
+                          background: trade === t.key ? "var(--brand-tint)" : "var(--bg-card)",
+                          border: trade === t.key ? "2px solid var(--brand)" : "2px solid transparent",
+                        }}>
+                  <span className="text-[24px]">{t.icon}</span>
+                  <span className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{t.name}</span>
                 </button>
+              ))}
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>Experience (years)</label>
+                <input value={experience} onChange={e => setExperience(e.target.value)}
+                       className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none"
+                       style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                       placeholder="e.g. 5" inputMode="numeric" />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>Hourly Rate (₹)</label>
+                <input value={rate} onChange={e => setRate(e.target.value)}
+                       className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none"
+                       style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                       placeholder="e.g. 500" inputMode="numeric" />
               </div>
             </div>
-          )}
 
-          {/* Navigation Buttons */}
-          {step < 5 && (
-            <div className="flex gap-3 mt-8">
-              {step > 1 && (
-                <button
-                  onClick={() => setStep(step - 1)}
-                  className="btn-secondary !py-3"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-              )}
-              <button
-                onClick={() => setStep(step + 1)}
-                className="btn-primary flex-1 !justify-center !py-3"
-              >
-                {step === 4 ? "Complete Registration" : "Next"}
-                <ArrowRight className="w-4 h-4" />
+            <div className="flex gap-2">
+              <button onClick={() => setStep(1)} className="flex-1 rounded-xl py-3 text-[13px] font-bold active:scale-95"
+                      style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>← Back</button>
+              <button onClick={() => { if (trade) setStep(3); }}
+                      disabled={!trade}
+                      className="flex-1 rounded-xl py-3 text-[13px] font-bold text-white active:scale-95 disabled:opacity-40"
+                      style={{ background: "var(--brand)" }}>Next →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Payment + Bio */}
+        {step === 3 && (
+          <div className="space-y-4 stagger">
+            <div>
+              <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>UPI ID (for payouts)</label>
+              <input value={upiId} onChange={e => setUpiId(e.target.value)}
+                     className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none"
+                     style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                     placeholder="yourname@upi" />
+            </div>
+            <div>
+              <label className="text-[12px] font-bold block mb-1" style={{ color: "var(--text-2)" }}>Short Bio (optional)</label>
+              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3}
+                        className="w-full rounded-xl px-4 py-3 text-[14px] font-medium outline-none resize-none"
+                        style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", color: "#111", border: "1px solid var(--border-2)" }}
+                        placeholder="Tell hirers about your skills and experience..." />
+            </div>
+
+            {/* Summary card */}
+            <div className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+              <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Profile Summary</p>
+              <div className="space-y-1 text-[12px]">
+                <p style={{ color: "var(--text-2)" }}>👤 {name}</p>
+                <p style={{ color: "var(--text-2)" }}>📱 +91{phone}</p>
+                <p style={{ color: "var(--text-2)" }}>🔧 {trades.find(t => t.key === trade)?.name} · {experience || "0"} years</p>
+                <p style={{ color: "var(--text-2)" }}>💰 ₹{rate}/hour</p>
+                <p style={{ color: "var(--text-2)" }}>📍 {city}</p>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-[12px] font-bold text-center" style={{ color: "var(--danger)" }}>{error}</p>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={() => setStep(2)} className="flex-1 rounded-xl py-3 text-[13px] font-bold active:scale-95"
+                      style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>← Back</button>
+              <button onClick={handleSubmit} disabled={saving}
+                      className="flex-1 rounded-xl py-3 text-[13px] font-bold text-white active:scale-95 disabled:opacity-60"
+                      style={{ background: "var(--success)" }}>
+                {saving ? "Creating..." : "✓ Register"}
               </button>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 justify-center mt-6 text-[10px] text-gray-400">
-          <Shield className="w-3 h-3" />
-          Encrypted & DPDP compliant
-        </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
