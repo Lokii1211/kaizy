@@ -196,9 +196,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen relative" style={{ background: "var(--bg-app)" }}>
       {/* ── MAPBOX MAP ── */}
-      <div className="absolute inset-0">
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         {MAPBOX_TOKEN ? (
-          <div ref={mapContainer} className="absolute inset-0" />
+          <div ref={mapContainer} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }} />
         ) : (
           <div className="absolute inset-0" style={{ background: "var(--map-bg)" }}>
             {[18,35,52,70,85].map((t,i) => <div key={`h${i}`} className="map-road-h" style={{ top:`${t}%`, opacity: 0.3 + i*0.05 }} />)}
