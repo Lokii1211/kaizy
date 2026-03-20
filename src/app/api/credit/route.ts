@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      worker_id: worker_id || "WK-DEMO-001",
+      worker_id: worker_id || "anonymous",
       score: result.score,
       band: result.band.label,
       band_color: result.band.color,
