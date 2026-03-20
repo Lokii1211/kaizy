@@ -206,9 +206,11 @@ export default function WorkerDashboardPage() {
       {/* Quick Actions */}
       <div className="px-4 mb-4">
         <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Quick Actions</p>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { icon: "📊", label: "Earnings", href: "/earnings" },
+            { icon: "🎯", label: "Incentives", href: "/incentives" },
+            { icon: "🎁", label: "Refer", href: "/referral" },
             { icon: "💬", label: "Chat", href: "/chat" },
             { icon: "📚", label: "Learn", href: "/konnectlearn" },
             { icon: "🤖", label: "KaizyBot", href: "/konnectbot" },

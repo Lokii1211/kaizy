@@ -20,6 +20,7 @@ const menuSections = [
     { icon: "📋", label: "My Bookings", href: "/my-bookings" },
     { icon: "❤️", label: "Saved Workers", href: "/saved-workers" },
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
+    { icon: "🎯", label: "Incentives & Targets", href: "/incentives" },
     { icon: "📸", label: "Job Photos", href: "/job-photos" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
