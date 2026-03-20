@@ -315,6 +315,10 @@ export default function BookingPage() {
           <div className="flex gap-2 mb-4">
             <a href="tel:+919876543210" className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
                style={{ background: "var(--success)" }}>📞 Call</a>
+            {(state.status === "matched" || state.status === "accepted" || state.status === "en_route") && (
+              <Link href="/tracking" className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
+                    style={{ background: "#3B82F6" }}>🗺️ Live Track</Link>
+            )}
             {state.status === "arrived" && (
               <button onClick={jobStarted} className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
                       style={{ background: "var(--brand)" }}>▶ Start Job</button>

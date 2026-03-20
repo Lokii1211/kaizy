@@ -134,13 +134,46 @@ export default function HomePage() {
 
         map.on("load", () => {
           if (cancelled) return;
-          // User marker
+          // ── Rapido/Swiggy-style GPS Arrow Marker ──
           const userEl = document.createElement("div");
-          userEl.innerHTML = `<div style="position:relative;width:34px;height:34px">
-            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(96,165,250,0.15);animation:map-pulse 2s ease-out infinite"></div>
-            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#3B82F6;border:3px solid white;box-shadow:0 0 8px rgba(59,130,246,0.4)"></div>
+          userEl.id = "kaizy-gps-arrow";
+          userEl.innerHTML = `<div style="position:relative;width:48px;height:48px">
+            <div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(59,130,246,0.08);animation:gps-ring 2.5s ease-out infinite"></div>
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(59,130,246,0.12);animation:gps-ring 2.5s ease-out infinite 0.4s"></div>
+            <svg viewBox="0 0 48 48" style="position:absolute;inset:0;filter:drop-shadow(0 2px 6px rgba(59,130,246,0.4))">
+              <circle cx="24" cy="24" r="12" fill="#3B82F6" stroke="white" stroke-width="3"/>
+              <path d="M24 4 L28 16 L24 12 L20 16 Z" fill="#3B82F6" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
           </div>`;
-          new mapboxgl.Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
+          const userMarker = new mapboxgl.Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
+
+          // Listen for device heading to rotate the arrow
+          const rotateArrow = (heading: number) => {
+            const svg = userEl.querySelector('svg');
+            if (svg) svg.style.transform = `rotate(${heading}deg)`;
+          };
+          // Try compass heading
+          if ('DeviceOrientationEvent' in window) {
+            window.addEventListener('deviceorientationabsolute', (e: DeviceOrientationEvent) => {
+              if (e.alpha != null) rotateArrow(360 - e.alpha);
+            }, { passive: true });
+            window.addEventListener('deviceorientation', (e: DeviceOrientationEvent) => {
+              if (e.alpha != null) rotateArrow(360 - e.alpha);
+            }, { passive: true });
+          }
+
+          // Watch GPS position continuously
+          if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+              (pos) => {
+                const { latitude, longitude, heading } = pos.coords;
+                userMarker.setLngLat([longitude, latitude]);
+                if (heading != null && heading > 0) rotateArrow(heading);
+              },
+              () => {},
+              { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+            );
+          }
         });
 
         mapRef.current = map;
@@ -395,6 +428,12 @@ export default function HomePage() {
           0% { transform: scale(1); opacity: 0.6; }
           100% { transform: scale(2.5); opacity: 0; }
         }
+        @keyframes gps-ring {
+          0% { transform: scale(0.8); opacity: 0.6; }
+          50% { opacity: 0.3; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+        #kaizy-gps-arrow svg { transition: transform 0.3s ease-out; }
         .mapboxgl-ctrl-attrib { display: none !important; }
         .mapboxgl-ctrl-logo { display: none !important; }
       `}</style>
