@@ -17,9 +17,10 @@ interface UserProfile {
 
 const menuSections = [
   { title: "Account", items: [
-    { icon: "📋", label: "My Bookings", href: "/notifications" },
+    { icon: "📋", label: "My Bookings", href: "/my-bookings" },
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
+    { icon: "🎁", label: "Refer & Earn", href: "/referral" },
   ]},
   { title: "Preferences", items: [
     { icon: "🌐", label: "Language", href: "#" },

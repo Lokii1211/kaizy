@@ -33,6 +33,8 @@ export default function BookingPage() {
   const [reviewTags, setReviewTags] = useState<string[]>(["On Time", "Good Work"]);
   const chatRef = useRef<HTMLDivElement>(null);
   const [locationLabel, setLocationLabel] = useState("Detecting location...");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   // GPS reverse geocode for location label
   useEffect(() => {
@@ -343,9 +345,46 @@ export default function BookingPage() {
               <button onClick={jobCompleted} className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
                       style={{ background: "var(--brand)" }}>✓ Job Done</button>
             )}
-            <button onClick={cancelBooking} className="rounded-[12px] py-3 px-4 text-center text-[12px] font-extrabold active:scale-95"
+            <button onClick={() => setShowCancelModal(true)} className="rounded-[12px] py-3 px-4 text-center text-[12px] font-extrabold active:scale-95"
                     style={{ background: "var(--bg-card)", color: "var(--danger)", border: "1px solid var(--danger-tint)" }}>✕</button>
           </div>
+
+          {/* Cancel Reason Modal */}
+          {showCancelModal && (
+            <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
+              <div className="w-full max-w-md rounded-t-3xl p-5 pb-8 anim-up" style={{ background: "var(--bg-app)" }}>
+                <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: "var(--bg-elevated)" }} />
+                <h3 className="text-[16px] font-black mb-1" style={{ color: "var(--text-1)" }}>Cancel Booking?</h3>
+                <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>Help us understand why. This helps improve Kaizy.</p>
+                <div className="space-y-2 mb-4">
+                  {["Worker is taking too long", "Found another worker", "Price too high", "Problem solved", "Wrong service selected", "Other reason"].map(reason => (
+                    <button key={reason} onClick={() => setCancelReason(reason)}
+                            className="w-full text-left rounded-xl px-4 py-3 text-[12px] font-semibold active:scale-[0.98]"
+                            style={{
+                              background: cancelReason === reason ? "var(--danger-tint)" : "var(--bg-card)",
+                              color: cancelReason === reason ? "var(--danger)" : "var(--text-1)",
+                              border: `1.5px solid ${cancelReason === reason ? "var(--danger)" : "var(--border-1)"}`,
+                            }}>
+                      {cancelReason === reason ? "● " : "○ "}{reason}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowCancelModal(false)}
+                          className="flex-1 rounded-xl py-3.5 text-[13px] font-bold active:scale-95"
+                          style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>
+                    Go Back
+                  </button>
+                  <button onClick={() => { cancelBooking(); setShowCancelModal(false); }}
+                          disabled={!cancelReason}
+                          className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95 disabled:opacity-40"
+                          style={{ background: "var(--danger)" }}>
+                    Cancel Booking
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

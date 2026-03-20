@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, Search, Briefcase, Bell, User, Zap,
+  Home, Search, Briefcase, Bell, User, Zap, ClipboardList,
 } from "lucide-react";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Search, label: "Search", href: "/marketplace" },
   { icon: Zap, label: "SOS", href: "/emergency", isSos: true },
-  { icon: Briefcase, label: "Bookings", href: "/dashboard/worker" },
+  { icon: ClipboardList, label: "Bookings", href: "/my-bookings" },
   { icon: User, label: "Profile", href: "/settings" },
 ];
 

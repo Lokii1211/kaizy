@@ -338,7 +338,22 @@ export default function TrackingPage() {
             <div className="w-2 h-2 rounded-full online-dot" style={{ background: info.color }} />
             <span className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{info.label}</span>
           </div>
-          <div className="w-10" />
+          <button onClick={async () => {
+            const url = window.location.href;
+            if (navigator.share) {
+              await navigator.share({
+                title: `Track ${worker.name} on Kaizy`,
+                text: `${worker.name} (${worker.trade}) is on the way! ETA: ${eta} min`,
+                url,
+              });
+            } else {
+              await navigator.clipboard.writeText(url);
+              alert("Tracking link copied!");
+            }
+          }} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 shadow-lg"
+                  style={{ background: "var(--bg-card)" }}>
+            <span className="text-[15px]">📤</span>
+          </button>
         </div>
 
         {/* ETA badge — Rapido style */}

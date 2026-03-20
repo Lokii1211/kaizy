@@ -308,6 +308,22 @@ export default function HomePage() {
           </div>
           <p className="text-[11px] mt-0.5" style={{ color: "var(--text-3)" }}>
             {greeting} · <span className="live-badge" style={{ color: "var(--success)" }}>{onlineCount} workers online</span>
+            {(() => {
+              const h = new Date().getHours();
+              const d = new Date().getDay();
+              const isPeak = (h >= 8 && h <= 10) || (h >= 18 && h <= 21) || d === 0 || d === 6;
+              return isPeak ? (
+                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
+                  ⚡ Peak Hours
+                </span>
+              ) : (
+                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "rgba(34,197,94,0.1)", color: "#22C55E" }}>
+                  💚 Normal Rates
+                </span>
+              );
+            })()}
           </p>
         </div>
 
