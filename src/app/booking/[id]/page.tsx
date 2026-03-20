@@ -307,6 +307,41 @@ export default function BookingDetailPage() {
             </Link>
           )}
         </div>
+
+        {/* Save Worker + Job Photos */}
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => {
+            try {
+              const saved = JSON.parse(localStorage.getItem("kaizy_saved_workers") || "[]");
+              const exists = saved.some((w: {id: string}) => w.id === booking.worker_id);
+              if (!exists) {
+                saved.push({
+                  id: booking.worker_id,
+                  name: booking.worker_name,
+                  trade: booking.worker_trade || booking.trade,
+                  rating: booking.worker_rating,
+                  jobs: 0,
+                  kaizyScore: 0,
+                  savedAt: new Date().toISOString(),
+                  initials: (booking.worker_name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+                });
+                localStorage.setItem("kaizy_saved_workers", JSON.stringify(saved));
+                alert("❤️ Worker saved to favorites!");
+              } else {
+                alert("Already in your saved workers!");
+              }
+            } catch { alert("Could not save"); }
+          }}
+                  className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold active:scale-95"
+                  style={{ background: "var(--bg-card)", color: "var(--danger)", border: "1px solid var(--border-1)" }}>
+            ❤️ Save Worker
+          </button>
+          <Link href="/job-photos"
+                className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold active:scale-95"
+                style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>
+            📸 Job Photos
+          </Link>
+        </div>
       </div>
     </div>
   );

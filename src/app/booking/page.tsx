@@ -13,14 +13,14 @@ import { useBooking, type NearbyWorker } from "@/stores/BookingStore";
 
 const tradeProblems: Record<string, string[]> = {
   "All": ["General Help"],
-  "Electrician": ["MCB Tripping", "Fan Not Working", "Wiring Issue", "AC Points", "Short Circuit", "Inverter Install"],
-  "Plumber": ["Pipe Leak", "Tap Repair", "Drainage Block", "Water Tank", "Bathroom Fitting"],
-  "Mechanic": ["Car Breakdown", "Engine Issue", "Battery Dead", "Oil Change", "Brake Problem"],
-  "AC Repair": ["Not Cooling", "Gas Refill", "Compressor Issue", "Noise Problem", "Installation"],
-  "Puncture": ["Tyre Puncture", "Tyre Replacement", "Air Fill"],
-  "Carpenter": ["Door Repair", "Shelf Install", "Furniture Repair", "Window Fix"],
-  "Painter": ["Room Paint", "Touch Up", "Waterproofing", "Texture Finish"],
-  "Mason": ["Wall Repair", "Tile Work", "Plastering", "Waterproofing"],
+  "Electrician": ["MCB Tripping", "Fan Not Working", "Wiring Issue", "AC Points", "Short Circuit", "Inverter Install", "Other"],
+  "Plumber": ["Pipe Leak", "Tap Repair", "Drainage Block", "Water Tank", "Bathroom Fitting", "Other"],
+  "Mechanic": ["Car Breakdown", "Engine Issue", "Battery Dead", "Oil Change", "Brake Problem", "Other"],
+  "AC Repair": ["Not Cooling", "Gas Refill", "Compressor Issue", "Noise Problem", "Installation", "Other"],
+  "Puncture": ["Tyre Puncture", "Tyre Replacement", "Air Fill", "Other"],
+  "Carpenter": ["Door Repair", "Shelf Install", "Furniture Repair", "Window Fix", "Other"],
+  "Painter": ["Room Paint", "Touch Up", "Waterproofing", "Texture Finish", "Other"],
+  "Mason": ["Wall Repair", "Tile Work", "Plastering", "Waterproofing", "Other"],
 };
 
 export default function BookingPage() {
@@ -35,6 +35,7 @@ export default function BookingPage() {
   const [locationLabel, setLocationLabel] = useState("Detecting location...");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [customProblem, setCustomProblem] = useState("");
 
   // GPS reverse geocode for location label
   useEffect(() => {
@@ -89,16 +90,40 @@ export default function BookingPage() {
           <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>What&apos;s the problem?</p>
           <div className="grid grid-cols-2 gap-2 mb-4 animate-stagger">
             {(tradeProblems[selectedTrade] || []).map(problem => (
-              <button key={problem} onClick={() => setSelectedProblem(problem)}
+              <button key={problem} onClick={() => { setSelectedProblem(problem); if (problem !== "Other") setCustomProblem(""); }}
                       className="rounded-[12px] p-3 text-left active:scale-95 transition-all"
                       style={{
                         background: selectedProblem === problem ? "var(--brand-tint)" : "var(--bg-card)",
                         border: selectedProblem === problem ? "2px solid var(--brand)" : "2px solid transparent",
                       }}>
-                <p className="text-[12px] font-extrabold" style={{ color: "var(--text-1)" }}>{problem}</p>
+                <p className="text-[12px] font-extrabold" style={{ color: "var(--text-1)" }}>
+                  {problem === "Other" ? "✍️ Other" : problem}
+                </p>
+                {problem === "Other" && <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Describe your issue</p>}
               </button>
             ))}
           </div>
+
+          {/* Manual problem description */}
+          {selectedProblem === "Other" && (
+            <div className="mb-4">
+              <textarea
+                value={customProblem}
+                onChange={e => setCustomProblem(e.target.value)}
+                placeholder="Describe your problem in detail... (e.g., 'My geyser is leaking from the top connection')"
+                className="w-full rounded-[12px] p-3 text-[12px] outline-none resize-none"
+                rows={3}
+                style={{
+                  background: "var(--bg-card)",
+                  color: "var(--text-1)",
+                  border: customProblem.trim() ? "2px solid var(--brand)" : "2px solid var(--border-1)",
+                }}
+              />
+              <p className="text-[9px] mt-1 px-1" style={{ color: "var(--text-3)" }}>
+                💡 The more detail you provide, the better the worker can prepare
+              </p>
+            </div>
+          )}
 
           {/* Location — Editable like Uber */}
           <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
@@ -149,8 +174,11 @@ export default function BookingPage() {
 
           {/* Find button */}
           <button
-            onClick={() => selectedProblem && startSearch(selectedTrade, selectedProblem)}
-            disabled={!selectedProblem}
+            onClick={() => {
+              const problem = selectedProblem === "Other" ? (customProblem.trim() || "General Issue") : selectedProblem;
+              if (problem) startSearch(selectedTrade, problem);
+            }}
+            disabled={!selectedProblem || (selectedProblem === "Other" && !customProblem.trim())}
             className="w-full rounded-[14px] py-4 text-[14px] font-black text-white active:scale-[0.98] transition-all disabled:opacity-40"
             style={{ background: selectedProblem ? "var(--brand)" : "var(--bg-elevated)", boxShadow: selectedProblem ? "var(--shadow-brand)" : "none" }}>
             🔍 Find Workers Near Me
@@ -332,8 +360,23 @@ export default function BookingPage() {
               <p className="text-[11px] font-bold" style={{ color: w?.color }}>{w?.tradeIcon} {w?.trade} · {w?.experience}</p>
               <p className="text-[10px]" style={{ color: "var(--text-3)" }}>⭐ {w?.rating} · {w?.jobs} jobs · KS {w?.KaizyScore}</p>
             </div>
-            <p className="text-[15px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</p>
+            <div className="text-right">
+              <p className="text-[15px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</p>
+              {/* Phone visible only AFTER accepted */}
+              {["accepted", "en_route", "arrived", "working"].includes(state.status) && w?.phone && (
+                <a href={`tel:${w.phone}`} className="text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block"
+                   style={{ background: "var(--success)", color: "#fff" }}>📞 Call</a>
+              )}
+            </div>
           </div>
+
+          {/* Contact info — only after booking */}
+          {["accepted", "en_route", "arrived", "working"].includes(state.status) && w?.phone && (
+            <div className="rounded-[12px] p-3 mb-3" style={{ background: "var(--success-tint)", border: "1px solid var(--success)" }}>
+              <p className="text-[10px] font-bold mb-1" style={{ color: "var(--success)" }}>📞 Worker Contact (visible after booking)</p>
+              <p className="text-[14px] font-black" style={{ color: "var(--text-1)" }}>{w.phone}</p>
+            </div>
+          )}
 
           {/* Chat section (WhatsApp-style) */}
           <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>💬 Messages</p>

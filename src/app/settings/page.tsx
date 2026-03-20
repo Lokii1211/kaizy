@@ -18,13 +18,15 @@ interface UserProfile {
 const menuSections = [
   { title: "Account", items: [
     { icon: "📋", label: "My Bookings", href: "/my-bookings" },
+    { icon: "❤️", label: "Saved Workers", href: "/saved-workers" },
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
+    { icon: "📸", label: "Job Photos", href: "/job-photos" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
   ]},
   { title: "Preferences", items: [
     { icon: "🌐", label: "Language", href: "#" },
-    { icon: "🔔", label: "Notifications", href: "#" },
+    { icon: "🔔", label: "Notifications", href: "/notifications" },
     { icon: "📍", label: "Saved Locations", href: "#" },
   ]},
   { title: "Support", items: [
