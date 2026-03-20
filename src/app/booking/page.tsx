@@ -32,6 +32,22 @@ export default function BookingPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTags, setReviewTags] = useState<string[]>(["On Time", "Good Work"]);
   const chatRef = useRef<HTMLDivElement>(null);
+  const [locationLabel, setLocationLabel] = useState("Detecting location...");
+
+  // GPS reverse geocode for location label
+  useEffect(() => {
+    if (!navigator.geolocation) { setLocationLabel("Your location"); return; }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (token) {
+        try {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place,neighborhood`);
+          const d = await res.json();
+          if (d.features?.[0]) setLocationLabel(d.features[0].place_name?.split(',').slice(0, 2).join(',') || d.features[0].text);
+        } catch { setLocationLabel("Your area"); }
+      }
+    }, () => setLocationLabel("Location off"));
+  }, []);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -87,7 +103,7 @@ export default function BookingPage() {
             <div className="flex items-center gap-2">
               <span style={{ color: "var(--brand)" }}>📍</span>
               <div className="flex-1">
-                <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Gandhipuram, Coimbatore</p>
+                <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{locationLabel}</p>
                 <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Auto-detected · GPS</p>
               </div>
               <span className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit</span>

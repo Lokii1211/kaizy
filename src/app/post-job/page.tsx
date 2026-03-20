@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, MapPin, Clock, IndianRupee, Camera, Mic,
@@ -33,7 +33,21 @@ export default function PostJobPage() {
   const [selectedTrade, setSelectedTrade] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
-  const [location, setLocation] = useState("Gandhipuram, Coimbatore");
+  const [location, setLocation] = useState("Detecting location...");
+
+  useEffect(() => {
+    if (!navigator.geolocation) { setLocation("Your area"); return; }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (token) {
+        try {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place`);
+          const d = await res.json();
+          if (d.features?.[0]) setLocation(d.features[0].place_name?.split(',').slice(0, 2).join(',') || d.features[0].text);
+        } catch { setLocation("Your area"); }
+      }
+    }, () => setLocation("Location off"));
+  }, []);
   const [selectedDate, setSelectedDate] = useState("Tomorrow");
   const [selectedTime, setSelectedTime] = useState("10:00 AM");
   const [duration, setDuration] = useState("1 day");
