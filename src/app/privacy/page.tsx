@@ -86,7 +86,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-[14px] font-bold mb-2" style={{ color: "var(--text-1)" }}>9. Contact Us</h2>
           <p>For privacy-related questions or data deletion requests:</p>
-          <p className="mt-1 font-bold" style={{ color: "var(--brand)" }}>📧 privacy@kaizy.in</p>
+          <p className="mt-1 font-bold" style={{ color: "var(--brand)" }}>📧 privacy@kaizy.com</p>
           <p className="font-bold" style={{ color: "var(--brand)" }}>📞 Support via KaizyBot (in-app)</p>
         </section>
       </div>

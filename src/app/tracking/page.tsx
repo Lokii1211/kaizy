@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// LIVE TRACKING — Rapido/Swiggy-style worker tracking
-// Real Mapbox Directions route, animated worker marker, live GPS
-// Fixes: Wait for GPS before map init, proper worker offset
+// LIVE TRACKING — Real-time worker tracking with Mapbox
+// Uses REAL booking data from sessionStorage
+// Redirects to /booking if no booking data exists
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -21,13 +22,9 @@ const tradeIcons: Record<string, string> = {
   mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨", technician: "🔧",
 };
 
-const DEFAULT_WORKER: WorkerInfo = {
-  name: "Worker", trade: "Technician", rating: 4.5,
-  initials: "W", kaizyScore: 500, phone: "",
-};
-
 export default function TrackingPage() {
   const { isDark } = useTheme();
+  const router = useRouter();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const workerMarkerRef = useRef<unknown>(null);
@@ -36,36 +33,44 @@ export default function TrackingPage() {
   const animationRef = useRef<NodeJS.Timeout | null>(null);
 
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [workerPos, setWorkerPos] = useState({ lat: 11.025, lng: 76.945 });
-  const [worker, setWorker] = useState<WorkerInfo>(DEFAULT_WORKER);
-  const [eta, setEta] = useState(8);
+  const [workerPos, setWorkerPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [worker, setWorker] = useState<WorkerInfo | null>(null);
+  const [eta, setEta] = useState(0);
   const [status, setStatus] = useState<"en_route" | "arrived" | "working" | "completed">("en_route");
   const [otp] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [mapLoaded, setMapLoaded] = useState(false);
   const [distanceKm, setDistanceKm] = useState("");
   const [gpsReady, setGpsReady] = useState(false);
-  const initialEtaRef = useRef(8);
+  const [hasBooking, setHasBooking] = useState(false);
+  const initialEtaRef = useRef(0);
 
-  // 1. Load booking data + get real GPS — MUST COMPLETE BEFORE MAP
+  // 1. Load REAL booking data — redirect if none
   useEffect(() => {
-    // Load worker data from sessionStorage
+    let foundBooking = false;
+
+    // Load worker data from sessionStorage (set during booking)
     try {
       const stored = sessionStorage.getItem("kaizy_booked_worker");
       if (stored) {
         const w = JSON.parse(stored);
-        setWorker({
-          name: w.name || "Worker",
-          trade: w.trade || "Technician",
-          rating: w.rating || 4.5,
-          initials: (w.name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
-          kaizyScore: w.kaizyScore || 500,
-          phone: w.phone || "",
-        });
-        if (w.lat && w.lng) setWorkerPos({ lat: Number(w.lat), lng: Number(w.lng) });
+        if (w.name && w.name !== "Worker") {
+          setWorker({
+            name: w.name,
+            trade: w.trade || "Technician",
+            rating: w.rating || 4.5,
+            initials: w.name.split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+            kaizyScore: w.kaizyScore || 500,
+            phone: w.phone || "",
+          });
+          if (w.lat && w.lng) {
+            setWorkerPos({ lat: Number(w.lat), lng: Number(w.lng) });
+          }
+          foundBooking = true;
+        }
       }
     } catch {}
 
-    // Load verified booking location (from address search)
+    // Load verified booking location
     try {
       const storedLoc = sessionStorage.getItem("kaizy_booking_location");
       if (storedLoc) {
@@ -73,30 +78,48 @@ export default function TrackingPage() {
         if (loc.lat && loc.lng) {
           setUserPos({ lat: loc.lat, lng: loc.lng });
           setGpsReady(true);
-          return; // Don't try GPS if we have booking location
+          foundBooking = true;
         }
       }
     } catch {}
 
-    // Fallback: Get real GPS position
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setUserPos(gps);
-          setGpsReady(true);
-        },
-        () => {
-          // Fallback to Coimbatore
-          setUserPos({ lat: 11.0168, lng: 76.9558 });
-          setGpsReady(true);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    } else {
-      setUserPos({ lat: 11.0168, lng: 76.9558 });
-      setGpsReady(true);
+    // If no booking data and no location, get GPS and show demo notice
+    if (!foundBooking) {
+      // Still allow viewing tracking page but with notice
+      setWorker({
+        name: "No Active Booking",
+        trade: "—",
+        rating: 0,
+        initials: "?",
+        kaizyScore: 0,
+        phone: "",
+      });
     }
+
+    setHasBooking(foundBooking);
+
+    // Fallback: Get GPS if no booking location
+    if (!userPos) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (!userPos) {
+              setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            }
+            setGpsReady(true);
+          },
+          () => {
+            if (!userPos) setUserPos({ lat: 11.0168, lng: 76.9558 });
+            setGpsReady(true);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      } else {
+        if (!userPos) setUserPos({ lat: 11.0168, lng: 76.9558 });
+        setGpsReady(true);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch real route from Mapbox Directions API
@@ -140,15 +163,16 @@ export default function TrackingPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mapboxgl as any).accessToken = MAPBOX_TOKEN;
 
-        // Calculate center and zoom
-        const centerLng = (userPos.lng + workerPos.lng) / 2;
-        const centerLat = (userPos.lat + workerPos.lat) / 2;
+        // Use worker position if available, otherwise just show user location
+        const wPos = workerPos || { lat: userPos.lat + 0.01, lng: userPos.lng + 0.01 };
+        const centerLng = (userPos.lng + wPos.lng) / 2;
+        const centerLat = (userPos.lat + wPos.lat) / 2;
 
         const map = new mapboxgl.Map({
           container: mapContainer.current,
           style: isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12",
           center: [centerLng, centerLat],
-          zoom: 13,
+          zoom: 14,
           attributionControl: false,
           pitch: 45,
           bearing: -10,
@@ -157,7 +181,7 @@ export default function TrackingPage() {
         map.on("load", async () => {
           if (cancelled) return;
 
-          // ── USER MARKER: Blue GPS pin ──
+          // User marker
           const userEl = document.createElement("div");
           userEl.innerHTML = `<div style="position:relative;width:44px;height:56px;display:flex;flex-direction:column;align-items:center">
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#2563EB);border:3px solid white;box-shadow:0 4px 12px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center">
@@ -171,72 +195,49 @@ export default function TrackingPage() {
             .setLngLat([userPos.lng, userPos.lat])
             .addTo(map);
 
-          // ── WORKER MARKER: Animated orange with trade icon ──
-          const tradeIcon = tradeIcons[worker.trade.toLowerCase()] || "🔧";
-          const workerEl = document.createElement("div");
-          workerEl.id = "worker-tracker";
-          workerEl.innerHTML = `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-            <div style="position:absolute;inset:-10px;border-radius:50%;background:rgba(255,107,0,0.1);animation:track-pulse 2s ease-out infinite"></div>
-            <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#FF6B00,#E85D00);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(255,107,0,0.5);border:3px solid white;position:relative;z-index:2">${tradeIcon}</div>
-            <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid #FF6B00;margin-top:-3px;position:relative;z-index:1"></div>
-            <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#FF6B00;color:white;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">${worker.name}</div>
-          </div>`;
-          const workerMarker = new mapboxgl.Marker({ element: workerEl, anchor: 'bottom' })
-            .setLngLat([workerPos.lng, workerPos.lat])
-            .addTo(map);
-          workerMarkerRef.current = workerMarker;
+          // Worker marker — only if we have real worker data
+          if (workerPos && worker && hasBooking) {
+            const tradeIcon = tradeIcons[worker.trade.toLowerCase()] || "🔧";
+            const workerEl = document.createElement("div");
+            workerEl.id = "worker-tracker";
+            workerEl.innerHTML = `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
+              <div style="position:absolute;inset:-10px;border-radius:50%;background:rgba(255,107,0,0.1);animation:track-pulse 2s ease-out infinite"></div>
+              <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#FF6B00,#E85D00);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(255,107,0,0.5);border:3px solid white;position:relative;z-index:2">${tradeIcon}</div>
+              <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid #FF6B00;margin-top:-3px;position:relative;z-index:1"></div>
+              <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#FF6B00;color:white;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">${worker.name}</div>
+            </div>`;
+            const workerMarker = new mapboxgl.Marker({ element: workerEl, anchor: 'bottom' })
+              .setLngLat([workerPos.lng, workerPos.lat])
+              .addTo(map);
+            workerMarkerRef.current = workerMarker;
 
-          // ── FETCH REAL ROUTE from Mapbox Directions API ──
-          const routeResult = await fetchRoute(workerPos.lng, workerPos.lat, userPos.lng, userPos.lat);
+            // Fetch route
+            const routeResult = await fetchRoute(workerPos.lng, workerPos.lat, userPos.lng, userPos.lat);
+            if (routeResult) {
+              routeDataRef.current = routeResult.coords;
+              routeStepRef.current = 0;
+              map.addSource("route", {
+                type: "geojson",
+                data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeResult.coords } },
+              });
+              map.addLayer({ id: "route-shadow", type: "line", source: "route",
+                layout: { "line-join": "round", "line-cap": "round" },
+                paint: { "line-color": "#000", "line-width": 7, "line-opacity": 0.08, "line-blur": 3 },
+              });
+              map.addLayer({ id: "route", type: "line", source: "route",
+                layout: { "line-join": "round", "line-cap": "round" },
+                paint: { "line-color": "#FF6B00", "line-width": 5, "line-opacity": 0.9 },
+              });
+            }
 
-          if (routeResult) {
-            routeDataRef.current = routeResult.coords;
-            routeStepRef.current = 0;
-
-            // Draw the route line
-            map.addSource("route", {
-              type: "geojson",
-              data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeResult.coords } },
-            });
-
-            map.addLayer({ id: "route-shadow", type: "line", source: "route",
-              layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#000", "line-width": 7, "line-opacity": 0.08, "line-blur": 3 },
-            });
-            map.addLayer({ id: "route", type: "line", source: "route",
-              layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#FF6B00", "line-width": 5, "line-opacity": 0.9 },
-            });
-            map.addLayer({ id: "route-anim", type: "line", source: "route",
-              layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#FFA500", "line-width": 3, "line-dasharray": [0, 4, 3] },
-            });
-          } else {
-            // Fallback: curved line
-            map.addSource("route", {
-              type: "geojson",
-              data: { type: "Feature", properties: {}, geometry: {
-                type: "LineString",
-                coordinates: [
-                  [workerPos.lng, workerPos.lat],
-                  [(userPos.lng + workerPos.lng) / 2 + 0.003, (userPos.lat + workerPos.lat) / 2 + 0.002],
-                  [userPos.lng, userPos.lat],
-                ],
-              }},
-            });
-            map.addLayer({ id: "route", type: "line", source: "route",
-              layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#FF6B00", "line-width": 4, "line-dasharray": [2, 2] },
-            });
+            // Fit bounds
+            try {
+              const bounds = new mapboxgl.LngLatBounds()
+                .extend([userPos.lng, userPos.lat])
+                .extend([workerPos.lng, workerPos.lat]);
+              map.fitBounds(bounds, { padding: { top: 100, bottom: 300, left: 50, right: 50 } });
+            } catch {}
           }
-
-          // Fit bounds to show both markers with padding
-          try {
-            const bounds = new mapboxgl.LngLatBounds()
-              .extend([userPos.lng, userPos.lat])
-              .extend([workerPos.lng, workerPos.lat]);
-            map.fitBounds(bounds, { padding: { top: 100, bottom: 300, left: 50, right: 50 } });
-          } catch {}
 
           map.addControl(new mapboxgl.NavigationControl(), "top-right");
           mapRef.current = map;
@@ -244,7 +245,7 @@ export default function TrackingPage() {
         });
       } catch (e) {
         console.error("[mapbox tracking]", e);
-        setMapLoaded(true); // still show bottom sheet
+        setMapLoaded(true);
       }
     };
 
@@ -253,29 +254,12 @@ export default function TrackingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gpsReady, isDark]);
 
-  // ── ANIMATE WORKER along the real route ──
+  // Animate worker along route
   const animateWorkerAlongRoute = useCallback(() => {
-    if (!userPos) return;
+    if (!userPos || !workerPos) return;
     const coords = routeDataRef.current;
-    if (coords.length === 0) {
-      // Fallback: move directly toward user
-      setWorkerPos((prev) => {
-        const dx = (userPos.lat - prev.lat) * 0.06;
-        const dy = (userPos.lng - prev.lng) * 0.06;
-        const newPos = { lat: prev.lat + dx, lng: prev.lng + dy };
-        if (workerMarkerRef.current) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (workerMarkerRef.current as any).setLngLat([newPos.lng, newPos.lat]);
-        }
-        const dist = Math.sqrt(Math.pow(newPos.lat - userPos.lat, 2) + Math.pow(newPos.lng - userPos.lng, 2));
-        if (dist < 0.001) { setStatus("arrived"); setEta(0); }
-        else { setEta(Math.max(1, Math.round(dist * 600))); }
-        return newPos;
-      });
-      return;
-    }
+    if (coords.length === 0) return;
 
-    // Move along actual route coordinates
     const step = routeStepRef.current;
     const totalSteps = coords.length;
     if (step >= totalSteps - 1) {
@@ -295,12 +279,10 @@ export default function TrackingPage() {
       (workerMarkerRef.current as any).setLngLat([lng, lat]);
     }
 
-    // Update ETA based on remaining route %
     const progress = nextStep / totalSteps;
     const remaining = Math.max(1, Math.round(initialEtaRef.current * (1 - progress)));
     setEta(remaining);
 
-    // Update route to show only remaining portion
     if (mapRef.current) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -314,14 +296,14 @@ export default function TrackingPage() {
         }
       } catch {}
     }
-  }, [userPos]);
+  }, [userPos, workerPos]);
 
-  // Movement timer
+  // Movement timer — only if real booking
   useEffect(() => {
-    if (status !== "en_route") return;
+    if (status !== "en_route" || !hasBooking) return;
     animationRef.current = setInterval(animateWorkerAlongRoute, 3000);
     return () => { if (animationRef.current) clearInterval(animationRef.current); };
-  }, [status, animateWorkerAlongRoute]);
+  }, [status, hasBooking, animateWorkerAlongRoute]);
 
   const statusInfo = {
     en_route: { label: "Worker is on the way", icon: "🏍️", color: "var(--brand)", bgColor: "rgba(255,107,0,0.1)" },
@@ -331,9 +313,33 @@ export default function TrackingPage() {
   };
   const info = statusInfo[status];
 
+  // NO BOOKING — show message
+  if (!hasBooking && gpsReady) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
+             style={{ background: "var(--brand-tint)" }}>
+          <span className="text-[36px]">📍</span>
+        </div>
+        <h1 className="text-[20px] font-black mb-2" style={{ color: "var(--text-1)" }}>No Active Booking</h1>
+        <p className="text-[13px] text-center mb-6" style={{ color: "var(--text-3)" }}>
+          Book a worker first to see live tracking with real-time map, ETA, and route navigation.
+        </p>
+        <Link href="/booking"
+              className="rounded-xl px-8 py-4 text-[15px] font-black text-white active:scale-[0.98] transition-transform"
+              style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+          📋 Book a Worker
+        </Link>
+        <Link href="/" className="mt-3 text-[12px] font-semibold" style={{ color: "var(--text-3)" }}>
+          ← Back to Home
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen" style={{ background: "var(--bg-app)" }}>
-      {/* ── MAP ── */}
+      {/* MAP */}
       <div className="relative flex-1" style={{ minHeight: "55vh" }}>
         <div ref={mapContainer} className="absolute inset-0" />
 
@@ -348,7 +354,7 @@ export default function TrackingPage() {
           </div>
         )}
 
-        {/* Top bar overlay */}
+        {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-3">
           <Link href="/" className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 shadow-lg"
                 style={{ background: "var(--bg-card)" }}>
@@ -361,7 +367,7 @@ export default function TrackingPage() {
           </div>
           <button onClick={async () => {
             const url = window.location.href;
-            if (navigator.share) {
+            if (navigator.share && worker) {
               await navigator.share({
                 title: `Track ${worker.name} on Kaizy`,
                 text: `${worker.name} (${worker.trade}) is on the way! ETA: ${eta} min`,
@@ -377,8 +383,8 @@ export default function TrackingPage() {
           </button>
         </div>
 
-        {/* ETA badge — Rapido style */}
-        {status === "en_route" && eta > 0 && (
+        {/* ETA badge — only with real data */}
+        {status === "en_route" && eta > 0 && eta < 500 && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 rounded-2xl px-5 py-3 shadow-xl text-center"
                style={{ background: "var(--brand)" }}>
             <p className="text-[28px] font-black text-white leading-none">{eta}</p>
@@ -390,9 +396,10 @@ export default function TrackingPage() {
         {/* Re-center button */}
         {mapLoaded && userPos && (
           <button onClick={() => {
-            if (mapRef.current) {
+            if (mapRef.current && userPos) {
+              const wP = workerPos || userPos;
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (mapRef.current as any).flyTo({ center: [(userPos.lng + workerPos.lng) / 2, (userPos.lat + workerPos.lat) / 2], zoom: 14, duration: 1000 });
+              (mapRef.current as any).flyTo({ center: [(userPos.lng + wP.lng) / 2, (userPos.lat + wP.lat) / 2], zoom: 14, duration: 1000 });
             }
           }} className="absolute bottom-4 right-4 z-10 w-11 h-11 rounded-full shadow-lg flex items-center justify-center active:scale-90"
                   style={{ background: "var(--bg-card)" }}>
@@ -401,37 +408,41 @@ export default function TrackingPage() {
         )}
       </div>
 
-      {/* ── BOTTOM SHEET ── */}
+      {/* BOTTOM SHEET */}
       <div className="shrink-0 rounded-t-3xl -mt-4 relative z-10 px-4 pt-5 pb-6"
            style={{ background: "var(--bg-app)", boxShadow: "0 -4px 20px rgba(0,0,0,0.08)" }}>
         <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: "var(--bg-elevated)" }} />
 
         {/* Worker info */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold text-white"
-               style={{ background: "var(--brand)" }}>{worker.initials}</div>
-          <div className="flex-1">
-            <p className="text-[15px] font-black" style={{ color: "var(--text-1)" }}>{worker.name}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{tradeIcons[worker.trade.toLowerCase()] || "🔧"} {worker.trade}</span>
-              <span className="text-[11px]" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold text-white"
-                    style={{ background: "var(--info)" }}>KS {worker.kaizyScore}</span>
+        {worker && (
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold text-white"
+                 style={{ background: "var(--brand)" }}>{worker.initials}</div>
+            <div className="flex-1">
+              <p className="text-[15px] font-black" style={{ color: "var(--text-1)" }}>{worker.name}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{tradeIcons[worker.trade.toLowerCase()] || "🔧"} {worker.trade}</span>
+                {worker.rating > 0 && <span className="text-[11px]" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>}
+                {worker.kaizyScore > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold text-white"
+                      style={{ background: "var(--info)" }}>KS {worker.kaizyScore}</span>}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {worker.phone && (
+                <a href={`tel:${worker.phone}`}
+                   className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
+                   style={{ background: "var(--success)" }}>
+                  <span className="text-white text-[16px]">📞</span>
+                </a>
+              )}
+              <Link href="/chat"
+                    className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
+                    style={{ background: "var(--brand)" }}>
+                <span className="text-white text-[16px]">💬</span>
+              </Link>
             </div>
           </div>
-          <div className="flex gap-2">
-            <a href={`tel:${worker.phone}`}
-               className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
-               style={{ background: "var(--success)" }}>
-              <span className="text-white text-[16px]">📞</span>
-            </a>
-            <Link href="/chat"
-                  className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
-                  style={{ background: "var(--brand)" }}>
-              <span className="text-white text-[16px]">💬</span>
-            </Link>
-          </div>
-        </div>
+        )}
 
         {/* OTP Card */}
         {status === "arrived" && (
@@ -443,7 +454,7 @@ export default function TrackingPage() {
           </div>
         )}
 
-        {/* Status timeline — Rapido style */}
+        {/* Status timeline */}
         <div className="flex items-center gap-1 mb-4 px-1">
           {(["en_route", "arrived", "working", "completed"] as const).map((s, i) => {
             const labels = ["En Route", "Arrived", "Working", "Done"];

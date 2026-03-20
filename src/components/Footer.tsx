@@ -147,9 +147,9 @@ export default function Footer() {
             <Phone className="w-4 h-4" />
             +91 98765 43210
           </a>
-          <a href="mailto:hello@kaizy.in" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
+          <a href="mailto:support@kaizy.com" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
             <Mail className="w-4 h-4" />
-            hello@kaizy.in
+            support@kaizy.com
           </a>
           <span className="flex items-center gap-2 text-white/50 text-sm">
             <MapPin className="w-4 h-4" />

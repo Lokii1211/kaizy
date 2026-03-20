@@ -135,7 +135,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-[14px] font-bold mb-2" style={{ color: "var(--text-1)" }}>13. Contact</h2>
-          <p className="font-bold" style={{ color: "var(--brand)" }}>📧 legal@kaizy.in</p>
+          <p className="font-bold" style={{ color: "var(--brand)" }}>📧 legal@kaizy.com</p>
           <p className="font-bold" style={{ color: "var(--brand)" }}>💬 KaizyBot (in-app support)</p>
         </section>
       </div>
