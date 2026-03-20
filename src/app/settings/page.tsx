@@ -154,7 +154,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <p className="text-center text-[10px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v4.2 · Production</p>
+      <p className="text-center text-[10px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v6.0 · Production</p>
     </div>
   );
 }

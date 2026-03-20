@@ -125,7 +125,7 @@ export default function HirerRegisterPage() {
               <div className="card !p-0 overflow-hidden max-w-sm mx-auto mb-8">
                 <div className="p-6 bg-gradient-to-br from-[#1E293B] to-[#334155] text-white">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-white font-bold text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> KonnectOn Business</span>
+                    <span className="text-white font-bold text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> Kaizy Business</span>
                     <span className="badge bg-white/20 text-white text-[10px]">VERIFIED</span>
                   </div>
                   <p className="font-bold text-lg">{formData.businessName || "Kumar Electronics"}</p>

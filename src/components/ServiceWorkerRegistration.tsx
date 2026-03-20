@@ -8,12 +8,12 @@ export default function ServiceWorkerRegistration() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {
-          console.log("[KonnectOn] SW registered:", reg.scope);
+          console.log("[Kaizy] SW registered:", reg.scope);
           // Check for updates every 60 minutes
           setInterval(() => reg.update(), 60 * 60 * 1000);
         })
         .catch((err) => {
-          console.warn("[KonnectOn] SW registration failed:", err);
+          console.warn("[Kaizy] SW registration failed:", err);
         });
     }
   }, []);

@@ -33,24 +33,50 @@ export default function BookingPage() {
   const [reviewTags, setReviewTags] = useState<string[]>(["On Time", "Good Work"]);
   const chatRef = useRef<HTMLDivElement>(null);
   const [locationLabel, setLocationLabel] = useState("Detecting location...");
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [customProblem, setCustomProblem] = useState("");
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressResults, setAddressResults] = useState<Array<{ place_name: string; center: [number, number] }>>([]);
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [locationVerified, setLocationVerified] = useState(false);
 
   // GPS reverse geocode for location label
   useEffect(() => {
     if (!navigator.geolocation) { setLocationLabel("Your location"); return; }
     navigator.geolocation.getCurrentPosition(async (pos) => {
+      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setLocationCoords(coords);
+      setLocationVerified(true);
       const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
       if (token) {
         try {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place,neighborhood`);
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${token}&limit=1&types=locality,place,neighborhood`);
           const d = await res.json();
           if (d.features?.[0]) setLocationLabel(d.features[0].place_name?.split(',').slice(0, 2).join(',') || d.features[0].text);
         } catch { setLocationLabel("Your area"); }
       }
-    }, () => setLocationLabel("Location off"));
+    }, () => setLocationLabel("Location off — enter manually"));
   }, []);
+
+  // Mapbox geocoding search for manual address
+  const searchAddress = async (query: string) => {
+    if (!query.trim() || query.length < 3) { setAddressResults([]); return; }
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return;
+    setAddressSearching(true);
+    try {
+      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=IN&limit=5&types=address,poi,locality,place,neighborhood`);
+      const d = await res.json();
+      setAddressResults(d.features?.map((f: { place_name: string; center: [number, number] }) => ({
+        place_name: f.place_name,
+        center: f.center,
+      })) || []);
+    } catch { setAddressResults([]); }
+    setAddressSearching(false);
+  };
 
   // Auto-scroll chat
   useEffect(() => {
@@ -125,30 +151,94 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* Location — Editable like Uber */}
-          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+          {/* Location — Editable with Mapbox Geocoding */}
+          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: locationVerified ? "1px solid var(--success)" : "1px solid var(--border-1)" }}>
             <div className="flex items-center gap-2 mb-2">
-              <span style={{ color: "var(--brand)" }}>📍</span>
+              <span style={{ color: locationVerified ? "var(--success)" : "var(--brand)" }}>{locationVerified ? "✅" : "📍"}</span>
               <div className="flex-1">
                 <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{locationLabel}</p>
-                <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Auto-detected · GPS</p>
+                <p className="text-[10px]" style={{ color: locationVerified ? "var(--success)" : "var(--text-3)" }}>
+                  {locationVerified ? "Location verified on map ✓" : "⚠️ Enter address to verify"}
+                </p>
               </div>
-              <button onClick={() => {
-                const addr = prompt("Enter service address:\n(e.g., 45 MG Road, Gandhipuram, Coimbatore)", "");
-                if (addr && addr.trim()) setLocationLabel(addr.trim());
-              }} className="text-[11px] font-bold px-2 py-1 rounded-lg active:scale-95"
+              <button onClick={() => setShowAddressSearch(!showAddressSearch)}
+                      className="text-[11px] font-bold px-2 py-1 rounded-lg active:scale-95"
                       style={{ color: "var(--brand)", background: "var(--brand-tint)" }}>
-                ✏️ Edit
+                ✏️ {showAddressSearch ? "Close" : "Edit"}
               </button>
             </div>
-            {/* Manual address for booking for others */}
-            <button onClick={() => {
-              const addr = prompt("Enter address for someone else:\n(Full address where the worker should go)", "");
-              if (addr && addr.trim()) setLocationLabel("📦 " + addr.trim());
-            }} className="w-full text-left rounded-lg px-3 py-2 text-[10px] font-semibold active:scale-[0.98]"
-                    style={{ background: "var(--bg-elevated)", color: "var(--text-3)" }}>
-              👤 Booking for someone else? Enter their address →
-            </button>
+
+            {/* Address Search Panel */}
+            {showAddressSearch && (
+              <div className="mt-2 space-y-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={addressQuery}
+                    onChange={(e) => { setAddressQuery(e.target.value); searchAddress(e.target.value); }}
+                    placeholder="Search address... (e.g., MG Road, Coimbatore)"
+                    className="w-full rounded-lg px-3 py-2.5 text-[12px] outline-none"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-1)", border: "1px solid var(--border-1)" }}
+                    autoFocus
+                  />
+                  {addressSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 rounded-full animate-spin"
+                         style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+                  )}
+                </div>
+
+                {/* Search Results */}
+                {addressResults.length > 0 && (
+                  <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-1)" }}>
+                    {addressResults.map((result, i) => (
+                      <button key={i} onClick={() => {
+                        setLocationLabel(result.place_name.split(',').slice(0, 3).join(','));
+                        setLocationCoords({ lat: result.center[1], lng: result.center[0] });
+                        setLocationVerified(true);
+                        setShowAddressSearch(false);
+                        setAddressResults([]);
+                        setAddressQuery("");
+                      }} className="w-full flex items-center gap-2 px-3 py-2.5 text-left active:scale-[0.98] transition-all"
+                              style={{ background: "var(--bg-elevated)", borderBottom: i < addressResults.length - 1 ? "1px solid var(--border-1)" : "none" }}>
+                        <span className="text-[14px]">📍</span>
+                        <p className="text-[11px] font-medium flex-1" style={{ color: "var(--text-1)" }}>
+                          {result.place_name}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {addressQuery.length >= 3 && addressResults.length === 0 && !addressSearching && (
+                  <p className="text-[10px] text-center py-2" style={{ color: "var(--error)" }}>
+                    ❌ Address not found on map. Try a more specific address.
+                  </p>
+                )}
+
+                {/* Use GPS button */}
+                <button onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (pos) => {
+                      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                      setLocationCoords(coords);
+                      setLocationVerified(true);
+                      setShowAddressSearch(false);
+                      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+                      if (token) {
+                        try {
+                          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${token}&limit=1`);
+                          const d = await res.json();
+                          if (d.features?.[0]) setLocationLabel(d.features[0].place_name?.split(',').slice(0, 2).join(','));
+                        } catch {}
+                      }
+                    });
+                  }
+                }} className="w-full rounded-lg py-2 text-[11px] font-bold active:scale-[0.98]"
+                        style={{ background: "var(--brand-tint)", color: "var(--brand)", border: "1px solid var(--brand)" }}>
+                  📡 Use Current GPS Location
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Price estimate */}
@@ -172,16 +262,33 @@ export default function BookingPage() {
             )}
           </div>
 
+          {/* Location not verified warning */}
+          {!locationVerified && selectedProblem && (
+            <p className="text-[10px] font-semibold mb-2 px-1" style={{ color: "var(--error)" }}>
+              ⚠️ Please verify your location on the map before booking
+            </p>
+          )}
+
           {/* Find button */}
           <button
             onClick={() => {
               const problem = selectedProblem === "Other" ? (customProblem.trim() || "General Issue") : selectedProblem;
-              if (problem) startSearch(selectedTrade, problem);
+              if (problem && locationVerified) {
+                // Store user location for tracking page
+                try {
+                  sessionStorage.setItem("kaizy_booking_location", JSON.stringify({
+                    label: locationLabel,
+                    lat: locationCoords?.lat,
+                    lng: locationCoords?.lng,
+                  }));
+                } catch {}
+                startSearch(selectedTrade, problem);
+              }
             }}
-            disabled={!selectedProblem || (selectedProblem === "Other" && !customProblem.trim())}
+            disabled={!selectedProblem || !locationVerified || (selectedProblem === "Other" && !customProblem.trim())}
             className="w-full rounded-[14px] py-4 text-[14px] font-black text-white active:scale-[0.98] transition-all disabled:opacity-40"
-            style={{ background: selectedProblem ? "var(--brand)" : "var(--bg-elevated)", boxShadow: selectedProblem ? "var(--shadow-brand)" : "none" }}>
-            🔍 Find Workers Near Me
+            style={{ background: selectedProblem && locationVerified ? "var(--brand)" : "var(--bg-elevated)", boxShadow: selectedProblem && locationVerified ? "var(--shadow-brand)" : "none" }}>
+            {locationVerified ? "🔍 Find Workers Near Me" : "📍 Verify Location First"}
           </button>
         </div>
       </div>

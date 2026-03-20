@@ -87,7 +87,7 @@ export default function AdminDashboard() {
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100"><Menu className="w-5 h-5" /></button>
               <div>
                 <h1 className="text-xl font-bold text-[var(--foreground)]">Platform Overview</h1>
-                <p className="text-sm text-[var(--color-muted)]">Real-time KonnectOn metrics</p>
+                <p className="text-sm text-[var(--color-muted)]">Real-time Kaizy metrics</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

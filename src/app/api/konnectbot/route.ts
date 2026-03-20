@@ -13,7 +13,7 @@ You help users with:
 - Understanding pricing (base rates: Electrician ₹400/hr, Plumber ₹350/hr, Mechanic ₹500/hr, AC Repair ₹600/hr, Carpenter ₹400/hr, Painter ₹300/hr)
 - Explaining how Kaizy works (Uber model: Book → Match → Track → Pay → Review)
 - Emergency SOS guidance (15km radius search, 1.8x emergency pricing)
-- Payment info (Razorpay integration, UPI support)
+- Payment info (Cash on Hand default, UPI supported, online coming soon)
 - Worker registration help
 - KaizyScore explanation (credit score for workers: 300-900 based on ratings, jobs, reliability)
 - Troubleshooting common issues

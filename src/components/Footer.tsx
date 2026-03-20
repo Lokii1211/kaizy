@@ -59,9 +59,9 @@ export default function Footer() {
               </div>
               <div>
                 <span className="text-xl font-bold text-white">
-                  Konnect<span className="text-[#FF6B2C]">On</span>
+                  kai<span className="text-[#FF6B2C]">zy</span>
                 </span>
-                <p className="text-[10px] text-white/40 -mt-1">The Bridge to Work</p>
+                <p className="text-[10px] text-white/40 -mt-1">India's Workforce OS</p>
               </div>
             </Link>
             <p className="text-white/50 text-sm leading-relaxed mb-4">
@@ -87,8 +87,8 @@ export default function Footer() {
               links: [
                 { name: "Register", href: "/register/worker" },
                 { name: "Find Jobs", href: "/marketplace" },
-                { name: "KonnectPassport", href: "#" },
-                { name: "KonnectScore", href: "#" },
+                { name: "KaizyPass", href: "/worker/profile" },
+                { name: "KaizyScore", href: "#" },
                 { name: "Skill Courses", href: "#" },
               ],
             },
@@ -147,9 +147,9 @@ export default function Footer() {
             <Phone className="w-4 h-4" />
             +91 98765 43210
           </a>
-          <a href="mailto:hello@konnecton.in" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
+          <a href="mailto:hello@kaizy.in" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
             <Mail className="w-4 h-4" />
-            hello@konnecton.in
+            hello@kaizy.in
           </a>
           <span className="flex items-center gap-2 text-white/50 text-sm">
             <MapPin className="w-4 h-4" />
@@ -160,7 +160,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-white/10">
           <p className="text-white/40 text-sm flex items-center gap-1">
-            © {currentYear} KonnectOn. Made with <Heart className="w-3.5 h-3.5 text-[#FF6B2C] fill-[#FF6B2C]" /> in India
+            © {currentYear} Kaizy. Made with <Heart className="w-3.5 h-3.5 text-[#FF6B2C] fill-[#FF6B2C]" /> in India
           </p>
           <div className="flex gap-6">
             {[

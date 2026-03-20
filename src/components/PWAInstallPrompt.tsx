@@ -54,7 +54,7 @@ export default function PWAInstallPrompt() {
           <Download className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-extrabold text-gray-900">Install KonnectOn</p>
+          <p className="text-[13px] font-extrabold text-gray-900">Install Kaizy</p>
           <p className="text-[11px] text-gray-400">Add to home screen for faster access</p>
         </div>
         <button

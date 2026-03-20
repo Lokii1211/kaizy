@@ -65,7 +65,20 @@ export default function TrackingPage() {
       }
     } catch {}
 
-    // Get real GPS position
+    // Load verified booking location (from address search)
+    try {
+      const storedLoc = sessionStorage.getItem("kaizy_booking_location");
+      if (storedLoc) {
+        const loc = JSON.parse(storedLoc);
+        if (loc.lat && loc.lng) {
+          setUserPos({ lat: loc.lat, lng: loc.lng });
+          setGpsReady(true);
+          return; // Don't try GPS if we have booking location
+        }
+      }
+    } catch {}
+
+    // Fallback: Get real GPS position
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -465,11 +478,21 @@ export default function TrackingPage() {
         {/* Action buttons */}
         <div className="flex gap-2">
           {status === "en_route" && (
-            <button onClick={() => { setStatus("arrived"); setEta(0); }}
-                    className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
-                    style={{ background: "var(--success)" }}>
-              📍 Worker Arrived
-            </button>
+            <>
+              <button onClick={() => {
+                if (userPos) {
+                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${userPos.lat},${userPos.lng}&travelmode=driving`, '_blank');
+                }
+              }} className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
+                      style={{ background: "var(--info)" }}>
+                🗺️ Navigate
+              </button>
+              <button onClick={() => { setStatus("arrived"); setEta(0); }}
+                      className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
+                      style={{ background: "var(--success)" }}>
+                📍 Arrived
+              </button>
+            </>
           )}
           {status === "arrived" && (
             <button onClick={() => setStatus("working")}
@@ -489,7 +512,7 @@ export default function TrackingPage() {
             <Link href="/booking"
                   className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold text-white active:scale-95"
                   style={{ background: "var(--brand)" }}>
-              💳 Pay & Review →
+              💵 Pay Cash & Review →
             </Link>
           )}
           <Link href="/"
