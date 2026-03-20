@@ -123,7 +123,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     
     try {
       const trade = TRADE_API_MAP[category] || category.toLowerCase();
-      const res = await fetch(`/api/workers/nearby?trade=${trade}&lat=11.0168&lng=76.9558&radius=10&limit=8`);
+      // Get real GPS coordinates
+      let lat = 11.0168, lng = 76.9558;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 });
+        });
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch {}
+      setState(prev => ({ ...prev, userLocation: { lat, lng } }));
+      const res = await fetch(`/api/workers/nearby?trade=${trade}&lat=${lat}&lng=${lng}&radius=10&limit=8`);
       const json = await res.json();
 
       if (json.success && json.data?.workers?.length > 0) {

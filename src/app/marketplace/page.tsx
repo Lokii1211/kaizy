@@ -40,11 +40,23 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance");
+  const [gpsLat, setGpsLat] = useState(11.0168);
+  const [gpsLng, setGpsLng] = useState(76.9558);
+
+  // Get GPS on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { setGpsLat(pos.coords.latitude); setGpsLng(pos.coords.longitude); },
+        () => {}, { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
 
   const fetchWorkers = async (trade?: string) => {
     setLoading(true);
     try {
-      const url = `/api/workers/nearby?trade=${trade || ''}&lat=11.0168&lng=76.9558&radius=15&limit=20`;
+      const url = `/api/workers/nearby?trade=${trade || ''}&lat=${gpsLat}&lng=${gpsLng}&radius=15&limit=20`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.success && json.data?.workers) setWorkers(json.data.workers);
@@ -52,7 +64,7 @@ export default function MarketplacePage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchWorkers(); }, []);
+  useEffect(() => { fetchWorkers(); }, [gpsLat, gpsLng]);
 
   const handleCategoryClick = (i: number) => {
     setActiveCategory(i);
