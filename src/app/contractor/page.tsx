@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users, Plus, MapPin, Star, Clock, TrendingUp, IndianRupee,
@@ -9,14 +9,12 @@ import {
   Zap, Eye, MessageCircle, UserPlus, Crown, Target, Percent,
 } from "lucide-react";
 
-const teamMembers = [
-  { name: "Raju Kumar", trade: "Electrician", status: "on_job", rating: 4.8, jobs: 127, earnings: "₹48,600", avatar: "RK", phone: "+91 98765 43210" },
-  { name: "Suresh Babu", trade: "Plumber", status: "available", rating: 4.6, jobs: 203, earnings: "₹62,100", avatar: "SB", phone: "+91 87654 32109" },
-  { name: "Priya Sharma", trade: "AC Technician", status: "on_job", rating: 4.9, jobs: 89, earnings: "₹38,200", avatar: "PS", phone: "+91 76543 21098" },
-  { name: "Anil Verma", trade: "Carpenter", status: "available", rating: 4.7, jobs: 156, earnings: "₹55,800", avatar: "AV", phone: "+91 65432 10987" },
-  { name: "Lakshmi R", trade: "Painter", status: "off_duty", rating: 4.5, jobs: 64, earnings: "₹24,500", avatar: "LR", phone: "+91 54321 09876" },
-  { name: "Ganesh M", trade: "Electrician", status: "available", rating: 4.4, jobs: 45, earnings: "₹18,900", avatar: "GM", phone: "+91 43210 98765" },
-];
+interface TeamMember {
+  name: string; trade: string; status: string; rating: number;
+  jobs: number; earnings: string; avatar: string; phone: string;
+}
+
+// Will be populated from API
 
 const statusConfig = {
   on_job: { label: "On Job", color: "bg-blue-50 text-blue-700", dot: "bg-blue-500" },
@@ -32,6 +30,29 @@ const teamBookings = [
 
 export default function ContractorPortalPage() {
   const [activeTab, setActiveTab] = useState<"team" | "bookings" | "analytics">("team");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const res = await fetch('/api/workers?limit=10');
+        const json = await res.json();
+        if (json.success && json.data?.length) {
+          setTeamMembers(json.data.map((w: Record<string, unknown>) => ({
+            name: String(w.name || 'Worker'),
+            trade: String((w.skills as string[])?.[0] || 'Technician'),
+            status: w.available ? 'available' : 'off_duty',
+            rating: Number(w.rating || 0),
+            jobs: Number(w.jobsCompleted || 0),
+            earnings: `₹${Number(w.jobsCompleted || 0) * 400}`,
+            avatar: String(w.name || 'W').split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
+            phone: String(w.phone || ''),
+          })));
+        }
+      } catch {}
+    };
+    fetchTeam();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex">

@@ -30,25 +30,7 @@ const disputeTypes: { type: DisputeType; label: string; icon: string; desc: stri
   { type: "other", label: "Other Issue", icon: "📝", desc: "Something else went wrong" },
 ];
 
-const demoCases: DisputeCase[] = [
-  {
-    id: "DIS-2024-0847",
-    status: "investigating",
-    type: "quality",
-    booking: "BK-2024-1293",
-    filed: "2 hours ago",
-    sla: "22 hours remaining",
-  },
-  {
-    id: "DIS-2024-0832",
-    status: "resolved",
-    type: "incomplete",
-    booking: "BK-2024-1250",
-    filed: "3 days ago",
-    sla: "Resolved in 18 hrs",
-    resolution: "Partial refund of ₹900 issued to hirer. Worker received ₹600 for completed portion.",
-  },
-];
+const demoCases: DisputeCase[] = [];
 
 export default function DisputePage() {
   const [step, setStep] = useState<DisputeStep>("select");
@@ -134,10 +116,10 @@ export default function DisputePage() {
                   <p className="text-xs text-[var(--color-muted)] mb-2">Disputed Booking</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center text-sm font-bold text-[#FF6B2C]">RK</div>
+                      <div className="w-10 h-10 rounded-xl bg-[#FF6B2C]/10 flex items-center justify-center text-sm font-bold text-[#FF6B2C]">📋</div>
                       <div>
-                        <p className="font-semibold text-sm">Shop Rewiring — Raju Kumar</p>
-                        <p className="text-xs text-[var(--color-muted)]">BK-2024-1293 • ₹1,800 • Today, 10 AM</p>
+                        <p className="font-semibold text-sm">Your Recent Booking</p>
+                        <p className="text-xs text-[var(--color-muted)]">Select the booking you want to dispute</p>
                       </div>
                     </div>
                     <ChevronDown className="w-4 h-4 text-[var(--color-muted)]" />
