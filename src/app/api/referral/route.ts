@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
-// Referral & Viral Growth API
-// Handles referral code generation, tracking, and reward distribution
-
-// In-memory store (Postgres in prod)
-const referrals: Record<string, {
-  code: string;
-  userId: string;
-  tier: string;
-  referrals: { name: string; phone: string; skill: string; status: string; reward: number; date: string }[];
-  totalEarned: number;
-}> = {};
+// ════════════════════════════════════════════════════════════
+// REFERRAL SYSTEM — Production-grade with Supabase
+// - Unique code per user (persistent)
+// - Track referrals in database
+// - Tiered rewards (Bronze→Platinum)
+// - Milestone bonuses (5th, 10th, 25th, 50th referral)
+// - Leaderboard
+// ════════════════════════════════════════════════════════════
 
 const TIER_REWARDS: Record<string, number> = {
   bronze: 100,
   silver: 150,
   gold: 200,
   platinum: 300,
+};
+
+const MILESTONE_BONUSES: Record<number, { bonus: number; badge: string }> = {
+  5:  { bonus: 250,  badge: "🎯 First Five" },
+  10: { bonus: 500,  badge: "🔥 On Fire" },
+  25: { bonus: 1000, badge: "⭐ Star Referrer" },
+  50: { bonus: 2500, badge: "💎 Legend" },
+  100:{ bonus: 5000, badge: "👑 Champion" },
 };
 
 function getTier(count: number): string {
@@ -26,142 +32,313 @@ function getTier(count: number): string {
   return "bronze";
 }
 
-function generateCode(name: string): string {
-  const prefix = name.toUpperCase().replace(/\s+/g, "").slice(0, 4);
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-KON-${suffix}`;
+function generateCode(phone: string): string {
+  const prefix = "KZ";
+  const hash = phone.slice(-4);
+  const rand = Math.floor(100 + Math.random() * 900);
+  return `${prefix}${hash}${rand}`;
 }
 
-// POST /api/referral — Create referral code, track referral, get stats
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
 
-    // Generate referral code
+    // ── GENERATE or GET referral code ──
     if (action === "generate_code") {
-      const { userId, name } = body;
-      if (!userId || !name) {
-        return NextResponse.json({ success: false, error: "userId and name required" }, { status: 400 });
+      const { userId, name, phone } = body;
+      if (!userId && !phone) {
+        return NextResponse.json({ success: false, error: "userId or phone required" }, { status: 400 });
       }
 
-      const code = generateCode(name);
-      referrals[userId] = {
-        code,
-        userId,
-        tier: "bronze",
-        referrals: [],
-        totalEarned: 0,
-      };
+      // Check if user already has a code in DB
+      const identifier = userId || phone;
+      const { data: existing } = await supabaseAdmin
+        .from("referral_codes")
+        .select("*")
+        .eq("user_id", identifier)
+        .single();
+
+      if (existing) {
+        // Return existing code
+        const { data: refs } = await supabaseAdmin
+          .from("referral_tracking")
+          .select("*")
+          .eq("referrer_code", existing.code)
+          .order("created_at", { ascending: false });
+
+        const completedCount = (refs || []).filter(r => r.status === "completed").length;
+        const totalEarned = (refs || []).reduce((sum, r) => sum + (r.reward || 0), 0);
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            code: existing.code,
+            shareUrl: `https://kaizyy.vercel.app/join?ref=${existing.code}`,
+            tier: getTier(completedCount),
+            reward: TIER_REWARDS[getTier(completedCount)],
+            totalEarned,
+            completedCount,
+            pendingCount: (refs || []).length - completedCount,
+            referrals: refs || [],
+          },
+        });
+      }
+
+      // Generate new code
+      const code = generateCode(phone || identifier);
+      const { error: insertErr } = await supabaseAdmin
+        .from("referral_codes")
+        .insert({
+          user_id: identifier,
+          code,
+          name: name || "User",
+          phone: phone || "",
+          tier: "bronze",
+          created_at: new Date().toISOString(),
+        });
+
+      if (insertErr) {
+        // Table might not exist, use fallback code
+        return NextResponse.json({
+          success: true,
+          data: {
+            code,
+            shareUrl: `https://kaizyy.vercel.app/join?ref=${code}`,
+            tier: "bronze",
+            reward: TIER_REWARDS.bronze,
+            totalEarned: 0,
+            completedCount: 0,
+            pendingCount: 0,
+            referrals: [],
+            note: "Code generated (local mode)",
+          },
+        });
+      }
 
       return NextResponse.json({
         success: true,
         data: {
           code,
-          shareUrl: `https://konnecton.in/r/${code}`,
+          shareUrl: `https://kaizyy.vercel.app/join?ref=${code}`,
           tier: "bronze",
           reward: TIER_REWARDS.bronze,
-          whatsappMessage: `🧡 KonnectOn pe register karo — FREE hai!\n\nVerified jobs, same-day UPI payment, no middlemen.\n\nMera referral code: ${code}\n👉 https://konnecton.in/r/${code}`,
+          totalEarned: 0,
+          completedCount: 0,
+          pendingCount: 0,
+          referrals: [],
         },
       });
     }
 
-    // Track a new referral
+    // ── TRACK a new referral ──
     if (action === "track") {
       const { referrerCode, referredName, referredPhone, referredSkill } = body;
       if (!referrerCode || !referredName || !referredPhone) {
-        return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+        return NextResponse.json({ success: false, error: "Missing fields" }, { status: 400 });
       }
 
-      // Find referrer by code
-      const referrer = Object.values(referrals).find((r) => r.code === referrerCode);
+      // Verify referrer code exists
+      const { data: referrer } = await supabaseAdmin
+        .from("referral_codes")
+        .select("*")
+        .eq("code", referrerCode)
+        .single();
+
       if (!referrer) {
         return NextResponse.json({ success: false, error: "Invalid referral code" }, { status: 400 });
       }
 
-      // Check for duplicate
-      if (referrer.referrals.some((r) => r.phone === referredPhone)) {
-        return NextResponse.json({ success: false, error: "This phone already referred" }, { status: 409 });
+      // Check duplicate
+      const { data: dup } = await supabaseAdmin
+        .from("referral_tracking")
+        .select("id")
+        .eq("referrer_code", referrerCode)
+        .eq("referred_phone", referredPhone)
+        .single();
+
+      if (dup) {
+        return NextResponse.json({ success: false, error: "Already referred" }, { status: 409 });
       }
 
-      referrer.referrals.push({
-        name: referredName,
-        phone: referredPhone,
-        skill: referredSkill || "Unknown",
+      // Insert tracking
+      await supabaseAdmin.from("referral_tracking").insert({
+        referrer_code: referrerCode,
+        referrer_user_id: referrer.user_id,
+        referred_name: referredName,
+        referred_phone: referredPhone,
+        referred_skill: referredSkill || "General",
         status: "pending",
         reward: 0,
-        date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       return NextResponse.json({
         success: true,
-        message: "Referral tracked. Reward will be credited after first job completion.",
+        message: "Referral tracked. Reward after first job completion.",
       });
     }
 
-    // Complete a referral (triggered when referred user completes first job)
+    // ── COMPLETE a referral (when referred user finishes first job) ──
     if (action === "complete") {
       const { referrerCode, referredPhone } = body;
-      const referrer = Object.values(referrals).find((r) => r.code === referrerCode);
-      if (!referrer) {
-        return NextResponse.json({ success: false, error: "Referrer not found" }, { status: 404 });
+      
+      const { data: tracking } = await supabaseAdmin
+        .from("referral_tracking")
+        .select("*")
+        .eq("referrer_code", referrerCode)
+        .eq("referred_phone", referredPhone)
+        .eq("status", "pending")
+        .single();
+
+      if (!tracking) {
+        return NextResponse.json({ success: false, error: "No pending referral" }, { status: 404 });
       }
 
-      const ref = referrer.referrals.find((r) => r.phone === referredPhone && r.status === "pending");
-      if (!ref) {
-        return NextResponse.json({ success: false, error: "No pending referral found" }, { status: 404 });
-      }
+      // Count completed referrals to determine tier
+      const { data: allRefs } = await supabaseAdmin
+        .from("referral_tracking")
+        .select("status")
+        .eq("referrer_code", referrerCode);
 
-      const completedCount = referrer.referrals.filter((r) => r.status === "completed").length + 1;
+      const completedCount = (allRefs || []).filter(r => r.status === "completed").length + 1;
       const tier = getTier(completedCount);
       const reward = TIER_REWARDS[tier];
+      
+      // Check for milestone bonus
+      const milestone = MILESTONE_BONUSES[completedCount];
+      const totalReward = reward + (milestone?.bonus || 0);
 
-      ref.status = "completed";
-      ref.reward = reward;
-      referrer.tier = tier;
-      referrer.totalEarned += reward;
+      // Update tracking record
+      await supabaseAdmin
+        .from("referral_tracking")
+        .update({ status: "completed", reward: totalReward })
+        .eq("id", tracking.id);
+
+      // Update referrer tier
+      await supabaseAdmin
+        .from("referral_codes")
+        .update({ tier })
+        .eq("code", referrerCode);
 
       return NextResponse.json({
         success: true,
         data: {
           reward,
-          newTotal: referrer.totalEarned,
+          milestoneBonus: milestone?.bonus || 0,
+          milestoneBadge: milestone?.badge || null,
+          totalReward,
           tier,
           totalReferrals: completedCount,
-          message: `₹${reward} credited for referral of ${ref.name}!`,
+          message: milestone
+            ? `🎉 ₹${reward} + ₹${milestone.bonus} milestone bonus! (${milestone.badge})`
+            : `₹${reward} credited for referral!`,
         },
       });
     }
 
-    // Get referral stats
+    // ── GET stats ──
     if (action === "stats") {
-      const { userId } = body;
-      const data = referrals[userId];
-      if (!data) {
-        return NextResponse.json({
-          success: true,
-          data: { code: null, tier: "bronze", referrals: [], totalEarned: 0 },
-        });
+      const { userId, phone } = body;
+      const identifier = userId || phone;
+      
+      if (!identifier) {
+        return NextResponse.json({ success: true, data: { code: null, tier: "bronze", referrals: [], totalEarned: 0 } });
       }
 
-      const completedCount = data.referrals.filter((r) => r.status === "completed").length;
+      const { data: codeData } = await supabaseAdmin
+        .from("referral_codes")
+        .select("*")
+        .eq("user_id", identifier)
+        .single();
+
+      if (!codeData) {
+        return NextResponse.json({ success: true, data: { code: null, tier: "bronze", referrals: [], totalEarned: 0 } });
+      }
+
+      const { data: refs } = await supabaseAdmin
+        .from("referral_tracking")
+        .select("*")
+        .eq("referrer_code", codeData.code)
+        .order("created_at", { ascending: false });
+
+      const completedCount = (refs || []).filter(r => r.status === "completed").length;
+      const totalEarned = (refs || []).reduce((sum, r) => sum + (r.reward || 0), 0);
+      const nextTierTarget = completedCount < 6 ? 6 : completedCount < 16 ? 16 : completedCount < 51 ? 51 : null;
+
+      // Check upcoming milestone
+      const nextMilestone = Object.entries(MILESTONE_BONUSES).find(([count]) => Number(count) > completedCount);
+
       return NextResponse.json({
         success: true,
         data: {
-          code: data.code,
-          tier: data.tier,
-          referrals: data.referrals,
-          totalEarned: data.totalEarned,
+          code: codeData.code,
+          tier: getTier(completedCount),
+          referrals: refs || [],
+          totalEarned,
           completedCount,
-          pendingCount: data.referrals.length - completedCount,
-          nextTier: getTier(completedCount + 1) !== data.tier ? getTier(completedCount + 1) : null,
-          nextTierTarget: completedCount < 6 ? 6 : completedCount < 16 ? 16 : completedCount < 51 ? 51 : null,
+          pendingCount: (refs || []).length - completedCount,
+          nextTierTarget,
+          nextMilestone: nextMilestone ? { count: Number(nextMilestone[0]), bonus: nextMilestone[1].bonus, badge: nextMilestone[1].badge } : null,
+          incentives: Object.entries(MILESTONE_BONUSES).map(([count, data]) => ({
+            count: Number(count), ...data, achieved: completedCount >= Number(count),
+          })),
         },
       });
     }
 
+    // ── LEADERBOARD ──
+    if (action === "leaderboard") {
+      const { data } = await supabaseAdmin
+        .from("referral_codes")
+        .select("code, name, tier")
+        .order("tier", { ascending: false })
+        .limit(10);
+
+      // Get counts for each
+      const leaderboard = await Promise.all((data || []).map(async (entry) => {
+        const { data: refs } = await supabaseAdmin
+          .from("referral_tracking")
+          .select("reward, status")
+          .eq("referrer_code", entry.code);
+        const completed = (refs || []).filter(r => r.status === "completed").length;
+        const earned = (refs || []).reduce((sum, r) => sum + (r.reward || 0), 0);
+        return { ...entry, completedCount: completed, totalEarned: earned };
+      }));
+
+      leaderboard.sort((a, b) => b.totalEarned - a.totalEarned);
+
+      return NextResponse.json({ success: true, data: leaderboard.slice(0, 10) });
+    }
+
     return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
-  } catch {
+  } catch (err) {
+    console.error("[referral error]", err);
     return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
+}
+
+// GET: validate a referral code
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+  
+  if (!code) {
+    return NextResponse.json({ success: false, error: "Code required" });
+  }
+
+  const { data } = await supabaseAdmin
+    .from("referral_codes")
+    .select("code, name, tier")
+    .eq("code", code)
+    .single();
+
+  if (!data) {
+    return NextResponse.json({ success: false, error: "Invalid code" });
+  }
+
+  return NextResponse.json({
+    success: true,
+    data: { code: data.code, referrerName: data.name, tier: data.tier, valid: true },
+  });
 }
