@@ -10,7 +10,7 @@ export interface NearbyWorker {
   id: string; name: string; initials: string; trade: string; tradeIcon: string;
   rating: number; jobs: number; dist: number; price: number; color: string;
   verified: boolean; online: boolean; eta: number; lat: number; lng: number;
-  experience: string; KaizyScore: number;
+  experience: string; KaizyScore: number; phone?: string;
 }
 
 export interface BookingState {
@@ -197,17 +197,31 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       ],
     }));
 
-    // Create real job via API
+    // Create real job via API — use REAL GPS
     try {
       const trade = TRADE_API_MAP[state.selectedCategory] || state.selectedCategory.toLowerCase();
+      
+      // Get real GPS position
+      let jobLat = state.userLocation.lat || 11.0168;
+      let jobLng = state.userLocation.lng || 76.9558;
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          );
+          jobLat = pos.coords.latitude;
+          jobLng = pos.coords.longitude;
+        } catch {}
+      }
+
       const res = await fetch("/api/jobs/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           trade,
           problemType: state.selectedProblem.toLowerCase().replace(/\s+/g, '_'),
-          lat: 11.0168,
-          lng: 76.9558,
+          lat: jobLat,
+          lng: jobLng,
           description: `${state.selectedCategory}: ${state.selectedProblem}`,
           isEmergency: state.selectedProblem.includes("SOS"),
         }),
@@ -224,6 +238,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             kaizyScore: state.selectedWorker?.KaizyScore,
             lat: state.selectedWorker?.lat,
             lng: state.selectedWorker?.lng,
+            phone: state.selectedWorker?.phone || "",
           }));
         } catch {}
 

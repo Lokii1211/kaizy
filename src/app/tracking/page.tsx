@@ -6,6 +6,7 @@ import { useTheme } from "@/stores/ThemeStore";
 // ============================================================
 // LIVE TRACKING — Rapido/Swiggy-style worker tracking
 // Real Mapbox Directions route, animated worker marker, live GPS
+// Fixes: Wait for GPS before map init, proper worker offset
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -34,7 +35,7 @@ export default function TrackingPage() {
   const routeStepRef = useRef(0);
   const animationRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [userPos, setUserPos] = useState({ lat: 11.0168, lng: 76.9558 });
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [workerPos, setWorkerPos] = useState({ lat: 11.025, lng: 76.945 });
   const [worker, setWorker] = useState<WorkerInfo>(DEFAULT_WORKER);
   const [eta, setEta] = useState(8);
@@ -42,9 +43,12 @@ export default function TrackingPage() {
   const [otp] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [mapLoaded, setMapLoaded] = useState(false);
   const [distanceKm, setDistanceKm] = useState("");
+  const [gpsReady, setGpsReady] = useState(false);
+  const initialEtaRef = useRef(8);
 
-  // Load booking data + get real GPS
+  // 1. Load booking data + get real GPS — MUST COMPLETE BEFORE MAP
   useEffect(() => {
+    // Load worker data from sessionStorage
     try {
       const stored = sessionStorage.getItem("kaizy_booked_worker");
       if (stored) {
@@ -57,15 +61,28 @@ export default function TrackingPage() {
           kaizyScore: w.kaizyScore || 500,
           phone: w.phone || "",
         });
-        if (w.lat && w.lng) setWorkerPos({ lat: w.lat, lng: w.lng });
+        if (w.lat && w.lng) setWorkerPos({ lat: Number(w.lat), lng: Number(w.lng) });
       }
     } catch {}
 
+    // Get real GPS position
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => {}, { enableHighAccuracy: true, timeout: 8000 }
+        (pos) => {
+          const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserPos(gps);
+          setGpsReady(true);
+        },
+        () => {
+          // Fallback to Coimbatore
+          setUserPos({ lat: 11.0168, lng: 76.9558 });
+          setGpsReady(true);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
+    } else {
+      setUserPos({ lat: 11.0168, lng: 76.9558 });
+      setGpsReady(true);
     }
   }, []);
 
@@ -82,6 +99,7 @@ export default function TrackingPage() {
         const durationMin = Math.round(route.duration / 60);
         const distKm = (route.distance / 1000).toFixed(1);
         setEta(durationMin);
+        initialEtaRef.current = durationMin;
         setDistanceKm(`${distKm} km`);
         return { coords, duration: durationMin };
       }
@@ -89,9 +107,9 @@ export default function TrackingPage() {
     return null;
   }, []);
 
-  // Initialize Mapbox with proper tracking UI
+  // 2. Initialize Mapbox ONLY AFTER GPS is ready
   useEffect(() => {
-    if (!mapContainer.current || !MAPBOX_TOKEN || mapRef.current) return;
+    if (!gpsReady || !userPos || !mapContainer.current || !MAPBOX_TOKEN || mapRef.current) return;
     let cancelled = false;
 
     const initMap = async () => {
@@ -109,11 +127,15 @@ export default function TrackingPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mapboxgl as any).accessToken = MAPBOX_TOKEN;
 
+        // Calculate center and zoom
+        const centerLng = (userPos.lng + workerPos.lng) / 2;
+        const centerLat = (userPos.lat + workerPos.lat) / 2;
+
         const map = new mapboxgl.Map({
           container: mapContainer.current,
           style: isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12",
-          center: [(userPos.lng + workerPos.lng) / 2, (userPos.lat + workerPos.lat) / 2],
-          zoom: 13.5,
+          center: [centerLng, centerLat],
+          zoom: 13,
           attributionControl: false,
           pitch: 45,
           bearing: -10,
@@ -122,7 +144,7 @@ export default function TrackingPage() {
         map.on("load", async () => {
           if (cancelled) return;
 
-          // ── USER MARKER: Rapido-style blue GPS pin ──
+          // ── USER MARKER: Blue GPS pin ──
           const userEl = document.createElement("div");
           userEl.innerHTML = `<div style="position:relative;width:44px;height:56px;display:flex;flex-direction:column;align-items:center">
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#2563EB);border:3px solid white;box-shadow:0 4px 12px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center">
@@ -130,12 +152,13 @@ export default function TrackingPage() {
             </div>
             <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #2563EB;margin-top:-2px"></div>
             <div style="position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(59,130,246,0.2);animation:track-pulse 2s ease-out infinite"></div>
+            <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#2563EB;color:white;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap">You</div>
           </div>`;
           new mapboxgl.Marker({ element: userEl, anchor: 'bottom' })
             .setLngLat([userPos.lng, userPos.lat])
             .addTo(map);
 
-          // ── WORKER MARKER: Animated orange with trade icon & direction arrow ──
+          // ── WORKER MARKER: Animated orange with trade icon ──
           const tradeIcon = tradeIcons[worker.trade.toLowerCase()] || "🔧";
           const workerEl = document.createElement("div");
           workerEl.id = "worker-tracker";
@@ -160,68 +183,47 @@ export default function TrackingPage() {
             // Draw the route line
             map.addSource("route", {
               type: "geojson",
-              data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates: routeResult.coords },
-              },
+              data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeResult.coords } },
             });
 
-            // Route shadow
-            map.addLayer({
-              id: "route-shadow",
-              type: "line",
-              source: "route",
+            map.addLayer({ id: "route-shadow", type: "line", source: "route",
               layout: { "line-join": "round", "line-cap": "round" },
               paint: { "line-color": "#000", "line-width": 7, "line-opacity": 0.08, "line-blur": 3 },
             });
-
-            // Main route line
-            map.addLayer({
-              id: "route",
-              type: "line",
-              source: "route",
+            map.addLayer({ id: "route", type: "line", source: "route",
               layout: { "line-join": "round", "line-cap": "round" },
               paint: { "line-color": "#FF6B00", "line-width": 5, "line-opacity": 0.9 },
             });
-
-            // Animated route overlay (dashed)
-            map.addLayer({
-              id: "route-anim",
-              type: "line",
-              source: "route",
+            map.addLayer({ id: "route-anim", type: "line", source: "route",
               layout: { "line-join": "round", "line-cap": "round" },
               paint: { "line-color": "#FFA500", "line-width": 3, "line-dasharray": [0, 4, 3] },
             });
           } else {
-            // Fallback: straight line
+            // Fallback: curved line
             map.addSource("route", {
               type: "geojson",
-              data: {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [workerPos.lng, workerPos.lat],
-                    [(userPos.lng + workerPos.lng) / 2 + 0.003, (userPos.lat + workerPos.lat) / 2 + 0.002],
-                    [userPos.lng, userPos.lat],
-                  ],
-                },
-              },
+              data: { type: "Feature", properties: {}, geometry: {
+                type: "LineString",
+                coordinates: [
+                  [workerPos.lng, workerPos.lat],
+                  [(userPos.lng + workerPos.lng) / 2 + 0.003, (userPos.lat + workerPos.lat) / 2 + 0.002],
+                  [userPos.lng, userPos.lat],
+                ],
+              }},
             });
-            map.addLayer({
-              id: "route", type: "line", source: "route",
+            map.addLayer({ id: "route", type: "line", source: "route",
               layout: { "line-join": "round", "line-cap": "round" },
               paint: { "line-color": "#FF6B00", "line-width": 4, "line-dasharray": [2, 2] },
             });
           }
 
-          // Fit bounds to show both markers
-          const bounds = new mapboxgl.LngLatBounds()
-            .extend([userPos.lng, userPos.lat])
-            .extend([workerPos.lng, workerPos.lat]);
-          map.fitBounds(bounds, { padding: { top: 100, bottom: 300, left: 50, right: 50 } });
+          // Fit bounds to show both markers with padding
+          try {
+            const bounds = new mapboxgl.LngLatBounds()
+              .extend([userPos.lng, userPos.lat])
+              .extend([workerPos.lng, workerPos.lat]);
+            map.fitBounds(bounds, { padding: { top: 100, bottom: 300, left: 50, right: 50 } });
+          } catch {}
 
           map.addControl(new mapboxgl.NavigationControl(), "top-right");
           mapRef.current = map;
@@ -229,28 +231,32 @@ export default function TrackingPage() {
         });
       } catch (e) {
         console.error("[mapbox tracking]", e);
+        setMapLoaded(true); // still show bottom sheet
       }
     };
 
     initMap();
     return () => { cancelled = true; };
-  }, [isDark]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gpsReady, isDark]);
 
   // ── ANIMATE WORKER along the real route ──
   const animateWorkerAlongRoute = useCallback(() => {
+    if (!userPos) return;
     const coords = routeDataRef.current;
     if (coords.length === 0) {
       // Fallback: move directly toward user
       setWorkerPos((prev) => {
-        const dx = (userPos.lat - prev.lat) * 0.08;
-        const dy = (userPos.lng - prev.lng) * 0.08;
+        const dx = (userPos.lat - prev.lat) * 0.06;
+        const dy = (userPos.lng - prev.lng) * 0.06;
         const newPos = { lat: prev.lat + dx, lng: prev.lng + dy };
         if (workerMarkerRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (workerMarkerRef.current as any).setLngLat([newPos.lng, newPos.lat]);
         }
         const dist = Math.sqrt(Math.pow(newPos.lat - userPos.lat, 2) + Math.pow(newPos.lng - userPos.lng, 2));
-        if (dist < 0.002) { setStatus("arrived"); setEta(0); }
+        if (dist < 0.001) { setStatus("arrived"); setEta(0); }
+        else { setEta(Math.max(1, Math.round(dist * 600))); }
         return newPos;
       });
       return;
@@ -265,7 +271,8 @@ export default function TrackingPage() {
       return;
     }
 
-    const nextStep = Math.min(step + Math.max(1, Math.floor(totalSteps / 60)), totalSteps - 1);
+    const skipSize = Math.max(1, Math.floor(totalSteps / 80));
+    const nextStep = Math.min(step + skipSize, totalSteps - 1);
     routeStepRef.current = nextStep;
     const [lng, lat] = coords[nextStep];
 
@@ -277,7 +284,7 @@ export default function TrackingPage() {
 
     // Update ETA based on remaining route %
     const progress = nextStep / totalSteps;
-    const remaining = Math.max(0, Math.round(eta * (1 - progress)));
+    const remaining = Math.max(1, Math.round(initialEtaRef.current * (1 - progress)));
     setEta(remaining);
 
     // Update route to show only remaining portion
@@ -288,19 +295,18 @@ export default function TrackingPage() {
         const source = map.getSource("route");
         if (source) {
           source.setData({
-            type: "Feature",
-            properties: {},
+            type: "Feature", properties: {},
             geometry: { type: "LineString", coordinates: coords.slice(nextStep) },
           });
         }
       } catch {}
     }
-  }, [userPos, eta]);
+  }, [userPos]);
 
   // Movement timer
   useEffect(() => {
     if (status !== "en_route") return;
-    animationRef.current = setInterval(animateWorkerAlongRoute, 2500);
+    animationRef.current = setInterval(animateWorkerAlongRoute, 3000);
     return () => { if (animationRef.current) clearInterval(animationRef.current); };
   }, [status, animateWorkerAlongRoute]);
 
@@ -323,7 +329,9 @@ export default function TrackingPage() {
                style={{ background: isDark ? "#1a1a2e" : "#e8f4f8" }}>
             <div className="w-8 h-8 border-3 rounded-full animate-spin mb-3"
                  style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-            <p className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>Loading live tracking...</p>
+            <p className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>
+              {gpsReady ? "Loading map..." : "Getting your location..."}
+            </p>
           </div>
         )}
 
@@ -367,7 +375,7 @@ export default function TrackingPage() {
         )}
 
         {/* Re-center button */}
-        {mapLoaded && (
+        {mapLoaded && userPos && (
           <button onClick={() => {
             if (mapRef.current) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

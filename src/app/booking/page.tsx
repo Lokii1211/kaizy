@@ -100,16 +100,51 @@ export default function BookingPage() {
             ))}
           </div>
 
-          {/* Location + Schedule */}
+          {/* Location — Editable like Uber */}
           <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-2">
               <span style={{ color: "var(--brand)" }}>📍</span>
               <div className="flex-1">
                 <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{locationLabel}</p>
                 <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Auto-detected · GPS</p>
               </div>
-              <span className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit</span>
+              <button onClick={() => {
+                const addr = prompt("Enter service address:\n(e.g., 45 MG Road, Gandhipuram, Coimbatore)", "");
+                if (addr && addr.trim()) setLocationLabel(addr.trim());
+              }} className="text-[11px] font-bold px-2 py-1 rounded-lg active:scale-95"
+                      style={{ color: "var(--brand)", background: "var(--brand-tint)" }}>
+                ✏️ Edit
+              </button>
             </div>
+            {/* Manual address for booking for others */}
+            <button onClick={() => {
+              const addr = prompt("Enter address for someone else:\n(Full address where the worker should go)", "");
+              if (addr && addr.trim()) setLocationLabel("📦 " + addr.trim());
+            }} className="w-full text-left rounded-lg px-3 py-2 text-[10px] font-semibold active:scale-[0.98]"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-3)" }}>
+              👤 Booking for someone else? Enter their address →
+            </button>
+          </div>
+
+          {/* Price estimate */}
+          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold" style={{ color: "var(--text-3)" }}>Estimated Price</p>
+                <p className="text-[16px] font-black" style={{ color: "var(--brand)" }}>
+                  {selectedProblem ? "Starts from ₹150" : "Select a problem"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Final price based on</p>
+                <p className="text-[9px] font-semibold" style={{ color: "var(--text-2)" }}>work done + materials</p>
+              </div>
+            </div>
+            {selectedProblem && (
+              <p className="text-[8px] mt-1" style={{ color: "var(--text-3)" }}>
+                💡 Price varies by complexity, distance, time of day & worker experience
+              </p>
+            )}
           </div>
 
           {/* Find button */}
@@ -190,8 +225,8 @@ export default function BookingPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[13px] font-black" style={{ color: "var(--success)" }}>{w.eta} min</p>
-                    <p className="text-[9px]" style={{ color: "var(--text-3)" }}>from</p>
-                    <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>₹{pricing.grandTotal}</p>
+                    <p className="text-[9px]" style={{ color: "var(--text-3)" }}>starts from</p>
+                    <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>₹{pricing.base}</p>
                   </div>
                 </button>
               );
@@ -201,14 +236,17 @@ export default function BookingPage() {
           {/* Pricing breakdown */}
           {state.pricing && (
             <div className="rounded-[12px] p-3 mb-3 animate-scale-in" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-3)" }}>PRICE ESTIMATE</p>
+              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-3)" }}>PRICE ESTIMATE (starts from)</p>
               <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
-                {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Distance ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>}
+                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Base inspection fee</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
+                {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Visit charge ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>}
                 <div className="border-t pt-1 mt-1 flex justify-between" style={{ borderColor: "var(--border-1)" }}>
-                  <span className="font-extrabold" style={{ color: "var(--text-1)" }}>Total</span>
+                  <span className="font-extrabold" style={{ color: "var(--text-1)" }}>Starts from</span>
                   <span className="text-[14px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing.grandTotal}</span>
                 </div>
+                <p className="text-[8px] mt-1" style={{ color: "var(--text-3)" }}>
+                  💡 Final price after worker inspects. Includes labour + materials used.
+                </p>
               </div>
             </div>
           )}
@@ -216,7 +254,7 @@ export default function BookingPage() {
           <button onClick={confirmBooking} disabled={!state.selectedWorker}
                   className="w-full rounded-[14px] py-4 text-[14px] font-black text-white active:scale-[0.98] transition-all disabled:opacity-40 mb-16"
                   style={{ background: state.selectedWorker ? "var(--brand)" : "var(--bg-elevated)", boxShadow: state.selectedWorker ? "var(--shadow-brand)" : "none" }}>
-            {state.selectedWorker ? `Book ${state.selectedWorker.name} — ₹${state.pricing?.grandTotal}` : "Select a worker"}
+            {state.selectedWorker ? `Book ${state.selectedWorker.name} — from ₹${state.pricing?.base}` : "Select a worker"}
           </button>
         </div>
       </div>

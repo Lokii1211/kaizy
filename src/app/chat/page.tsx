@@ -25,6 +25,24 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const currentUserId = "current-user";
+  const [workerName, setWorkerName] = useState("Worker");
+  const [workerInitials, setWorkerInitials] = useState("W");
+  const [workerPhone, setWorkerPhone] = useState("");
+
+  // Load worker info from sessionStorage
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("kaizy_booked_worker");
+      if (stored) {
+        const w = JSON.parse(stored);
+        if (w.name) {
+          setWorkerName(w.name);
+          setWorkerInitials(w.name.split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2));
+        }
+        if (w.phone) setWorkerPhone(w.phone);
+      }
+    } catch {}
+  }, []);
 
   // Fetch messages via API
   const fetchMessages = async () => {
@@ -41,8 +59,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchMessages();
-    // Poll every 5 seconds for new messages
-    const id = setInterval(fetchMessages, 5000);
+    // Poll every 3 seconds for real-time feel
+    const id = setInterval(fetchMessages, 3000);
     return () => clearInterval(id);
   }, []);
 
@@ -82,16 +100,18 @@ export default function ChatPage() {
           <span className="text-[13px]">←</span>
         </Link>
         <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
-             style={{ background: "var(--brand)" }}>RK</div>
+             style={{ background: "var(--brand)" }}>{workerInitials}</div>
         <div className="flex-1">
-          <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Chat</p>
+          <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{workerName}</p>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full online-dot" style={{ background: "var(--success)" }} />
-            <p className="text-[10px]" style={{ color: "var(--success)" }}>Real-time · Supabase</p>
+            <p className="text-[10px]" style={{ color: "var(--success)" }}>Online · Real-time</p>
           </div>
         </div>
-        <Link href="/booking" className="text-[11px] font-bold px-3 py-1.5 rounded-lg active:scale-95"
-              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>📞 Call</Link>
+        {workerPhone && (
+          <a href={`tel:${workerPhone}`} className="text-[11px] font-bold px-3 py-1.5 rounded-lg active:scale-95"
+                style={{ background: "var(--success)", color: "#fff" }}>📞 Call</a>
+        )}
       </div>
 
       {/* Messages */}
