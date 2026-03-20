@@ -18,15 +18,15 @@ const categories = [
     ]},
   { id: "payments", icon: IndianRupee, label: "Payments", color: "#22C55E",
     faqs: [
-      { q: "How does escrow payment work?", a: "Your money is held securely by Razorpay. It's only released to the worker after you confirm the job is done." },
-      { q: "Which payment methods are supported?", a: "UPI (GPay/PhonePe/Paytm), Credit/Debit cards, and Pay After Service." },
+      { q: "How does payment work?", a: "Pay the worker directly in cash after job completion. UPI payment is also available. No platform fee during launch!" },
+      { q: "Which payment methods are supported?", a: "Cash on Hand (default) and UPI (GPay/PhonePe/Paytm). Online payment coming soon." },
       { q: "When does the worker get paid?", a: "Instantly via UPI after you confirm job completion. Same-day payment, always." },
     ]},
   { id: "trust", icon: Shield, label: "Trust", color: "#00C9A7",
     faqs: [
       { q: "How are workers verified?", a: "Aadhaar e-KYC + Phone verification + NSDC certification check + Background screening." },
-      { q: "What is KonnectScore?", a: "A 300-900 score measuring work quality, reliability, skills, and customer ratings. Higher score = better jobs." },
-      { q: "What is KonnectPassport?", a: "Your verified digital work identity with QR code. Scan to see ratings, certs, and work history." },
+      { q: "What is KaizyScore?", a: "A 300-900 score measuring work quality, reliability, skills, and customer ratings. Higher score = better jobs." },
+      { q: "What is KaizyPass?", a: "Your verified digital work identity with QR code. Scan to see ratings, certs, and work history." },
     ]},
   { id: "ratings", icon: Star, label: "Ratings", color: "#F59E0B",
     faqs: [

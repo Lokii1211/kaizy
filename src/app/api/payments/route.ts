@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createEscrowOrder, verifyPaymentSignature, calculateEscrow, initiateWorkerPayout } from "@/lib/razorpay";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { supabaseAdmin } from "@/lib/supabase";
 
-// POST /api/payments — Create order, verify payment, release payout
+// ════════════════════════════════════════════════════════════
+// PAYMENTS API — Cash on Hand (primary) + UPI + Future Online
+// No Razorpay for now — direct cash/UPI between hirer & worker
+// ════════════════════════════════════════════════════════════
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -12,111 +15,129 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing 'action'" }, { status: 400 });
     }
 
-    // ========== CREATE ESCROW ORDER ==========
-    if (action === "create_order") {
-      const { bookingId, amount, workerName, hirerName, description } = body;
+    // ═══ GET PAYMENT METHODS ═══
+    if (action === "get_methods") {
+      return NextResponse.json({
+        success: true,
+        data: {
+          methods: [
+            { id: "cash", name: "Cash on Hand", icon: "💵", description: "Pay the worker directly after job completion", available: true, default: true },
+            { id: "upi", name: "UPI / Google Pay", icon: "📱", description: "Pay via UPI to worker's number", available: true, default: false },
+            { id: "online", name: "Online Payment", icon: "💳", description: "Card / Net Banking (coming soon)", available: false, default: false },
+          ],
+          defaultMethod: "cash",
+        },
+      });
+    }
+
+    // ═══ PAY WITH CASH ═══
+    if (action === "pay_cash") {
+      const { bookingId, amount, workerPaid = true } = body;
 
       if (!bookingId || !amount) {
         return NextResponse.json({ success: false, error: "bookingId and amount required" }, { status: 400 });
       }
 
-      const escrow = calculateEscrow(amount);
-      const order = await createEscrowOrder({
-        bookingId,
-        amount: escrow.totalPayable,
-        workerName: workerName || "Worker",
-        hirerName: hirerName || "Hirer",
-        description: description || "Service booking",
-      });
+      // Update booking payment status in database
+      await supabaseAdmin
+        .from("bookings")
+        .update({
+          payment_method: "cash",
+          payment_status: workerPaid ? "paid" : "pending",
+          hirer_price: amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId);
 
       return NextResponse.json({
         success: true,
+        message: workerPaid
+          ? `₹${amount} paid in cash to worker`
+          : `₹${amount} payment pending — pay worker on completion`,
         data: {
-          order,
-          escrowBreakdown: escrow,
-        },
-      });
-    }
-
-    // ========== VERIFY PAYMENT ==========
-    if (action === "verify_payment") {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = body;
-
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return NextResponse.json({ success: false, error: "Payment verification params required" }, { status: 400 });
-      }
-
-      const isValid = verifyPaymentSignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature });
-
-      if (!isValid) {
-        return NextResponse.json({ success: false, error: "Invalid payment signature" }, { status: 400 });
-      }
-
-      // In production: Update booking escrow_status → 'funded' in Supabase
-      console.log(`[Payment] Verified for booking ${bookingId}: ${razorpay_payment_id}`);
-
-      // Send WhatsApp confirmation to hirer
-      await sendWhatsAppMessage({
-        to: body.hirerPhone || "+919876500001",
-        template: "booking_confirmed",
-        params: {
-          workerName: body.workerName || "Worker",
-          service: body.service || "Service",
-          date: body.date || "Today",
-          amount: String(body.amount || 0),
-          workerPhone: body.workerPhone || "",
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: "Payment verified successfully. Funds held in escrow.",
-        data: {
-          paymentId: razorpay_payment_id,
-          orderId: razorpay_order_id,
-          escrowStatus: "funded",
           bookingId,
+          amount,
+          method: "cash",
+          status: workerPaid ? "paid" : "pending",
+          timestamp: new Date().toISOString(),
+          receipt: `KZ-CASH-${Date.now().toString(36).toUpperCase()}`,
         },
       });
     }
 
-    // ========== RELEASE PAYOUT TO WORKER ==========
-    if (action === "release_payout") {
-      const { bookingId, workerId, amount, upiId } = body;
+    // ═══ PAY VIA UPI ═══
+    if (action === "pay_upi") {
+      const { bookingId, amount, workerUpi } = body;
 
-      if (!bookingId || !workerId || !amount || !upiId) {
-        return NextResponse.json({ success: false, error: "bookingId, workerId, amount, upiId required" }, { status: 400 });
+      if (!bookingId || !amount) {
+        return NextResponse.json({ success: false, error: "bookingId and amount required" }, { status: 400 });
       }
 
-      const payout = await initiateWorkerPayout({ workerId, amount, upiId, bookingId });
+      // Generate UPI deep link
+      const upiLink = `upi://pay?pa=${workerUpi || "worker@upi"}&pn=Kaizy Worker&am=${amount}&cu=INR&tn=Kaizy Job ${bookingId}`;
 
-      // Send WhatsApp payment notification to worker
-      await sendWhatsAppMessage({
-        to: body.workerPhone || "+919876543210",
-        template: "payment_received",
-        params: {
-          amount: String(amount),
-          upiId,
-          jobTitle: body.jobTitle || "Service",
-          rating: String(body.rating || "5.0"),
-          score: String(body.konnectScore || "780"),
-        },
-      });
+      await supabaseAdmin
+        .from("bookings")
+        .update({
+          payment_method: "upi",
+          payment_status: "pending",
+          hirer_price: amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId);
 
       return NextResponse.json({
         success: true,
-        message: `₹${amount} payout initiated to ${upiId}`,
-        data: payout,
+        message: "UPI payment link generated",
+        data: {
+          bookingId, amount, method: "upi", upiLink,
+          status: "pending",
+          receipt: `KZ-UPI-${Date.now().toString(36).toUpperCase()}`,
+        },
       });
     }
 
-    // ========== CALCULATE ESCROW ==========
+    // ═══ CONFIRM PAYMENT (worker marks as received) ═══
+    if (action === "confirm_received") {
+      const { bookingId } = body;
+
+      if (!bookingId) {
+        return NextResponse.json({ success: false, error: "bookingId required" }, { status: 400 });
+      }
+
+      await supabaseAdmin
+        .from("bookings")
+        .update({ payment_status: "confirmed", updated_at: new Date().toISOString() })
+        .eq("id", bookingId);
+
+      return NextResponse.json({
+        success: true,
+        message: "Payment confirmed by worker",
+        data: { bookingId, status: "confirmed", confirmedAt: new Date().toISOString() },
+      });
+    }
+
+    // ═══ CALCULATE PRICE BREAKDOWN ═══
     if (action === "calculate") {
       const { amount } = body;
       if (!amount) {
         return NextResponse.json({ success: false, error: "amount required" }, { status: 400 });
       }
-      return NextResponse.json({ success: true, data: calculateEscrow(amount) });
+
+      const platformFee = 0; // Free during launch — will introduce later
+      const workerEarnings = amount - platformFee;
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          basePrice: amount,
+          platformFee,
+          platformFeePercent: 0,
+          workerEarnings,
+          total: amount,
+          note: "No platform fee during launch period! 🎉",
+        },
+      });
     }
 
     return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });

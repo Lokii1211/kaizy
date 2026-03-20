@@ -471,7 +471,7 @@ export default function BookingPage() {
     );
   }
 
-  // ── STEP 5: COMPLETED → REVIEW + RAZORPAY PAY ──
+  // ── STEP 5: COMPLETED → REVIEW + PAY (CASH / UPI) ──
   if (state.status === "completed" || state.status === "reviewing") {
     const w = state.selectedWorker;
     const posTags = ["On Time", "Good Work", "Polite", "Clean", "Fair Price", "Expert"];
@@ -490,54 +490,20 @@ export default function BookingPage() {
         });
       } catch (e) { console.error("[review save]", e); }
 
-      // 2. Load Razorpay if available
+      // 2. Record cash payment
       try {
-        const res = await fetch("/api/payments/create-order", {
+        await fetch("/api/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId: state.bookingId }),
+          body: JSON.stringify({
+            action: "pay_cash",
+            bookingId: state.bookingId,
+            amount: state.pricing?.grandTotal || 0,
+            workerPaid: true,
+          }),
         });
-        const json = await res.json();
+      } catch (e) { console.error("[payment]", e); }
 
-        if (json.success && json.data?.orderId) {
-          // Load Razorpay script
-          const script = document.createElement("script");
-          script.src = "https://checkout.razorpay.com/v1/checkout.js";
-          script.onload = () => {
-            const options = {
-              key: json.data.keyId,
-              amount: json.data.amount,
-              currency: "INR",
-              name: "Kaizy",
-              description: `Payment for ${selectedProblem}`,
-              order_id: json.data.orderId,
-              handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-                // Verify payment
-                await fetch("/api/payments/verify", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    bookingId: state.bookingId,
-                    orderId: response.razorpay_order_id,
-                    paymentId: response.razorpay_payment_id,
-                    signature: response.razorpay_signature,
-                  }),
-                });
-                submitReview(reviewRating, reviewTags);
-              },
-              prefill: { contact: "" },
-              theme: { color: "#FF6B00" },
-            };
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const rzp = new (window as any).Razorpay(options);
-            rzp.open();
-          };
-          document.body.appendChild(script);
-          return;
-        }
-      } catch (e) { console.error("[razorpay]", e); }
-
-      // Fallback: mark as paid without Razorpay
       submitReview(reviewRating, reviewTags);
     };
 
@@ -607,8 +573,8 @@ export default function BookingPage() {
           <button onClick={handlePayAndReview}
                   className="w-full rounded-xl py-4 active:scale-[0.98] transition-all"
                   style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
-            <p className="text-[14px] font-black text-white">💳 Pay ₹{state.pricing?.grandTotal} via Razorpay</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Secure payment · Auto-released to {w?.name}</p>
+            <p className="text-[14px] font-black text-white">💵 Pay ₹{state.pricing?.grandTotal} Cash to Worker</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Pay directly to {w?.name} after job completion</p>
           </button>
         </div>
       </div>
