@@ -410,35 +410,23 @@ export default function ReferralPage() {
           <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
             <p className="text-[10px] font-bold tracking-widest mb-1" style={{ color: "var(--text-3)" }}>TOP REFERRERS</p>
             <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>
-              Top 10 referrers this month
+              Top referrers this month — updated in real-time
             </p>
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map(rank => (
-                <div key={rank} className="flex items-center gap-3 rounded-xl p-3" 
-                     style={{ background: rank <= 3 ? "var(--brand-tint)" : "var(--bg-elevated)", border: rank <= 3 ? "1px solid var(--brand)" : "1px solid var(--border-1)" }}>
-                  <span className="text-[18px] w-8 text-center font-black" style={{ color: rank <= 3 ? "var(--brand)" : "var(--text-3)" }}>
-                    {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`}
-                  </span>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                       style={{ background: "var(--brand)" }}>
-                    {["RS", "AK", "PM", "SK", "RJ"][rank - 1]}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>
-                      {["Raju S.", "Anand K.", "Priya M.", "Suresh K.", "Rahul J."][rank - 1]}
-                    </p>
-                    <p className="text-[9px]" style={{ color: "var(--text-3)" }}>
-                      {[48, 35, 22, 18, 12][rank - 1]} referrals
-                    </p>
-                  </div>
-                  <p className="text-[13px] font-black" style={{ color: "var(--success)" }}>
-                    ₹{[9600, 7000, 4400, 3600, 2400][rank - 1].toLocaleString()}
-                  </p>
-                </div>
-              ))}
+            <div className="rounded-xl p-8 text-center" style={{ background: "var(--bg-elevated)" }}>
+              <p className="text-[32px] mb-2">🏆</p>
+              <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Leaderboard</p>
+              <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
+                Be the first to top the leaderboard!<br/>
+                Share your code and start referring.
+              </p>
+              <p className="text-[10px] mt-3 font-bold" style={{ color: "var(--brand)" }}>
+                🥇 1st place gets ₹2,000 monthly bonus<br/>
+                🥈 2nd place gets ₹1,000 monthly bonus<br/>
+                🥉 3rd place gets ₹500 monthly bonus
+              </p>
             </div>
             <p className="text-center text-[10px] mt-3" style={{ color: "var(--text-3)" }}>
-              Leaderboard updates daily. Top 3 get monthly bonus! 🏆
+              Leaderboard populates when referrals start coming in 🏆
             </p>
           </div>
         )}
