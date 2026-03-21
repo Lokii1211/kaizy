@@ -1,4 +1,4 @@
-// KonnectOn — Razorpay Payment Service
+// Kaizy — Razorpay Payment Service
 // Handles UPI escrow payments, order creation, verification, and refunds
 
 import crypto from "crypto";

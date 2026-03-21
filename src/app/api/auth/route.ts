@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       };
 
       // In production: send via SMS gateway (MSG91, Twilio, etc.)
-      console.log(`[KonnectOn Auth] OTP for ${cleanPhone}: ${generatedOtp}`);
+      console.log(`[Kaizy Auth] OTP for ${cleanPhone}: ${generatedOtp}`);
 
       return NextResponse.json({
         success: true,

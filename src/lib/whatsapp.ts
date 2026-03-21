@@ -1,4 +1,4 @@
-// KonnectOn — WhatsApp Business API Service
+// Kaizy — WhatsApp Business API Service
 // Send job alerts, booking confirmations, and payment notifications via WhatsApp
 // Provider: Twilio / Gupshup WhatsApp Business API
 
@@ -43,11 +43,11 @@ const templates: Record<MessageTemplate, Record<string, string>> = {
     hi: "💰 *पैसे आ गए!*\n\n₹{amount} आपके UPI ({upiId}) में\nकाम: {jobTitle}\nरेटिंग: {rating}⭐\n\n📊 कनेक्टस्कोर: {score}/900",
   },
   payment_released: {
-    en: "✅ *Payment Released!*\n\n₹{amount} sent to {workerName}'s UPI.\nBooking: {bookingId}\n\nThank you for using KonnectOn! 🙏",
+    en: "✅ *Payment Released!*\n\n₹{amount} sent to {workerName}'s UPI.\nBooking: {bookingId}\n\nThank you for using Kaizy! 🙏",
   },
   otp: {
-    en: "🔐 Your KonnectOn OTP: *{otp}*\nValid for 10 minutes.\nDo NOT share with anyone.",
-    hi: "🔐 आपका KonnectOn OTP: *{otp}*\n10 मिनट के लिए वैध।\nकिसी को न बताएं।",
+    en: "🔐 Your Kaizy OTP: *{otp}*\nValid for 10 minutes.\nDo NOT share with anyone.",
+    hi: "🔐 आपका Kaizy OTP: *{otp}*\n10 मिनट के लिए वैध।\nकिसी को न बताएं।",
   },
   rating_request: {
     en: "⭐ *Rate your experience!*\n\nWorker: {workerName}\nJob: {jobTitle}\n\nReply with a number 1-5:\n1⭐ Poor\n2⭐ Below Average\n3⭐ Average\n4⭐ Good\n5⭐ Excellent",
@@ -89,7 +89,7 @@ export async function sendWhatsAppMessage(message: WhatsAppMessage): Promise<{ s
         channel: "whatsapp",
         source: WHATSAPP_SOURCE_NUMBER.replace("+", ""),
         destination: cleanPhone,
-        "src.name": "KonnectOn",
+        "src.name": "Kaizy",
         message: JSON.stringify({ type: "text", text }),
       }),
     });

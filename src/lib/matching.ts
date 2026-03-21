@@ -1,4 +1,4 @@
-// KonnectOn — AI Matching Engine
+// Kaizy — AI Matching Engine
 // Intelligent worker-job matching using NLP + scoring + geo-proximity
 // Supports Hindi, Tamil, Telugu, Bengali natural language queries
 

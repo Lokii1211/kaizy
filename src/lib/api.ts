@@ -1,4 +1,4 @@
-// KonnectOn API Client — Central data fetching utilities
+// Kaizy API Client — Central data fetching utilities
 // Used across all pages for consistent API communication
 
 const API_BASE = "/api";
@@ -38,7 +38,7 @@ async function apiFetch<T>(
 
     return data;
   } catch (error) {
-    console.error(`[KonnectOn API] ${endpoint}:`, error);
+    console.error(`[Kaizy API] ${endpoint}:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Network error",

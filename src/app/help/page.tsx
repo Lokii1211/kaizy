@@ -74,14 +74,14 @@ export default function HelpPage() {
         {/* Quick Contact */}
         <div className="flex gap-2">
           {[
-            { icon: Phone, label: "Call", color: "bg-green-50 text-green-600", border: "border-green-100" },
-            { icon: MessageSquare, label: "WhatsApp", color: "bg-green-50 text-green-600", border: "border-green-100" },
-            { icon: Mail, label: "Email", color: "bg-blue-50 text-blue-600", border: "border-blue-100" },
+            { icon: Phone, label: "Call", color: "bg-green-50 text-green-600", border: "border-green-100", href: "tel:+919876543210" },
+            { icon: MessageSquare, label: "WhatsApp", color: "bg-green-50 text-green-600", border: "border-green-100", href: "https://wa.me/919876543210?text=Hi%20Kaizy%20Support" },
+            { icon: Mail, label: "Email", color: "bg-blue-50 text-blue-600", border: "border-blue-100", href: "mailto:support@kaizy.com" },
           ].map(c => (
-            <button key={c.label} className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl ${c.color} border ${c.border} active:scale-95 transition-transform`}>
+            <a key={c.label} href={c.href} className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl ${c.color} border ${c.border} active:scale-95 transition-transform`}>
               <c.icon className="w-5 h-5" />
               <span className="text-[10px] font-bold">{c.label}</span>
-            </button>
+            </a>
           ))}
         </div>
 

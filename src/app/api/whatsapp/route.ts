@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
   const verifyToken = searchParams.get("hub.verify_token");
 
   // Verify token for webhook setup
-  const expectedToken = process.env.WHATSAPP_WEBHOOK_TOKEN || "konnecton_verify_2024";
+  const expectedToken = process.env.WHATSAPP_WEBHOOK_TOKEN || "Kaizy_verify_2024";
   if (verifyToken === expectedToken) {
     return new NextResponse(challenge || "OK", { status: 200 });
   }

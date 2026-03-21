@@ -1,4 +1,4 @@
-// KonnectOn — Aadhaar e-KYC Service
+// Kaizy — Aadhaar e-KYC Service
 // Verify worker identity via Digio API + UIDAI
 // Supports: Aadhaar OTP verification, DigiLocker cert pull, face match
 
@@ -60,7 +60,7 @@ export async function initiateAadhaarOTP(aadhaarNumber: string): Promise<{ succe
         reference_id: `KON_KYC_${Date.now()}`,
         aadhaar_number: cleanAadhaar,
         consent: true,
-        purpose: "Worker identity verification for KonnectOn platform",
+        purpose: "Worker identity verification for Kaizy platform",
       }),
     });
 
