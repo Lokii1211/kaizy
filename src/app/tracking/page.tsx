@@ -47,6 +47,7 @@ export default function TrackingPage() {
   // 1. Load REAL booking data — redirect if none
   useEffect(() => {
     let foundBooking = false;
+    let gotLocation = false;
 
     // Load worker data from sessionStorage (set during booking)
     try {
@@ -78,6 +79,7 @@ export default function TrackingPage() {
         if (loc.lat && loc.lng) {
           setUserPos({ lat: loc.lat, lng: loc.lng });
           setGpsReady(true);
+          gotLocation = true;
           foundBooking = true;
         }
       }
@@ -98,24 +100,22 @@ export default function TrackingPage() {
 
     setHasBooking(foundBooking);
 
-    // Fallback: Get GPS if no booking location
-    if (!userPos) {
+    // Fallback: Get GPS if no booking location was loaded
+    if (!gotLocation) {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            if (!userPos) {
-              setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            }
+            setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             setGpsReady(true);
           },
           () => {
-            if (!userPos) setUserPos({ lat: 11.0168, lng: 76.9558 });
+            setUserPos({ lat: 11.0168, lng: 76.9558 });
             setGpsReady(true);
           },
           { enableHighAccuracy: true, timeout: 8000 }
         );
       } else {
-        if (!userPos) setUserPos({ lat: 11.0168, lng: 76.9558 });
+        setUserPos({ lat: 11.0168, lng: 76.9558 });
         setGpsReady(true);
       }
     }
