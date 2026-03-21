@@ -50,12 +50,32 @@ export default function NotificationsPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Accept job alert
+  // Get current user ID from auth token cookie
+  const getCurrentUserId = (): string => {
+    try {
+      const cookies = document.cookie.split(';');
+      const tokenCookie = cookies.find(c => c.trim().startsWith('kaizy_token='));
+      if (tokenCookie) {
+        const token = tokenCookie.split('=')[1];
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.sub || payload.userId || "";
+      }
+    } catch {}
+    return "";
+  };
+
+  // Accept job alert — uses REAL user ID from auth
   const handleAccept = async (notif: Notification) => {
     const alertId = notif.data?.alertId as string;
     const jobId = notif.data?.jobId as string;
+    const workerId = getCurrentUserId();
 
     if (!jobId) return;
+    if (!workerId) {
+      // Not logged in — redirect to login
+      router.push("/login");
+      return;
+    }
 
     try {
       const res = await fetch("/api/jobs/accept", {
@@ -63,27 +83,45 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           alertId: alertId || notif.id,
-          workerId: "current-user", // Server will resolve from auth token
+          workerId,
         }),
       });
       const json = await res.json();
 
       if (json.success) {
         setAccepted(prev => [...prev, notif.id]);
-        // Navigate to active booking
-        // router.push(`/booking`);
+        // Store booking data and navigate to tracking
+        try {
+          sessionStorage.setItem("kaizy_active_booking", JSON.stringify({
+            bookingId: json.data?.bookingId,
+            jobId: json.data?.jobId,
+            otp: json.data?.otp,
+          }));
+        } catch {}
+        setTimeout(() => router.push("/tracking"), 1500);
       } else {
         setDeclined(prev => [...prev, notif.id]);
-        // Show "already taken" in UI
       }
     } catch (e) {
       console.error("[accept error]", e);
     }
   };
 
-  // Decline
-  const handleDecline = (notifId: string) => {
-    setDeclined(prev => [...prev, notifId]);
+  // Decline — mark locally + call API
+  const handleDecline = async (notif: Notification) => {
+    const jobId = notif.data?.jobId as string;
+    const workerId = getCurrentUserId();
+    setDeclined(prev => [...prev, notif.id]);
+    
+    if (jobId && workerId) {
+      try {
+        await fetch("/api/dispatch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "decline", jobId, workerId, reason: "user_declined" }),
+        });
+      } catch {}
+    }
   };
 
   // Mark all read
@@ -182,7 +220,7 @@ export default function NotificationsPage() {
                   <button onClick={() => handleAccept(n)}
                           className="flex-1 rounded-lg py-2 text-[11px] font-bold text-white active:scale-95"
                           style={{ background: "var(--success)" }}>✓ Accept</button>
-                  <button onClick={() => handleDecline(n.id)}
+                  <button onClick={() => handleDecline(n)}
                           className="flex-1 rounded-lg py-2 text-[11px] font-bold active:scale-95"
                           style={{ background: "var(--danger-tint)", color: "var(--danger)", border: "1px solid var(--danger)" }}>✕ Decline</button>
                 </div>

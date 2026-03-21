@@ -55,7 +55,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-5" style={{ background: "var(--bg-app)" }}>
       {step === "type" && (
         <div className="w-full max-w-sm animate-scale-in text-center">
-          <p className="text-[56px] mb-4">👋</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/kaizy-logo.png" alt="Kaizy" className="w-20 h-20 rounded-2xl mx-auto mb-4" />
           <h1 className="text-[22px] font-black mb-2" style={{ color: "var(--text-1)", fontFamily: "var(--font-syne)" }}>Welcome to Kaizy</h1>
           <p className="text-[12px] mb-6" style={{ color: "var(--text-3)" }}>Looking for work, or need a skilled worker?</p>
           <div className="grid grid-cols-2 gap-3 mb-4">

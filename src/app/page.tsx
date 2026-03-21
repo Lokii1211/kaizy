@@ -287,7 +287,11 @@ export default function HomePage() {
       {/* ── TOP BAR (Glass) ── */}
       <div className="relative z-20 glass" style={{ padding: "10px 16px 16px" }}>
         <div className="flex justify-between items-center mb-2">
-          <span className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{liveTime}</span>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/kaizy-logo.png" alt="Kaizy" className="w-7 h-7 rounded-lg" />
+            <span className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{liveTime}</span>
+          </div>
           <div className="flex items-center gap-3">
             <button onClick={toggle} className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90"
                     style={{ background: "var(--bg-elevated)" }}>
