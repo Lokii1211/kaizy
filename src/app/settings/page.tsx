@@ -20,6 +20,7 @@ const workerMenuSections = [
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
     { icon: "📋", label: "My Jobs", href: "/my-bookings" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
+    { icon: "🪪", label: "Verify Identity", href: "/verify" },
     { icon: "🎯", label: "Incentives & Targets", href: "/incentives" },
     { icon: "📸", label: "Job Photos", href: "/job-photos" },
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
@@ -108,7 +109,7 @@ export default function SettingsPage() {
               {tradeLine && <p className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>{tradeLine}</p>}
               <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{user?.phone || ""}</p>
             </div>
-            <Link href={user?.user_type === "worker" ? "/worker/profile" : "/settings"} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit →</Link>
+            <Link href={user?.user_type === "worker" ? "/worker/profile" : "/profile"} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit →</Link>
           </div>
         )}
       </div>

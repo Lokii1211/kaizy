@@ -19,6 +19,10 @@ export default function EarningsPage() {
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalJobs, setTotalJobs] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Commission state
+  const [commissionTotal, setCommissionTotal] = useState(0);
+  const [commissionPending, setCommissionPending] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     const fetchEarnings = async () => {
@@ -39,6 +43,22 @@ export default function EarningsPage() {
     };
     fetchEarnings();
   }, [period]);
+
+  // Fetch commission summary
+  useEffect(() => {
+    const fetchCommission = async () => {
+      try {
+        const res = await fetch('/api/commission');
+        const json = await res.json();
+        if (json.success && json.data?.summary) {
+          setCommissionTotal(json.data.summary.totalCommission || 0);
+          setCommissionPending(json.data.summary.totalPending || 0);
+          setIsBlocked(json.data.summary.isBlocked || false);
+        }
+      } catch {}
+    };
+    fetchCommission();
+  }, []);
 
   const typeIcons: Record<string, string> = {
     job_payment: "💼", bonus: "🎁", referral: "👥", tip: "💝", penalty: "⚠️",
@@ -105,6 +125,58 @@ export default function EarningsPage() {
             {earnings.filter(e => e.status === "pending").length}
           </p>
           <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Pending</p>
+        </div>
+      </div>
+
+      {/* Commission Breakdown */}
+      <div className="px-4 mb-4">
+        <div className="rounded-xl p-4" style={{
+          background: isBlocked ? "rgba(239,68,68,0.05)" : "var(--bg-card)",
+          border: isBlocked ? "1.5px solid var(--danger)" : "1px solid var(--border-1)",
+        }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>💰 Payout Breakdown</p>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>₹5/job</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Gross Earnings</span>
+              <span className="text-[13px] font-bold" style={{ color: "var(--success)" }}>₹{totalEarnings.toLocaleString("en-IN")}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Kaizy Commission ({totalJobs} jobs × ₹5)</span>
+              <span className="text-[13px] font-bold" style={{ color: "var(--danger)" }}>-₹{commissionTotal}</span>
+            </div>
+            <div style={{ borderTop: "1px dashed var(--border-1)", paddingTop: 8 }}>
+              <div className="flex justify-between items-center">
+                <span className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Net Payout</span>
+                <span className="text-[16px] font-black" style={{ color: "var(--brand)" }}>
+                  ₹{Math.max(0, totalEarnings - commissionTotal).toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending commission warning */}
+          {commissionPending > 0 && (
+            <div className="mt-3 rounded-lg p-2.5 flex items-center gap-2" style={{
+              background: isBlocked ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)",
+            }}>
+              <span className="text-[14px]">{isBlocked ? "🚫" : "⏳"}</span>
+              <div>
+                <p className="text-[10px] font-bold" style={{ color: isBlocked ? "var(--danger)" : "var(--warning)" }}>
+                  {isBlocked
+                    ? `⚠️ Account blocked — ₹${commissionPending} unpaid commission`
+                    : `₹${commissionPending} commission pending`
+                  }
+                </p>
+                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>
+                  {isBlocked ? "Clear dues to accept new jobs" : "Auto-deducted from next UPI payout"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
