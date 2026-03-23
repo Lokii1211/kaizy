@@ -33,6 +33,8 @@ const workerMenuSections = [
     { icon: "📞", label: "Contact Support", href: "/help" },
     { icon: "📜", label: "Terms", href: "/terms" },
     { icon: "🔒", label: "Privacy Policy", href: "/privacy" },
+    { icon: "🤝", label: "Worker Agreement", href: "/worker-agreement" },
+    { icon: "💳", label: "Refund Policy", href: "/refunds" },
   ]},
 ];
 
@@ -53,6 +55,7 @@ const hirerMenuSections = [
     { icon: "📞", label: "Contact Support", href: "/help" },
     { icon: "📜", label: "Terms", href: "/terms" },
     { icon: "🔒", label: "Privacy Policy", href: "/privacy" },
+    { icon: "💳", label: "Refund Policy", href: "/refunds" },
   ]},
 ];
 

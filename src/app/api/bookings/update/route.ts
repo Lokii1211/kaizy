@@ -102,6 +102,23 @@ export async function PATCH(req: NextRequest) {
       } catch (statsErr) {
         console.error('[worker stats update]', statsErr);
       }
+
+      // ── AUTO-RECORD ₹5 COMMISSION ──
+      try {
+        const COMMISSION_PER_JOB = 5;
+        await supabaseAdmin.from('commissions').upsert({
+          worker_id: workerIdResolved,
+          booking_id: bookingId,
+          amount: COMMISSION_PER_JOB,
+          job_amount: amount,
+          status: 'pending',
+          created_at: now,
+        }, { onConflict: 'booking_id,worker_id' });
+        console.log(`[commission] ₹${COMMISSION_PER_JOB} recorded for booking ${bookingId}`);
+      } catch (commErr) {
+        console.error('[commission record]', commErr);
+        // Non-blocking — don't fail the payment flow
+      }
     }
 
     return NextResponse.json({
