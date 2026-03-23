@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { rateLimits, getClientIP } from '@/lib/rateLimit';
 
 // ═══════════════════════════════════════════════════════
 // POST /api/auth/send-otp
 // WhatsApp OTP via AISensy (primary) + SMS fallback
-// No DLT registration needed — WhatsApp bypasses TRAI rules
+// Rate limited: 3 OTP requests per minute per IP
 // ═══════════════════════════════════════════════════════
 
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY || '';
@@ -115,6 +116,16 @@ async function sendSMSFallback(phone: string, otp: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 3 OTP requests per minute per IP
+    const ip = getClientIP(req.headers);
+    const rl = rateLimits.otp(ip);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many OTP requests. Please wait a moment.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+      );
+    }
+
     const { phone } = await req.json();
 
     // Validate Indian phone format

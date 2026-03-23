@@ -364,9 +364,9 @@ export default function WorkerDashboardPage() {
         <div className="grid grid-cols-3 gap-2">
           {[
             { icon: "📊", label: "Earnings", href: "/earnings" },
-            { icon: "📋", label: "My Jobs", href: "/bookings" },
-            { icon: "🎁", label: "Refer", href: "/referral" },
-            { icon: "💬", label: "Chat", href: "/chat" },
+            { icon: "📋", label: "My Jobs", href: "/my-bookings" },
+            { icon: "🏆", label: "Leaderboard", href: "/leaderboard" },
+            { icon: "🪪", label: "Verify ID", href: "/verify" },
             { icon: "🤖", label: "KaizyBot", href: "/konnectbot" },
             { icon: "⚙️", label: "Settings", href: "/settings" },
           ].map(a => (
