@@ -282,6 +282,66 @@ export default function BookingDetailPage() {
               <span className="font-black" style={{ color: "var(--brand)" }}>₹{(booking.hirer_price || 0) + (booking.platform_fee || 0)}</span>
             </div>
             <p className="text-center text-[8px] mt-2" style={{ color: "var(--text-3)" }}>This is a computer-generated invoice · Kaizy Platform</p>
+
+            {/* Download / Share buttons */}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => {
+                // Generate text receipt
+                const receipt = [
+                  "═══════════════════════════════",
+                  "         KAIZY — RECEIPT        ",
+                  "═══════════════════════════════",
+                  "",
+                  `Invoice: KZ-${booking.id.slice(0, 8).toUpperCase()}`,
+                  `Date: ${createdDate.toLocaleDateString("en-IN")}`,
+                  `Service: ${booking.trade?.replace('_', ' ')}`,
+                  `Worker: ${booking.worker_name}`,
+                  booking.description ? `Description: ${booking.description}` : "",
+                  booking.address ? `Location: ${booking.address}` : "",
+                  "",
+                  "───────────────────────────────",
+                  `Service charge:     ₹${booking.hirer_price || 0}`,
+                  booking.platform_fee > 0 ? `Platform fee:       ₹${booking.platform_fee}` : "",
+                  "───────────────────────────────",
+                  `TOTAL:              ₹${(booking.hirer_price || 0) + (booking.platform_fee || 0)}`,
+                  `Status:             ${booking.payment_status === "paid" ? "✓ PAID" : "⏳ PENDING"}`,
+                  "",
+                  "═══════════════════════════════",
+                  "  Thank you for using Kaizy!   ",
+                  "     support@kaizy.in          ",
+                  "═══════════════════════════════",
+                ].filter(Boolean).join("\n");
+
+                const blob = new Blob([receipt], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `Kaizy_Receipt_${booking.id.slice(0, 8).toUpperCase()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+                      className="flex-1 rounded-lg py-2.5 text-[11px] font-bold text-center active:scale-95"
+                      style={{ background: "var(--brand)", color: "#fff" }}>
+                📥 Download Receipt
+              </button>
+              <button onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: "Kaizy Receipt",
+                    text: `Kaizy Receipt KZ-${booking.id.slice(0, 8).toUpperCase()} — ₹${(booking.hirer_price || 0) + (booking.platform_fee || 0)} for ${booking.trade?.replace('_', ' ')}`,
+                  }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(
+                    `Kaizy Receipt KZ-${booking.id.slice(0, 8).toUpperCase()} — ₹${(booking.hirer_price || 0) + (booking.platform_fee || 0)}`
+                  );
+                  alert("📋 Receipt copied to clipboard!");
+                }
+              }}
+                      className="flex-1 rounded-lg py-2.5 text-[11px] font-bold text-center active:scale-95"
+                      style={{ background: "var(--bg-elevated)", color: "var(--text-2)" }}>
+                📤 Share
+              </button>
+            </div>
           </div>
         )}
 

@@ -26,6 +26,7 @@ const workerMenuSections = [
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
   ]},
   { title: "Preferences", items: [
+    { icon: "⏰", label: "My Schedule", href: "/schedule" },
     { icon: "🌐", label: "Language", href: "#" },
     { icon: "🔔", label: "Notifications", href: "/notifications" },
   ]},
@@ -49,7 +50,7 @@ const hirerMenuSections = [
   { title: "Preferences", items: [
     { icon: "🌐", label: "Language", href: "#" },
     { icon: "🔔", label: "Notifications", href: "/notifications" },
-    { icon: "📍", label: "Saved Locations", href: "#" },
+    { icon: "📍", label: "Saved Locations", href: "/saved-addresses" },
   ]},
   { title: "Support", items: [
     { icon: "💬", label: "KaizyBot Help", href: "/konnectbot" },
