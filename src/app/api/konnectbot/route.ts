@@ -51,33 +51,48 @@ export async function POST(req: NextRequest) {
     }
     messages.push({ role: 'user', content: message });
 
-    // Call Claude API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        system: SYSTEM_PROMPT,
-        messages,
-      }),
-    });
+    // Try Claude API with primary model, fallback to cheaper model
+    const models = ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'];
+    let reply = '';
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[claude error]', response.status, errorText);
+    for (const model of models) {
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': CLAUDE_API_KEY,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 300,
+            system: SYSTEM_PROMPT,
+            messages,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[claude ${model}]`, response.status, errorText);
+          continue; // Try next model
+        }
+
+        const data = await response.json();
+        reply = data.content?.[0]?.text || '';
+        if (reply) break; // Got a response, stop trying
+      } catch (e) {
+        console.error(`[claude ${model} error]`, e);
+        continue;
+      }
+    }
+
+    if (!reply) {
       return NextResponse.json({ 
         success: true, 
         data: { reply: "I'm having trouble connecting right now. Please try again in a moment! 🔄" } 
       });
     }
-
-    const data = await response.json();
-    const reply = data.content?.[0]?.text || "I couldn't generate a response. Please try again.";
 
     return NextResponse.json({ success: true, data: { reply } });
   } catch (error) {
