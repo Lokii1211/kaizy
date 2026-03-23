@@ -27,7 +27,13 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const r = await authApi.sendOtp(phone);
-      if (r.success) { setStep("otp"); setCountdown(30); if (r.data?.debug_otp) setDebugOtp(r.data.debug_otp); }
+      if (r.success) { 
+        setStep("otp"); 
+        setCountdown(30); 
+        // Show OTP if SMS delivery failed (fallback for users)
+        const showOtp = r.data?.fallback_otp || r.data?.debug_otp;
+        if (showOtp) setDebugOtp(showOtp); 
+      }
       else setError(r.error || "Failed");
     } catch { setError("Network error"); } finally { setLoading(false); }
   };
@@ -105,9 +111,10 @@ export default function LoginPage() {
           <h1 className="text-[22px] font-black mb-1" style={{ color: "var(--text-1)" }}>Verify OTP</h1>
           <p className="text-[12px] mb-6" style={{ color: "var(--text-3)" }}>Code sent to +91 {phone}</p>
           {debugOtp && (
-            <div className="rounded-[14px] p-3 mb-4 text-center" style={{ background: "var(--info-tint)", border: "1px solid var(--info)" }}>
-              <p className="text-[10px] font-bold" style={{ color: "var(--info)" }}>Your OTP:</p>
-              <p className="text-[24px] font-black" style={{ color: "var(--info)", fontFamily: "'JetBrains Mono', monospace" }}>{debugOtp}</p>
+            <div className="rounded-[14px] p-3 mb-4 text-center" style={{ background: "var(--success-tint, #f0fdf4)", border: "1px solid var(--success, #22c55e)" }}>
+              <p className="text-[10px] font-bold mb-1" style={{ color: "var(--success, #22c55e)" }}>📩 Use this code to verify:</p>
+              <p className="text-[28px] font-black tracking-[0.3em]" style={{ color: "var(--success, #22c55e)", fontFamily: "'JetBrains Mono', monospace" }}>{debugOtp}</p>
+              <p className="text-[9px] mt-1" style={{ color: "var(--text-3)" }}>SMS may take a moment to arrive</p>
             </div>
           )}
           <div className="flex gap-3 justify-center mb-4">
