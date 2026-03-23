@@ -15,14 +15,32 @@ interface UserProfile {
   total_jobs?: number; kaizy_score?: number;
 }
 
-const menuSections = [
+const workerMenuSections = [
+  { title: "Worker", items: [
+    { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
+    { icon: "📋", label: "My Jobs", href: "/my-bookings" },
+    { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
+    { icon: "🎯", label: "Incentives & Targets", href: "/incentives" },
+    { icon: "📸", label: "Job Photos", href: "/job-photos" },
+    { icon: "🎁", label: "Refer & Earn", href: "/referral" },
+  ]},
+  { title: "Preferences", items: [
+    { icon: "🌐", label: "Language", href: "#" },
+    { icon: "🔔", label: "Notifications", href: "/notifications" },
+  ]},
+  { title: "Support", items: [
+    { icon: "💬", label: "KaizyBot Help", href: "/konnectbot" },
+    { icon: "📞", label: "Contact Support", href: "/help" },
+    { icon: "📜", label: "Terms", href: "/terms" },
+    { icon: "🔒", label: "Privacy Policy", href: "/privacy" },
+  ]},
+];
+
+const hirerMenuSections = [
   { title: "Account", items: [
     { icon: "📋", label: "My Bookings", href: "/my-bookings" },
     { icon: "❤️", label: "Saved Workers", href: "/saved-workers" },
-    { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
-    { icon: "🎯", label: "Incentives & Targets", href: "/incentives" },
-    { icon: "📸", label: "Job Photos", href: "/job-photos" },
-    { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
+    { icon: "📝", label: "Post a Job", href: "/booking" },
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
   ]},
   { title: "Preferences", items: [
@@ -87,7 +105,7 @@ export default function SettingsPage() {
               {tradeLine && <p className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>{tradeLine}</p>}
               <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{user?.phone || ""}</p>
             </div>
-            <Link href="/worker/profile" className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit →</Link>
+            <Link href={user?.user_type === "worker" ? "/worker/profile" : "/settings"} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit →</Link>
           </div>
         )}
       </div>
@@ -127,8 +145,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Menu sections */}
-      {menuSections.map(section => (
+      {/* Menu sections — role-based */}
+      {(user?.user_type === "worker" ? workerMenuSections : hirerMenuSections).map(section => (
         <div key={section.title} className="px-4 mt-5">
           <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-3)", letterSpacing: "2px" }}>{section.title}</p>
           <div className="rounded-[14px] overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>

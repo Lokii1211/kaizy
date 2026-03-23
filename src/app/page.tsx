@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
 // KAIZY HOME — Mapbox Map-First + Real Supabase Workers
+// ROLE-BASED: This is the HIRER home. Workers redirect to /dashboard/worker
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -37,6 +39,7 @@ interface RealWorker {
 
 export default function HomePage() {
   const { isDark, toggle } = useTheme();
+  const router = useRouter();
   const [activeTrade, setActiveTrade] = useState(-1);
   const [greeting, setGreeting] = useState("Good evening");
   const [onlineCount, setOnlineCount] = useState(0);
@@ -50,6 +53,18 @@ export default function HomePage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
   const markersRef = useRef<unknown[]>([]);
+
+  // ── ROLE CHECK: Workers go to /dashboard/worker ──
+  useEffect(() => {
+    const cookies = document.cookie.split(';').reduce((acc, c) => {
+      const [k, v] = c.trim().split('=');
+      if (k) acc[k] = v;
+      return acc;
+    }, {} as Record<string, string>);
+    if (cookies.kaizy_user_type === 'worker') {
+      router.replace('/dashboard/worker');
+    }
+  }, [router]);
 
   // Get REAL GPS location
   useEffect(() => {

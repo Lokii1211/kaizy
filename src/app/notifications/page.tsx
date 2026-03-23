@@ -29,6 +29,17 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [accepted, setAccepted] = useState<string[]>([]);
   const [declined, setDeclined] = useState<string[]>([]);
+  const [userType, setUserType] = useState<string>("hirer");
+
+  // Detect user role from cookie
+  useEffect(() => {
+    const cookies = document.cookie.split(';').reduce((acc, c) => {
+      const [k, v] = c.trim().split('=');
+      if (k) acc[k] = v;
+      return acc;
+    }, {} as Record<string, string>);
+    if (cookies.kaizy_user_type) setUserType(cookies.kaizy_user_type);
+  }, []);
 
   // Fetch real notifications via API
   const fetchNotifications = async () => {
@@ -183,7 +194,9 @@ export default function NotificationsPage() {
             <p className="text-[40px] mb-3">📭</p>
             <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>No notifications yet</p>
             <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>
-              When workers respond to your jobs, you&apos;ll see it here
+              {userType === "worker"
+                ? "When job alerts come in, you'll see them here"
+                : "When workers respond to your jobs, you'll see it here"}
             </p>
           </div>
         )}
@@ -214,8 +227,8 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
-              {/* Real Accept/Decline for job alerts */}
-              {isJobAlert && !isAccepted && !isDeclined && (
+              {/* Real Accept/Decline for job alerts — WORKERS ONLY */}
+              {isJobAlert && !isAccepted && !isDeclined && userType === "worker" && (
                 <div className="flex gap-2 mt-2 pl-[52px]">
                   <button onClick={() => handleAccept(n)}
                           className="flex-1 rounded-lg py-2 text-[11px] font-bold text-white active:scale-95"
