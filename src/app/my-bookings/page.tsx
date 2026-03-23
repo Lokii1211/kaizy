@@ -38,6 +38,14 @@ export default function MyBookingsPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<string>("hirer");
+
+  // Detect role
+  useEffect(() => {
+    const c = document.cookie.split(';').find(c => c.trim().startsWith('kaizy_user_type='));
+    if (c) setUserType(c.split('=')[1]?.trim() || 'hirer');
+  }, []);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -62,6 +70,39 @@ export default function MyBookingsPage() {
     };
     fetchBookings();
   }, []);
+
+  // Cancel booking handler
+  const handleCancel = async (bookingId: string, status: string) => {
+    let feeWarning = "";
+    if (["en_route"].includes(status)) feeWarning = "\n\n⚠️ ₹25 cancellation fee applies (worker already dispatched).";
+    else if (["arrived", "in_progress"].includes(status)) feeWarning = "\n\n⚠️ 50% cancellation fee applies (worker has arrived/started).";
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel this booking?${feeWarning}\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setCancellingId(bookingId);
+    try {
+      const res = await fetch("/api/bookings/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, cancelledBy: userType, reason: "User cancelled" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setBookings(prev => prev.map(b =>
+          b.id === bookingId ? { ...b, status: "cancelled" } : b
+        ));
+      } else {
+        alert(json.error || "Failed to cancel");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   // Filter by tab
   const filteredBookings = bookings.filter(b => {
@@ -191,13 +232,30 @@ export default function MyBookingsPage() {
                       </div>
                     )}
 
-                    {/* Track button for active */}
-                    {["accepted", "in_progress"].includes(b.status) && (
-                      <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-1)" }}>
-                        <span className="block text-center text-[11px] font-bold py-2 rounded-lg text-white"
-                              style={{ background: "#3B82F6" }}>
-                          🗺️ Track Worker Live
-                        </span>
+                    {/* Track + Cancel for active bookings */}
+                    {["pending", "accepted", "en_route", "in_progress"].includes(b.status) && (
+                      <div className="mt-3 pt-3 flex gap-2" style={{ borderTop: "1px solid var(--border-1)" }}
+                           onClick={(e) => e.preventDefault()}>
+                        {["accepted", "en_route", "in_progress"].includes(b.status) && (
+                          <span className="flex-1 text-center text-[11px] font-bold py-2 rounded-lg text-white"
+                                style={{ background: "#3B82F6" }}
+                                onClick={() => window.location.href = "/tracking"}>
+                            🗺️ Track Live
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleCancel(b.id, b.status)}
+                          disabled={cancellingId === b.id}
+                          className="text-center text-[11px] font-bold py-2 px-4 rounded-lg active:scale-95"
+                          style={{
+                            background: "rgba(239,68,68,0.08)",
+                            color: "var(--danger)",
+                            border: "1px solid rgba(239,68,68,0.2)",
+                            opacity: cancellingId === b.id ? 0.5 : 1,
+                            flex: ["accepted", "en_route", "in_progress"].includes(b.status) ? undefined : 1,
+                          }}>
+                          {cancellingId === b.id ? "⏳" : "✕"} Cancel
+                        </button>
                       </div>
                     )}
                   </Link>
