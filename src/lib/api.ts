@@ -50,7 +50,7 @@ async function apiFetch<T>(
 export const authApi = {
   sendOtp: async (phone: string) => {
     const cleanPhone = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
-    return apiFetch<{ expires_in: number; debug_otp?: string; fallback_otp?: string; sms_sent?: boolean }>("/auth/send-otp", {
+    return apiFetch<{ expires_in: number; debug_otp?: string; fallback_otp?: string; sms_sent?: boolean; channel?: string }>("/auth/send-otp", {
       method: "POST",
       body: JSON.stringify({ phone: cleanPhone }),
     });

@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
   const [debugOtp, setDebugOtp] = useState("");
+  const [otpChannel, setOtpChannel] = useState<string>("");
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => { if (countdown > 0) { const t = setTimeout(() => setCountdown(countdown - 1), 1000); return () => clearTimeout(t); } }, [countdown]);
@@ -30,7 +31,9 @@ export default function LoginPage() {
       if (r.success) { 
         setStep("otp"); 
         setCountdown(30); 
-        // Show OTP if SMS delivery failed (fallback for users)
+        // Track delivery channel
+        if (r.data?.channel) setOtpChannel(r.data.channel);
+        // Show OTP if delivery failed (fallback for users)
         const showOtp = r.data?.fallback_otp || r.data?.debug_otp;
         if (showOtp) setDebugOtp(showOtp); 
       }
@@ -107,9 +110,17 @@ export default function LoginPage() {
 
       {step === "otp" && (
         <div className="w-full max-w-sm animate-slide-up text-center">
-          <p className="text-[48px] mb-3">🔐</p>
+          <p className="text-[48px] mb-3">{otpChannel.includes('whatsapp') ? '💬' : '🔐'}</p>
           <h1 className="text-[22px] font-black mb-1" style={{ color: "var(--text-1)" }}>Verify OTP</h1>
-          <p className="text-[12px] mb-6" style={{ color: "var(--text-3)" }}>Code sent to +91 {phone}</p>
+          <p className="text-[12px] mb-2" style={{ color: "var(--text-3)" }}>
+            {otpChannel.includes('whatsapp') ? 'Check your WhatsApp 💚' : 'Code sent to'} +91 {phone}
+          </p>
+          {otpChannel.includes('whatsapp') && (
+            <div className="rounded-[10px] px-4 py-2 mb-4 inline-flex items-center gap-2" style={{ background: '#25D366', color: '#fff' }}>
+              <span className="text-[16px]">💬</span>
+              <span className="text-[11px] font-bold">OTP sent via WhatsApp</span>
+            </div>
+          )}
           {debugOtp && (
             <div className="rounded-[14px] p-3 mb-4 text-center" style={{ background: "var(--success-tint, #f0fdf4)", border: "1px solid var(--success, #22c55e)" }}>
               <p className="text-[10px] font-bold mb-1" style={{ color: "var(--success, #22c55e)" }}>📩 Use this code to verify:</p>
