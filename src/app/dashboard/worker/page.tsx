@@ -1,10 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
+import JobAlertOverlay from "@/components/JobAlertOverlay";
 
 // ============================================================
-// WORKER DASHBOARD — Real data from logged-in user
+// WORKER DASHBOARD v8.0 — Real data + Job Alert Overlay
+// Online/Offline toggle → GPS update → Poll for job alerts
+// Full-screen alert when JOB_ALERT arrives
 // ============================================================
 
 interface UserData {
@@ -16,17 +19,41 @@ interface UserData {
   kaizy_score?: number;
 }
 
+interface AlertNotification {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  created_at: string;
+  is_read: boolean;
+  data: Record<string, unknown>;
+}
+
+interface ActiveJobAlert {
+  alertId: string;
+  jobId: string;
+  trade: string;
+  distance: number;
+  earnings: number;
+  problemType?: string;
+  address?: string;
+  hirerName?: string;
+  isEmergency?: boolean;
+}
+
 export default function WorkerDashboardPage() {
   const { isDark, toggle } = useTheme();
   const [isOnline, setIsOnline] = useState(false);
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [todayJobs, setTodayJobs] = useState(0);
   const [avgRating, setAvgRating] = useState(0);
-  const [alerts, setAlerts] = useState<Array<{ id: string; title: string; body: string; type: string; created_at: string; data: Record<string, unknown> }>>([]);
+  const [alerts, setAlerts] = useState<AlertNotification[]>([]);
   const [toggling, setToggling] = useState(false);
   const [greeting, setGreeting] = useState("Good evening");
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeJobAlert, setActiveJobAlert] = useState<ActiveJobAlert | null>(null);
+  const [acceptedJob, setAcceptedJob] = useState<{ bookingId: string; otp: string; message: string } | null>(null);
 
   // Get greeting
   useEffect(() => {
@@ -42,30 +69,31 @@ export default function WorkerDashboardPage() {
         const json = await res.json();
         if (json.success && json.data) {
           setUser(json.data);
-          // Fetch worker stats
-          if (json.data.id) {
-            fetchWorkerStats(json.data.id);
-          }
+          fetchWorkerStats(json.data.id);
         }
       } catch {} finally { setLoading(false); }
     };
     fetchUser();
   }, []);
 
-  // Fetch worker's real stats from Supabase
+  // Fetch worker stats
   const fetchWorkerStats = async (workerId: string) => {
     try {
-      // Fetch real earnings
-      const earnRes = await fetch(`/api/workers/nearby?trade=&lat=0&lng=0&radius=0`);
-      const earnJson = await earnRes.json();
-      // For now show 0 until real bookings exist
+      const res = await fetch(`/api/earnings?workerId=${workerId}&period=today`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setTodayEarnings(Number(json.data.totalEarnings) || 0);
+        setTodayJobs(Number(json.data.totalJobs) || 0);
+        setAvgRating(Number(json.data.avgRating) || 0);
+      }
+    } catch {
       setTodayEarnings(0);
       setTodayJobs(0);
-      setAvgRating(4.5);
-    } catch {}
+      setAvgRating(0);
+    }
   };
 
-  // Real toggle online/offline — uses GPS
+  // Real toggle online/offline — updates GPS + Supabase
   const handleToggle = async () => {
     if (!user) return;
     setToggling(true);
@@ -105,22 +133,118 @@ export default function WorkerDashboardPage() {
     }
   };
 
-  // Fetch job alerts
+  // Poll for job alerts — show full-screen overlay for unread JOB_ALERT
   useEffect(() => {
-    if (!user) return;
-    const fetchAlerts = async () => {
+    if (!user || !isOnline) return;
+
+    const checkForAlerts = async () => {
       try {
-        const res = await fetch(`/api/notifications?userId=${user.id}&limit=5`);
+        const res = await fetch(`/api/notifications?userId=${user.id}&limit=10`);
         const json = await res.json();
         if (json.success && json.data?.length) {
           setAlerts(json.data);
+
+          // Find the most recent unread JOB_ALERT
+          const unreadJobAlert = json.data.find(
+            (n: AlertNotification) => n.type === 'JOB_ALERT' && !n.is_read
+          );
+
+          if (unreadJobAlert && !activeJobAlert && !acceptedJob) {
+            const data = unreadJobAlert.data || {};
+            setActiveJobAlert({
+              alertId: unreadJobAlert.id,
+              jobId: String(data.jobId || ''),
+              trade: String(data.trade || 'technician'),
+              distance: Number(data.distance || 0),
+              earnings: Number(data.earnings || 0),
+              problemType: String(data.problemType || ''),
+              address: String(data.address || ''),
+              isEmergency: Boolean(data.isEmergency),
+            });
+          }
         }
       } catch {}
     };
-    fetchAlerts();
-    const id = setInterval(fetchAlerts, 15000); // Poll every 15s
-    return () => clearInterval(id);
-  }, [user]);
+
+    checkForAlerts();
+    const intervalId = setInterval(checkForAlerts, 10000); // Poll every 10s
+    return () => clearInterval(intervalId);
+  }, [user, isOnline, activeJobAlert, acceptedJob]);
+
+  // Update GPS every 30 seconds while online
+  useEffect(() => {
+    if (!user || !isOnline) return;
+    const gpsInterval = setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            fetch("/api/workers/toggle", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                workerId: user.id,
+                isOnline: true,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              }),
+            }).catch(() => {});
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+    }, 30000);
+    return () => clearInterval(gpsInterval);
+  }, [user, isOnline]);
+
+  // Handle job accept
+  const handleAcceptJob = useCallback(async (alertId: string) => {
+    if (!user || !activeJobAlert) return;
+    try {
+      const res = await fetch("/api/jobs/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alertId: alertId,
+          workerId: user.id,
+        }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        setAcceptedJob({
+          bookingId: json.data?.bookingId || '',
+          otp: json.data?.otp || '',
+          message: json.data?.message || 'Job accepted!',
+        });
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      } else {
+        // Job already taken or expired
+        setAcceptedJob({
+          bookingId: '',
+          otp: '',
+          message: json.error === 'already_taken' ? 'This job was taken by another worker.' : 'Job expired. Wait for the next one!',
+        });
+      }
+    } catch {
+      setAcceptedJob({ bookingId: '', otp: '', message: 'Failed to accept. Check your connection.' });
+    }
+    setActiveJobAlert(null);
+
+    // Mark notification as read
+    try {
+      await fetch(`/api/notifications`, { method: 'PATCH' });
+    } catch {}
+  }, [user, activeJobAlert]);
+
+  // Handle job decline
+  const handleDeclineJob = useCallback(async (alertId: string) => {
+    setActiveJobAlert(null);
+    // Mark as read
+    try {
+      await fetch(`/api/notifications`, { method: 'PATCH' });
+    } catch {}
+  }, []);
 
   const displayName = user?.name || user?.phone?.replace('+91', '') || "Worker";
   const tradeName = user?.trade || "Worker";
@@ -135,6 +259,37 @@ export default function WorkerDashboardPage() {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+
+      {/* ═══ FULL-SCREEN JOB ALERT OVERLAY ═══ */}
+      {activeJobAlert && (
+        <JobAlertOverlay
+          alert={activeJobAlert}
+          onAccept={handleAcceptJob}
+          onDecline={handleDeclineJob}
+        />
+      )}
+
+      {/* ═══ JOB ACCEPTED BANNER ═══ */}
+      {acceptedJob && (
+        <div className="fixed top-0 left-0 right-0 z-[9998] p-4 animate-slide-down"
+             style={{ background: acceptedJob.bookingId ? "var(--success)" : "var(--warning)" }}>
+          <div className="max-w-md mx-auto text-center">
+            <p className="text-[16px] font-black text-white">{acceptedJob.bookingId ? "✅ Job Accepted!" : "⚠️"}</p>
+            <p className="text-[12px] mt-1 text-white opacity-80">{acceptedJob.message}</p>
+            {acceptedJob.otp && (
+              <p className="text-[20px] font-black text-white mt-2" style={{ letterSpacing: "4px" }}>
+                OTP: {acceptedJob.otp}
+              </p>
+            )}
+            <button onClick={() => setAcceptedJob(null)}
+                    className="mt-3 text-[12px] font-bold px-4 py-2 rounded-xl"
+                    style={{ background: "rgba(255,255,255,0.2)", color: "#fff" }}>
+              {acceptedJob.bookingId ? "Start Navigation" : "OK"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-4 pt-4 pb-5" style={{ background: isOnline ? (isDark ? "#001a00" : "#F0FFF4") : "var(--bg-app)" }}>
         <div className="flex justify-between items-center mb-4">
@@ -209,11 +364,11 @@ export default function WorkerDashboardPage() {
         <div className="grid grid-cols-3 gap-2">
           {[
             { icon: "📊", label: "Earnings", href: "/earnings" },
-            { icon: "🎯", label: "Incentives", href: "/incentives" },
+            { icon: "📋", label: "My Jobs", href: "/bookings" },
             { icon: "🎁", label: "Refer", href: "/referral" },
             { icon: "💬", label: "Chat", href: "/chat" },
-            { icon: "📚", label: "Learn", href: "/konnectlearn" },
             { icon: "🤖", label: "KaizyBot", href: "/konnectbot" },
+            { icon: "⚙️", label: "Settings", href: "/settings" },
           ].map(a => (
             <Link key={a.label} href={a.href}
                   className="rounded-xl p-3 text-center active:scale-95 transition-all"
@@ -246,12 +401,16 @@ export default function WorkerDashboardPage() {
           <div className="space-y-2 stagger">
             {alerts.map(a => (
               <div key={a.id} className="rounded-xl p-3 flex items-center gap-3"
-                   style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-                <span className="text-[20px]">🔔</span>
+                   style={{ background: "var(--bg-card)", border: `1px solid ${a.is_read ? 'var(--border-1)' : 'var(--brand)'}` }}>
+                <span className="text-[20px]">{a.type === 'JOB_ALERT' ? '🔔' : a.type === 'BOOKING_ACCEPTED' ? '✅' : a.type === 'PAYMENT_RECEIVED' ? '💰' : '📢'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>{a.title}</p>
                   <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{a.body}</p>
+                  <p className="text-[8px] mt-0.5" style={{ color: "var(--text-3)" }}>
+                    {new Date(a.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
+                {!a.is_read && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--brand)" }} />}
               </div>
             ))}
           </div>
