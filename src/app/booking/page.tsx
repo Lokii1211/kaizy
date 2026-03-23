@@ -25,7 +25,7 @@ const tradeProblems: Record<string, string[]> = {
 
 export default function BookingPage() {
   const { isDark } = useTheme();
-  const { state, startSearch, selectWorker, confirmBooking, sendMessage, cancelBooking, workerArrived, jobStarted, jobCompleted, submitReview, resetBooking, calculatePricing } = useBooking();
+  const { state, startSearch, selectWorker, confirmBooking, sendMessage, cancelBooking, workerArrived, jobStarted, jobCompleted, confirmPayment, submitReview, resetBooking, calculatePricing } = useBooking();
   const [selectedTrade, setSelectedTrade] = useState("Electrician");
   const [selectedProblem, setSelectedProblem] = useState("");
   const [chatInput, setChatInput] = useState("");
@@ -578,47 +578,77 @@ export default function BookingPage() {
     );
   }
 
-  // ── STEP 5: COMPLETED → REVIEW + PAY (CASH / UPI) ──
-  if (state.status === "completed" || state.status === "reviewing") {
+  // ── STEP 5: COMPLETED → PAYMENT CONFIRMATION ──
+  if (state.status === "completed") {
+    const w = state.selectedWorker;
+
+    return (
+      <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+        <div className="px-4 pt-4">
+          {/* Success header */}
+          <div className="text-center mb-5">
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 animate-bounce-in" style={{ background: "var(--success)", boxShadow: "0 6px 24px rgba(0,208,132,0.3)" }}>
+              <span className="text-white text-[28px]">✓</span>
+            </div>
+            <h1 className="text-[20px] font-black" style={{ color: "var(--text-1)" }}>Job Completed! 🎉</h1>
+            <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Please pay the worker to proceed</p>
+          </div>
+
+          {/* Worker card */}
+          <div className="flex items-center gap-3 rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div className="rounded-full flex items-center justify-center text-[18px] font-black text-white shrink-0"
+                 style={{ width: 48, height: 48, background: w?.color }}>{w?.initials}</div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{w?.name}</p>
+              <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{w?.tradeIcon} {selectedProblem}</p>
+            </div>
+          </div>
+
+          {/* Price breakdown */}
+          <div className="rounded-xl p-4 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <p className="text-[12px] font-bold mb-3" style={{ color: "var(--text-3)" }}>Payment Summary</p>
+            <div className="space-y-2">
+              <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.base}</span></div>
+              {(state.pricing?.distanceFee || 0) > 0 && (
+                <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Distance fee</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.distanceFee}</span></div>
+              )}
+              <div className="h-px" style={{ background: "var(--border-1)" }} />
+              <div className="flex justify-between text-[16px]"><span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span><span className="font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</span></div>
+            </div>
+          </div>
+
+          {/* Payment method */}
+          <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Payment Method</p>
+
+          {/* Cash on Hand */}
+          <button onClick={() => confirmPayment('cash', state.pricing?.grandTotal || 0)}
+                  className="w-full rounded-xl py-4 mb-3 active:scale-[0.98] transition-all"
+                  style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+            <p className="text-[15px] font-black text-white">💵 Paid ₹{state.pricing?.grandTotal} Cash</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>I have paid {w?.name} directly</p>
+          </button>
+
+          {/* UPI (future) */}
+          <button disabled className="w-full rounded-xl py-4 opacity-40"
+                  style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <p className="text-[13px] font-bold" style={{ color: "var(--text-2)" }}>📱 Pay via UPI — Coming Soon</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STEP 5b: REVIEWING → RATE THE WORKER ──
+  if (state.status === "reviewing") {
     const w = state.selectedWorker;
     const posTags = ["On Time", "Good Work", "Polite", "Clean", "Fair Price", "Expert"];
     const negTags = ["Late", "Overcharged", "Rude", "Messy"];
-
-    const handlePayAndReview = async () => {
-      // 1. Save review to Supabase
-      try {
-        const { supabase } = await import("@/lib/supabase");
-        await supabase.from("reviews").insert({
-          reviewer_id: null,
-          worker_id: w?.id || null,
-          rating: reviewRating,
-          tags: reviewTags,
-          comment: `${reviewRating}/5 stars`,
-        });
-      } catch (e) { console.error("[review save]", e); }
-
-      // 2. Record cash payment
-      try {
-        await fetch("/api/payments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "pay_cash",
-            bookingId: state.bookingId,
-            amount: state.pricing?.grandTotal || 0,
-            workerPaid: true,
-          }),
-        });
-      } catch (e) { console.error("[payment]", e); }
-
-      submitReview(reviewRating, reviewTags);
-    };
 
     return (
       <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
         <div className="px-4 pt-4">
           <h1 className="text-[18px] font-black mb-1" style={{ color: "var(--text-1)" }}>How was {w?.name}? 🌟</h1>
-          <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>Your review helps other hirers</p>
+          <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>Your review helps other hirers find great workers</p>
 
           {/* Worker card */}
           <div className="flex items-center gap-3 rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)" }}>
@@ -631,13 +661,16 @@ export default function BookingPage() {
           </div>
 
           {/* Stars */}
-          <div className="flex justify-center gap-2 py-4 text-[36px]">
+          <div className="flex justify-center gap-3 py-5 text-[40px]">
             {[1,2,3,4,5].map(star => (
               <button key={star} onClick={() => setReviewRating(star)} className="active:scale-110 transition-transform">
                 {star <= reviewRating ? "⭐" : "☆"}
               </button>
             ))}
           </div>
+          <p className="text-center text-[13px] font-bold mb-4" style={{ color: "var(--brand)" }}>
+            {reviewRating === 5 ? "Excellent! 🔥" : reviewRating === 4 ? "Great!" : reviewRating === 3 ? "Good" : reviewRating === 2 ? "Fair" : "Poor"}
+          </p>
 
           {/* Tags */}
           <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>What went well?</p>
@@ -652,7 +685,7 @@ export default function BookingPage() {
             ))}
           </div>
           <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Any issues?</p>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-5">
             {negTags.map(tag => (
               <button key={tag} onClick={() => setReviewTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
                       className="text-[10px] font-bold px-3 py-[5px] rounded-full active:scale-95"
@@ -663,26 +696,15 @@ export default function BookingPage() {
             ))}
           </div>
 
-          {/* Price breakdown */}
-          <div className="rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Payment Summary</p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.base}</span></div>
-              {(state.pricing?.distanceFee || 0) > 0 && (
-                <div className="flex justify-between text-[12px]"><span style={{ color: "var(--text-2)" }}>Distance fee</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.distanceFee}</span></div>
-              )}
-              <div className="h-px my-1" style={{ background: "var(--border-1)" }} />
-              <div className="flex justify-between text-[14px]"><span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span><span className="font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</span></div>
-            </div>
-          </div>
-
-          {/* Pay + Submit */}
-          <button onClick={handlePayAndReview}
+          <button onClick={() => submitReview(reviewRating, reviewTags)}
                   className="w-full rounded-xl py-4 active:scale-[0.98] transition-all"
                   style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
-            <p className="text-[14px] font-black text-white">💵 Pay ₹{state.pricing?.grandTotal} Cash to Worker</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Pay directly to {w?.name} after job completion</p>
+            <p className="text-[14px] font-black text-white">Submit Review ⭐</p>
           </button>
+
+          <button onClick={() => submitReview(0, [])}
+                  className="w-full mt-3 py-3 text-[12px] font-semibold active:scale-95"
+                  style={{ color: "var(--text-3)" }}>Skip Review</button>
         </div>
       </div>
     );
