@@ -71,12 +71,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: smsSent ? 'OTP sent to your phone' : 'OTP generated',
+      message: smsSent ? 'OTP sent to your phone via SMS' : 'OTP generated (SMS delivery pending)',
       expires_in: 600,
       data: {
         sms_sent: smsSent,
-        // Only show OTP on screen if SMS gateway is not configured
-        debug_otp: smsSent ? undefined : otp,
+        // PRODUCTION: Never expose OTP. Only show in development.
+        debug_otp: process.env.NODE_ENV === 'development' && !smsSent ? otp : undefined,
       },
     });
   } catch (error) {

@@ -214,6 +214,32 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
 
+      // Get hirer ID from auth cookie
+      let hirerId: string | null = null;
+      try {
+        const cookies = document.cookie.split(';');
+        const tokenCookie = cookies.find(c => c.trim().startsWith('kaizy_token='));
+        if (tokenCookie) {
+          const token = tokenCookie.split('=')[1];
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          hirerId = payload.sub || payload.userId || null;
+        }
+      } catch {}
+
+      // Get verified address from session storage
+      let verifiedAddress = '';
+      try {
+        const loc = sessionStorage.getItem('kaizy_verified_location');
+        if (loc) {
+          const parsed = JSON.parse(loc);
+          verifiedAddress = parsed.address || '';
+          if (parsed.lat && parsed.lng) {
+            jobLat = parsed.lat;
+            jobLng = parsed.lng;
+          }
+        }
+      } catch {}
+
       const res = await fetch("/api/jobs/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,8 +248,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           problemType: state.selectedProblem.toLowerCase().replace(/\s+/g, '_'),
           lat: jobLat,
           lng: jobLng,
+          address: verifiedAddress || `GPS: ${jobLat.toFixed(4)}, ${jobLng.toFixed(4)}`,
           description: `${state.selectedCategory}: ${state.selectedProblem}`,
           isEmergency: state.selectedProblem.includes("SOS"),
+          hirerId,
         }),
       });
       const json = await res.json();
