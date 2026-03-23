@@ -71,23 +71,37 @@ export default function TrackingPage() {
       }
     } catch {}
 
-    // Load verified booking location
+    // Check kaizy_active_job (set by BookingStore v8.0)
     try {
-      const storedLoc = sessionStorage.getItem("kaizy_booking_location");
-      if (storedLoc) {
-        const loc = JSON.parse(storedLoc);
-        if (loc.lat && loc.lng) {
-          setUserPos({ lat: loc.lat, lng: loc.lng });
-          setGpsReady(true);
-          gotLocation = true;
+      const activeJob = sessionStorage.getItem("kaizy_active_job");
+      if (activeJob) {
+        const job = JSON.parse(activeJob);
+        if (job.jobId) {
           foundBooking = true;
         }
       }
     } catch {}
 
-    // If no booking data and no location, get GPS and show demo notice
+    // Load verified booking location (multiple storage keys for compatibility)
+    const locationKeys = ["kaizy_booking_location", "kaizy_verified_location"];
+    for (const key of locationKeys) {
+      if (gotLocation) break;
+      try {
+        const storedLoc = sessionStorage.getItem(key);
+        if (storedLoc) {
+          const loc = JSON.parse(storedLoc);
+          if (loc.lat && loc.lng) {
+            setUserPos({ lat: Number(loc.lat), lng: Number(loc.lng) });
+            setGpsReady(true);
+            gotLocation = true;
+            foundBooking = true;
+          }
+        }
+      } catch {}
+    }
+
+    // If no booking data, show notice
     if (!foundBooking) {
-      // Still allow viewing tracking page but with notice
       setWorker({
         name: "No Active Booking",
         trade: "—",

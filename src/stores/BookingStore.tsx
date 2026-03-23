@@ -269,9 +269,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           }));
           sessionStorage.setItem('kaizy_active_job', JSON.stringify({
             jobId: realJobId,
-            bookingId: null, // Will be set when accepted
+            bookingId: null,
             trade, problem: state.selectedProblem,
             pricing: state.pricing,
+          }));
+          // Save user location for tracking page map
+          sessionStorage.setItem('kaizy_booking_location', JSON.stringify({
+            lat: jobLat, lng: jobLng,
+            address: verifiedAddress,
           }));
         } catch {}
 
