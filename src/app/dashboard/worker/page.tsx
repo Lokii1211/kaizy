@@ -5,9 +5,9 @@ import { useTheme } from "@/stores/ThemeStore";
 import JobAlertOverlay from "@/components/JobAlertOverlay";
 
 // ============================================================
-// WORKER DASHBOARD v8.0 — Real data + Job Alert Overlay
-// Online/Offline toggle → GPS update → Poll for job alerts
-// Full-screen alert when JOB_ALERT arrives
+// WORKER DASHBOARD v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surface hierarchy · Gradient CTA
+// Real data + Job Alert Overlay · No harsh borders
 // ============================================================
 
 interface UserData {
@@ -290,123 +290,127 @@ export default function WorkerDashboardPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="px-4 pt-4 pb-5" style={{ background: isOnline ? (isDark ? "#001a00" : "#F0FFF4") : "var(--bg-app)" }}>
-        <div className="flex justify-between items-center mb-4">
+      {/* Header — Tonal layered */}
+      <div className="px-5 pt-5 pb-5" style={{ background: isOnline ? (isDark ? "rgba(52,211,153,0.04)" : "#F0FFF4") : "var(--bg-app)" }}>
+        <div className="flex justify-between items-center mb-5">
           <div>
-            <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{greeting}</p>
-            <h1 className="text-[20px] font-black" style={{ color: "var(--text-1)" }}>{displayName} 👋</h1>
-            <p className="text-[11px] font-medium" style={{ color: "var(--brand)" }}>
-              {tradeName} · KS {user?.kaizy_score || 0}
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>{greeting}</p>
+            <h1 className="text-[22px] font-black tracking-tight mt-0.5" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{displayName} 👋</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>{tradeName}</span>
+              <span className="trust-badge">KS {user?.kaizy_score || 0}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={toggle} className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: "var(--bg-elevated)" }}>
+          <div className="flex items-center gap-2">
+            <button onClick={toggle} className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                    style={{ background: "var(--bg-surface)" }}>
               <span className="text-[14px]">{isDark ? "🌙" : "☀️"}</span>
             </button>
-            <Link href="/settings" className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ background: "var(--bg-elevated)" }}>
+            <Link href="/settings" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ background: "var(--bg-surface)" }}>
               <span className="text-[14px]">⚙️</span>
             </Link>
           </div>
         </div>
 
-        {/* Online/Offline Toggle */}
+        {/* Online/Offline Toggle — Tonal, no harsh border */}
         <button onClick={handleToggle} disabled={toggling}
-                className="w-full rounded-2xl p-4 flex items-center justify-between active:scale-[0.98] transition-all"
+                className="w-full rounded-[20px] p-4 flex items-center justify-between active:scale-[0.97] transition-all"
                 style={{
                   background: isOnline ? "var(--success)" : "var(--bg-card)",
-                  border: isOnline ? "none" : "1px solid var(--border-1)",
-                  boxShadow: isOnline ? "0 8px 32px rgba(52,211,153,0.3)" : "none",
+                  boxShadow: isOnline ? "0 12px 40px -4px rgba(52,211,153,0.35)" : "var(--shadow-card)",
                 }}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-7 rounded-full relative transition-all"
-                 style={{ background: isOnline ? "rgba(255,255,255,0.3)" : "var(--bg-elevated)" }}>
-              <div className="absolute top-0.5 rounded-full w-6 h-6 transition-all shadow"
+                 style={{ background: isOnline ? "rgba(255,255,255,0.25)" : "var(--bg-elevated)" }}>
+              <div className="absolute top-0.5 rounded-full w-6 h-6 transition-all"
                    style={{
                      background: isOnline ? "#fff" : "var(--text-3)",
                      left: isOnline ? 22 : 2,
+                     boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                    }} />
             </div>
             <div className="text-left">
-              <p className="text-[15px] font-black" style={{ color: isOnline ? "#fff" : "var(--text-1)" }}>
+              <p className="text-[14px] font-black tracking-tight" style={{ color: isOnline ? "#fff" : "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
                 {toggling ? "Switching..." : isOnline ? "● ONLINE" : "● OFFLINE"}
               </p>
-              <p className="text-[11px]" style={{ color: isOnline ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>
-                {isOnline ? "You're receiving job alerts" : "Tap to start receiving jobs"}
+              <p className="text-[10px] font-medium" style={{ color: isOnline ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>
+                {isOnline ? "Receiving job alerts" : "Tap to start receiving jobs"}
               </p>
             </div>
           </div>
-          <span className="text-[24px]">{isOnline ? "🟢" : "⚪"}</span>
+          {isOnline && <div className="w-3 h-3 rounded-full online-dot" style={{ background: "#fff" }} />}
         </button>
       </div>
 
-      {/* Today's Stats */}
-      <div className="grid grid-cols-3 gap-2 px-4 mb-4">
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[20px] font-black" style={{ color: "var(--success)" }}>₹{todayEarnings.toLocaleString("en-IN")}</p>
-          <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>Today</p>
+      {/* Today's Stats — Editorial large numbers, tonal cards */}
+      <div className="grid grid-cols-3 gap-2.5 px-5 mb-5">
+        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
+          <p className="text-[22px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>₹{todayEarnings.toLocaleString("en-IN")}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Today</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[20px] font-black" style={{ color: "var(--brand)" }}>{todayJobs}</p>
-          <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>Jobs Done</p>
+        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
+          <p className="text-[22px] font-black" style={{ color: "var(--brand)", fontFamily: "'Epilogue', sans-serif" }}>{todayJobs}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Jobs</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[20px] font-black" style={{ color: "var(--warning)" }}>{avgRating > 0 ? avgRating.toFixed(1) : "—"}</p>
-          <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>Rating</p>
+        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
+          <p className="text-[22px] font-black" style={{ color: "var(--warning)", fontFamily: "'Epilogue', sans-serif" }}>{avgRating > 0 ? avgRating.toFixed(1) : "—"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Rating</p>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-4 mb-4">
-        <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Quick Actions</p>
-        <div className="grid grid-cols-3 gap-2">
+      {/* Quick Actions — Tonal grid, no borders */}
+      <div className="px-5 mb-5">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Quick Actions</p>
+        <div className="grid grid-cols-3 gap-2.5">
           {[
             { icon: "📊", label: "Earnings", href: "/earnings" },
             { icon: "📋", label: "My Jobs", href: "/my-bookings" },
             { icon: "🏆", label: "Leaderboard", href: "/leaderboard" },
             { icon: "🪪", label: "Verify ID", href: "/verify" },
             { icon: "🤖", label: "KaizyBot", href: "/konnectbot" },
-            { icon: "⚙️", label: "Settings", href: "/settings" },
+            { icon: "⏰", label: "Schedule", href: "/schedule" },
           ].map(a => (
             <Link key={a.label} href={a.href}
-                  className="rounded-xl p-3 text-center active:scale-95 transition-all"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-              <span className="text-[20px]">{a.icon}</span>
-              <p className="text-[10px] font-medium mt-1" style={{ color: "var(--text-2)" }}>{a.label}</p>
+                  className="rounded-[14px] p-3.5 text-center active:scale-[0.95] transition-all"
+                  style={{ background: "var(--bg-surface)" }}>
+              <span className="text-[22px]">{a.icon}</span>
+              <p className="text-[9px] font-bold mt-1.5" style={{ color: "var(--text-2)" }}>{a.label}</p>
             </Link>
           ))}
         </div>
       </div>
 
       {/* Job Alerts */}
-      <div className="px-4">
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-[12px] font-bold" style={{ color: "var(--text-3)" }}>Recent Alerts</p>
-          <Link href="/notifications" className="text-[11px] font-semibold" style={{ color: "var(--brand)" }}>See All</Link>
+      <div className="px-5">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Recent Alerts</p>
+          <Link href="/notifications" className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>See All →</Link>
         </div>
 
         {alerts.length === 0 ? (
-          <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <p className="text-[32px] mb-2">{isOnline ? "👀" : "😴"}</p>
-            <p className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>
+          <div className="rounded-[18px] p-6 text-center" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[36px] mb-2">{isOnline ? "👀" : "😴"}</p>
+            <p className="text-[13px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
               {isOnline ? "Waiting for job alerts..." : "Go online to receive jobs"}
             </p>
-            <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
-              {isOnline ? "We'll notify you when a job comes in" : "Toggle the switch above to start earning"}
+            <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>
+              {isOnline ? "We'll notify you" : "Toggle the switch above"}
             </p>
           </div>
         ) : (
           <div className="space-y-2 stagger">
             {alerts.map(a => (
-              <div key={a.id} className="rounded-xl p-3 flex items-center gap-3"
-                   style={{ background: "var(--bg-card)", border: `1px solid ${a.is_read ? 'var(--border-1)' : 'var(--brand)'}` }}>
-                <span className="text-[20px]">{a.type === 'JOB_ALERT' ? '🔔' : a.type === 'BOOKING_ACCEPTED' ? '✅' : a.type === 'PAYMENT_RECEIVED' ? '💰' : '📢'}</span>
+              <div key={a.id} className="rounded-[14px] p-3.5 flex items-center gap-3"
+                   style={{ background: a.is_read ? "var(--bg-surface)" : "var(--bg-card)", boxShadow: !a.is_read ? "0 0 0 1px rgba(255,107,0,0.2)" : "none" }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                     style={{ background: a.is_read ? "var(--bg-elevated)" : "var(--brand-tint)" }}>
+                  <span className="text-[16px]">{a.type === 'JOB_ALERT' ? '🔔' : a.type === 'BOOKING_ACCEPTED' ? '✅' : a.type === 'PAYMENT_RECEIVED' ? '💰' : '📢'}</span>
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>{a.title}</p>
-                  <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{a.body}</p>
-                  <p className="text-[8px] mt-0.5" style={{ color: "var(--text-3)" }}>
+                  <p className="text-[11px] font-bold truncate" style={{ color: "var(--text-1)" }}>{a.title}</p>
+                  <p className="text-[9px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>{a.body}</p>
+                  <p className="text-[8px] mt-0.5 font-data" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
                     {new Date(a.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
