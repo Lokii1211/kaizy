@@ -91,41 +91,41 @@ export default function EmergencyPage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-app)" }}>
       {/* Red hero */}
-      <div className="px-4 pt-4 pb-4" style={{ background: isDark ? "#150000" : "#FFF0F0" }}>
-        <div className="flex justify-between items-center mb-4">
-          <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "var(--bg-card)" }}><span className="text-[14px]">←</span></Link>
-          <span className="text-[11px] font-bold" style={{ color: "var(--text-3)" }}>📶 🔋</span>
+      <div className="px-5 pt-5 pb-5" style={{ background: isDark ? "rgba(239,68,68,0.03)" : "#FFF5F5" }}>
+        <div className="flex justify-between items-center mb-5">
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}><span className="text-[14px]">←</span></Link>
+          <span className="text-[10px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>📶 🔋</span>
         </div>
-        <span className="inline-block rounded-full px-3 py-1 text-[10px] font-bold text-white tracking-wider mb-2"
+        <span className="inline-block rounded-full px-4 py-1.5 text-[9px] font-bold text-white tracking-widest mb-3"
               style={{ background: "var(--danger)" }}>🆘 EMERGENCY</span>
-        <h1 className="text-[24px] font-black" style={{ color: "var(--text-1)" }}>Need Help Now?</h1>
-        <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>We&apos;ll alert nearest workers within 15km</p>
+        <h1 className="text-[24px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Need Help Now?</h1>
+        <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>We&apos;ll alert nearest workers within 15km</p>
       </div>
 
       {/* Location */}
-      <div className="mx-4 mt-3 flex items-center gap-3 rounded-xl p-3"
-           style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", borderLeft: "4px solid var(--danger)" }}>
+      <div className="mx-5 mt-4 flex items-center gap-3 rounded-[14px] p-3.5"
+           style={{ background: "var(--danger-tint)" }}>
         <div className="shrink-0 rounded-full online-dot" style={{ width: 10, height: 10, background: "var(--danger)" }} />
         <div className="flex-1">
-          <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Your GPS Location</p>
-          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>📡 Auto-detecting when you tap Find Help</p>
+          <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>Your GPS Location</p>
+          <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>📡 Auto-detecting when you tap Find Help</p>
         </div>
       </div>
 
       {/* Emergency grid */}
-      <div className="px-4 mt-4 flex-1">
-        <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-1)" }}>What happened?</p>
-        <div className="grid grid-cols-2 gap-2 stagger">
+      <div className="px-5 mt-5 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-1)" }}>What happened?</p>
+        <div className="grid grid-cols-2 gap-2.5 stagger">
           {emergencies.map((e, i) => (
             <button key={e.key} onClick={() => setSelected(i)}
-                    className="flex items-center gap-2.5 rounded-xl p-3.5 transition-all active:scale-95 text-left"
+                    className="flex items-center gap-2.5 rounded-[16px] p-3.5 transition-all active:scale-[0.96] text-left"
                     style={{
-                      background: selected === i ? "var(--brand-tint)" : "var(--bg-card)",
-                      border: selected === i ? "2px solid var(--brand)" : "2px solid transparent",
+                      background: selected === i ? "var(--danger-tint)" : "var(--bg-card)",
+                      boxShadow: selected === i ? "0 0 0 2px var(--danger)" : "var(--shadow-sm)",
                     }}>
               <span className="text-[24px]">{e.icon}</span>
-              <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{e.name}</p>
+              <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{e.name}</p>
             </button>
           ))}
         </div>
@@ -139,10 +139,10 @@ export default function EmergencyPage() {
       )}
 
       {/* CTA */}
-      <div className="px-4 pb-20 mt-3">
+      <div className="px-5 pb-20 mt-4">
         <button onClick={handleFind} disabled={searching}
-                className="w-full rounded-xl py-4 text-center text-[14px] font-black text-white active:scale-[0.98] transition-transform disabled:opacity-60"
-                style={{ background: "var(--danger)", boxShadow: "0 8px 32px rgba(239,68,68,0.35)" }}>
+                className="w-full rounded-[16px] py-4 text-center text-[14px] font-black text-white active:scale-[0.97] transition-transform disabled:opacity-60"
+                style={{ background: "var(--danger)", boxShadow: "0 12px 40px -4px rgba(239,68,68,0.4)" }}>
           {searching ? (
             <span className="flex items-center justify-center gap-2">
               <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "#fff", borderTopColor: "transparent" }} />
@@ -150,7 +150,7 @@ export default function EmergencyPage() {
             </span>
           ) : "🔍 Find Help Now"}
         </button>
-        <p className="text-[10px] text-center mt-2" style={{ color: "var(--text-3)" }}>
+        <p className="text-[9px] text-center mt-2 font-medium" style={{ color: "var(--text-3)" }}>
           Emergency pricing applies (1.8× normal rate)
         </p>
       </div>

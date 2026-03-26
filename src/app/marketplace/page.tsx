@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// MARKETPLACE — Browse & search real workers from Supabase
+// MARKETPLACE v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · Trust badges
 // ============================================================
 
 const categories = [
@@ -87,68 +88,68 @@ export default function MarketplacePage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex items-center gap-3 mb-3">
-          <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex items-center gap-3 mb-4">
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
             <span className="text-[14px]">←</span>
           </Link>
-          <h1 className="text-[18px] font-black" style={{ color: "var(--text-1)" }}>Browse Workers</h1>
+          <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Browse Workers</h1>
         </div>
 
-        {/* Search */}
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1 flex items-center gap-2 rounded-xl px-3"
-               style={{ background: isDark ? "rgba(255,255,255,0.95)" : "#fff", border: "1px solid var(--border-2)" }}>
+        {/* Search — Stitch soft-focus input */}
+        <div className="flex gap-2 mb-4">
+          <div className="flex-1 flex items-center gap-2.5 rounded-[14px] px-4"
+               style={{ background: isDark ? "var(--bg-lowest)" : "#fff", boxShadow: "var(--shadow-sm)" }}>
             <span className="text-[14px]">🔍</span>
             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                   className="flex-1 py-2.5 text-[13px] font-medium outline-none bg-transparent"
-                   style={{ color: "#111" }}
+                   className="flex-1 py-3 text-[12px] font-semibold outline-none bg-transparent"
+                   style={{ color: isDark ? "var(--text-1)" : "#111" }}
                    placeholder="Search by name or trade..." />
           </div>
         </div>
 
-        {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-2">
+        {/* Categories — Tonal pills */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
           {categories.map((c, i) => (
             <button key={c.key} onClick={() => handleCategoryClick(i)}
-                    className="shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-semibold active:scale-95"
+                    className="shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-[11px] font-bold active:scale-95 transition-all"
                     style={{
-                      background: activeCategory === i ? c.color : "var(--bg-card)",
+                      background: activeCategory === i ? c.color : "var(--bg-surface)",
                       color: activeCategory === i ? "#fff" : "var(--text-2)",
-                      border: "1px solid var(--border-1)",
+                      boxShadow: activeCategory === i ? `0 4px 16px ${c.color}40` : "none",
                     }}>
-              <span className="text-[14px]">{c.icon}</span>{c.name}
+              <span className="text-[13px]">{c.icon}</span>{c.name}
             </button>
           ))}
         </div>
 
         {/* Sort bar */}
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>Sort:</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Sort:</span>
           {(["distance", "rating", "price"] as const).map(s => (
             <button key={s} onClick={() => setSortBy(s)}
-                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg active:scale-95"
+                    className="text-[9px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-all"
                     style={{
-                      background: sortBy === s ? "var(--brand)" : "var(--bg-elevated)",
-                      color: sortBy === s ? "#fff" : "var(--text-3)",
+                      background: sortBy === s ? "var(--brand)" : "var(--bg-surface)",
+                      color: sortBy === s ? "#FFDBCC" : "var(--text-3)",
                     }}>
-              {s === "distance" ? "📍 Nearest" : s === "rating" ? "⭐ Top Rated" : "💰 Cheapest"}
+              {s === "distance" ? "📍 Nearest" : s === "rating" ? "⭐ Top" : "💰 Cheapest"}
             </button>
           ))}
-          <span className="text-[10px] ml-auto" style={{ color: "var(--text-3)" }}>{sorted.length} results</span>
+          <span className="text-[9px] font-bold ml-auto" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>{sorted.length}</span>
         </div>
       </div>
 
       {/* Worker list */}
-      <div className="px-4 space-y-2">
-        {loading && [1,2,3,4].map(i => <div key={i} className="skeleton rounded-xl" style={{ height: 90 }} />)}
+      <div className="px-5 space-y-2.5">
+        {loading && [1,2,3,4].map(i => <div key={i} className="skeleton rounded-[16px]" style={{ height: 90 }} />)}
 
         {!loading && sorted.length === 0 && (
-          <div className="text-center py-12 rounded-xl" style={{ background: "var(--bg-card)" }}>
-            <p className="text-[32px] mb-2">🔍</p>
-            <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>No workers found</p>
-            <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>Try a different category or widen your search</p>
+          <div className="text-center py-12 rounded-[18px]" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[36px] mb-2">🔍</p>
+            <p className="text-[14px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No workers found</p>
+            <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>Try a different category</p>
           </div>
         )}
 
@@ -157,34 +158,35 @@ export default function MarketplacePage() {
           const icon = tradeIcons[w.trade] || "🔧";
           return (
             <Link key={w.id} href="/booking"
-                  className="flex items-center gap-3 rounded-xl p-3.5 active:scale-[0.98] transition-all"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+                  className="flex items-center gap-3 rounded-[16px] p-4 active:scale-[0.98] transition-all"
+                  style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
               <div className="relative shrink-0">
-                <div className="flex items-center justify-center rounded-full text-[16px] font-bold text-white"
-                     style={{ width: 48, height: 48, background: color }}>{w.name?.[0] || "?"}</div>
+                <div className="flex items-center justify-center rounded-full text-[15px] font-bold text-white"
+                     style={{ width: 48, height: 48, background: `linear-gradient(135deg, ${color}, ${color}99)` }}>{w.name?.[0] || "?"}</div>
                 <div className="absolute -bottom-0.5 -right-0.5 rounded-full online-dot"
                      style={{ width: 12, height: 12, background: "var(--success)", border: "2px solid var(--bg-card)" }} />
                 {w.verified && (
-                  <div className="absolute -top-1 -right-1 text-[10px] bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">✓</div>
+                  <div className="absolute -top-1 -right-1 text-[8px] rounded-full w-4 h-4 flex items-center justify-center"
+                       style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[14px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
-                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ background: `${color}20`, color }}>{icon} {w.trade.replace('_', ' ')}</span>
+                  <p className="text-[13px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: `${color}15`, color }}>{icon} {w.trade.replace('_', ' ')}</span>
                 </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[11px] flex items-center gap-1" style={{ color: "var(--warning)" }}>★ {w.rating}</span>
-                  <span className="text-[10px]" style={{ color: "var(--text-3)" }}>{w.totalJobs} jobs</span>
-                  <span className="text-[10px]" style={{ color: "var(--text-3)" }}>{w.experience}yr exp</span>
-                  <span className="text-[10px]" style={{ color: "var(--text-3)" }}>{w.distance}km</span>
+                <div className="flex items-center gap-2.5 mt-1">
+                  <span className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: "var(--warning)" }}>★ {w.rating}</span>
+                  <span className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{w.totalJobs} jobs</span>
+                  <span className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{w.experience}yr</span>
+                  <span className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{w.distance}km</span>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>starts</p>
-                <p className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>₹{w.rate}<span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
-                <p className="text-[9px] font-semibold mt-0.5" style={{ color: "var(--success)" }}>~{w.eta}m ETA</p>
+                <p className="text-[8px] font-bold uppercase" style={{ color: "var(--text-3)" }}>starts</p>
+                <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>₹{w.rate}<span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
+                <p className="text-[8px] font-bold mt-0.5" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>~{w.eta}m ETA</p>
               </div>
             </Link>
           );

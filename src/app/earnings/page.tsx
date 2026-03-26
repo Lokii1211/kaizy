@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// EARNINGS — Real data from Supabase earnings ledger
+// EARNINGS v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · JetBrains Mono data · Tonal surfaces
 // ============================================================
 
 interface EarningEntry {
@@ -70,37 +71,38 @@ export default function EarningsPage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-5" style={{ background: isDark ? "#0A0A00" : "#FFFFF0" }}>
-        <div className="flex justify-between items-center mb-4">
-          <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 pt-5 pb-5" style={{ background: "var(--bg-app)" }}>
+        <div className="flex justify-between items-center mb-5">
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
             <span className="text-[14px]">←</span>
           </Link>
-          <h1 className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>Earnings</h1>
+          <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Earnings</h1>
           <div className="w-9" />
         </div>
 
-        {/* Total earnings card */}
-        <div className="rounded-2xl p-5 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>
+        {/* Total earnings card — Gradient hero */}
+        <div className="rounded-[20px] p-6 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>
             {period === "today" ? "Today's" : period === "week" ? "This Week's" : "This Month's"} Earnings
           </p>
-          <p className="text-[36px] font-black mt-1" style={{ color: "var(--success)" }}>
+          <p className="text-[38px] font-black mt-1" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
             ₹{totalEarnings.toLocaleString("en-IN")}
           </p>
-          <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>
-            {totalJobs} jobs · {earnings.length} transactions
+          <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
+            {totalJobs} jobs · {earnings.length} txns
           </p>
         </div>
 
         {/* Period tabs */}
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-2 mt-4">
           {(["today", "week", "month"] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)}
-                    className="flex-1 rounded-lg py-2 text-[12px] font-bold active:scale-95"
+                    className="flex-1 rounded-full py-2 text-[11px] font-bold active:scale-95 transition-all"
                     style={{
-                      background: period === p ? "var(--brand)" : "var(--bg-elevated)",
-                      color: period === p ? "#fff" : "var(--text-2)",
+                      background: period === p ? "var(--gradient-cta)" : "var(--bg-surface)",
+                      color: period === p ? "#FFDBCC" : "var(--text-3)",
+                      boxShadow: period === p ? "var(--shadow-brand)" : "none",
                     }}>
               {p === "today" ? "Today" : p === "week" ? "7 Days" : "30 Days"}
             </button>
@@ -109,33 +111,33 @@ export default function EarningsPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-2 px-4 mt-3 mb-4">
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[16px] font-black" style={{ color: "var(--brand)" }}>{totalJobs}</p>
-          <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Jobs</p>
+      <div className="grid grid-cols-3 gap-2.5 px-5 mt-4 mb-5">
+        <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+          <p className="text-[18px] font-black" style={{ color: "var(--brand)", fontFamily: "'Epilogue', sans-serif" }}>{totalJobs}</p>
+          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Jobs</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[16px] font-black" style={{ color: "var(--success)" }}>
+        <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+          <p className="text-[18px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
             ₹{totalJobs > 0 ? Math.round(totalEarnings / totalJobs) : 0}
           </p>
-          <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Avg/Job</p>
+          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Avg/Job</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-          <p className="text-[16px] font-black" style={{ color: "var(--info)" }}>
+        <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+          <p className="text-[18px] font-black" style={{ color: "var(--info)", fontFamily: "'Epilogue', sans-serif" }}>
             {earnings.filter(e => e.status === "pending").length}
           </p>
-          <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Pending</p>
+          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Pending</p>
         </div>
       </div>
 
       {/* Commission Breakdown */}
-      <div className="px-4 mb-4">
-        <div className="rounded-xl p-4" style={{
-          background: isBlocked ? "rgba(239,68,68,0.05)" : "var(--bg-card)",
-          border: isBlocked ? "1.5px solid var(--danger)" : "1px solid var(--border-1)",
+      <div className="px-5 mb-5">
+        <div className="rounded-[16px] p-4" style={{
+          background: isBlocked ? "var(--danger-tint)" : "var(--bg-card)",
+          boxShadow: isBlocked ? "0 0 0 1px var(--danger)" : "none",
         }}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>💰 Payout Breakdown</p>
+            <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>💰 Payout Breakdown</p>
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
                   style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>₹5/job</span>
           </div>
@@ -181,39 +183,39 @@ export default function EarningsPage() {
       </div>
 
       {/* Transaction list */}
-      <div className="px-4">
-        <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Transactions</p>
+      <div className="px-5">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Transactions</p>
 
         {loading && [1,2,3].map(i => <div key={i} className="skeleton rounded-xl mb-2" style={{ height: 60 }} />)}
 
         {!loading && earnings.length === 0 && (
-          <div className="text-center py-12 rounded-xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+          <div className="text-center py-12 rounded-[18px]" style={{ background: "var(--bg-card)" }}>
             <p className="text-[40px] mb-2">💰</p>
-            <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>No earnings yet</p>
-            <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Complete jobs to start earning</p>
-            <Link href="/dashboard/worker" className="inline-block mt-4 rounded-xl px-6 py-3 text-[13px] font-bold text-white active:scale-95"
-                  style={{ background: "var(--brand)" }}>Go Online →</Link>
+            <p className="text-[14px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No earnings yet</p>
+            <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>Complete jobs to start earning</p>
+            <Link href="/dashboard/worker" className="inline-block mt-4 rounded-full px-6 py-3 text-[12px] font-bold active:scale-95"
+                  style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}>Go Online →</Link>
           </div>
         )}
 
         {!loading && earnings.map(e => (
-          <div key={e.id} className="flex items-center gap-3 rounded-xl p-3 mb-2"
-               style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-[18px] shrink-0"
-                 style={{ background: "var(--bg-elevated)" }}>
+          <div key={e.id} className="flex items-center gap-3 rounded-[14px] p-3.5 mb-2"
+               style={{ background: "var(--bg-surface)" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[16px] shrink-0"
+                 style={{ background: "var(--bg-card)" }}>
               {typeIcons[e.type] || "💼"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold capitalize" style={{ color: "var(--text-1)" }}>
+              <p className="text-[11px] font-bold capitalize" style={{ color: "var(--text-1)" }}>
                 {e.type.replace("_", " ")}
               </p>
-              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>
+              <p className="text-[9px] font-medium mt-0.5" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
                 {new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                 {" · "}
                 <span style={{ color: statusColors[e.status] || "var(--text-3)" }}>{e.status}</span>
               </p>
             </div>
-            <p className="text-[14px] font-black" style={{ color: e.type === "penalty" ? "var(--danger)" : "var(--success)" }}>
+            <p className="text-[14px] font-black" style={{ color: e.type === "penalty" ? "var(--danger)" : "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
               {e.type === "penalty" ? "-" : "+"}₹{Number(e.amount).toLocaleString("en-IN")}
             </p>
           </div>

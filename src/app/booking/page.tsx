@@ -6,9 +6,9 @@ import { useTheme } from "@/stores/ThemeStore";
 import { useBooking, type NearbyWorker } from "@/stores/BookingStore";
 
 // ============================================================
-// Kaizy — BOOKING FLOW (Uber/Ola 5-step)
+// Kaizy v10.0 — BOOKING FLOW (Stitch Digital Artisan)
+// Epilogue headlines · JetBrains Mono data · Gradient CTAs
 // Select → Match → Accept → Track → Chat → Pay → Review
-// Real-time state via BookingStore
 // ============================================================
 
 const tradeProblems: Record<string, string[]> = {
@@ -87,25 +87,25 @@ export default function BookingPage() {
   if (state.status === "idle") {
     return (
       <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
-        <div className="px-4 pt-4 pb-3">
-          <div className="flex items-center gap-3 mb-4">
-            <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                  style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+        <div className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3 mb-5">
+            <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ background: "var(--bg-surface)" }}>
               <span className="text-[14px]">←</span>
             </Link>
-            <h1 className="text-[18px] font-black" style={{ color: "var(--text-1)" }}>Book a Worker</h1>
+            <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Book a Worker</h1>
           </div>
 
           {/* Trade selection */}
-          <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Select Category</p>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>Select Category</p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5 pb-1">
             {Object.keys(tradeProblems).filter(t => t !== "All").map(trade => (
               <button key={trade} onClick={() => { setSelectedTrade(trade); setSelectedProblem(""); }}
-                      className="shrink-0 rounded-[12px] px-4 py-2.5 text-[12px] font-bold active:scale-95 transition-all"
+                      className="shrink-0 rounded-full px-4 py-2.5 text-[11px] font-bold active:scale-95 transition-all"
                       style={{
-                        background: selectedTrade === trade ? "var(--brand)" : "var(--bg-card)",
-                        color: selectedTrade === trade ? "#fff" : "var(--text-2)",
-                        border: "1px solid var(--border-1)",
+                        background: selectedTrade === trade ? "var(--brand)" : "var(--bg-surface)",
+                        color: selectedTrade === trade ? "#FFDBCC" : "var(--text-2)",
+                        boxShadow: selectedTrade === trade ? "var(--shadow-brand)" : "none",
                       }}>
                 {trade}
               </button>
@@ -113,19 +113,19 @@ export default function BookingPage() {
           </div>
 
           {/* Problem selection */}
-          <p className="text-[12px] font-bold mb-2" style={{ color: "var(--text-3)" }}>What&apos;s the problem?</p>
-          <div className="grid grid-cols-2 gap-2 mb-4 animate-stagger">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>What&apos;s the problem?</p>
+          <div className="grid grid-cols-2 gap-2.5 mb-5">
             {(tradeProblems[selectedTrade] || []).map(problem => (
               <button key={problem} onClick={() => { setSelectedProblem(problem); if (problem !== "Other") setCustomProblem(""); }}
-                      className="rounded-[12px] p-3 text-left active:scale-95 transition-all"
+                      className="rounded-[14px] p-3.5 text-left active:scale-[0.96] transition-all"
                       style={{
-                        background: selectedProblem === problem ? "var(--brand-tint)" : "var(--bg-card)",
-                        border: selectedProblem === problem ? "2px solid var(--brand)" : "2px solid transparent",
+                        background: selectedProblem === problem ? "var(--brand-tint)" : "var(--bg-surface)",
+                        boxShadow: selectedProblem === problem ? "0 0 0 2px var(--brand)" : "none",
                       }}>
-                <p className="text-[12px] font-extrabold" style={{ color: "var(--text-1)" }}>
+                <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>
                   {problem === "Other" ? "✍️ Other" : problem}
                 </p>
-                {problem === "Other" && <p className="text-[9px]" style={{ color: "var(--text-3)" }}>Describe your issue</p>}
+                {problem === "Other" && <p className="text-[8px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>Describe your issue</p>}
               </button>
             ))}
           </div>
@@ -152,7 +152,7 @@ export default function BookingPage() {
           )}
 
           {/* Location — Editable with Mapbox Geocoding */}
-          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: locationVerified ? "1px solid var(--success)" : "1px solid var(--border-1)" }}>
+          <div className="rounded-[16px] p-4 mb-4" style={{ background: "var(--bg-card)", boxShadow: locationVerified ? "0 0 0 1.5px var(--success)" : "none" }}>
             <div className="flex items-center gap-2 mb-2">
               <span style={{ color: locationVerified ? "var(--success)" : "var(--brand)" }}>{locationVerified ? "✅" : "📍"}</span>
               <div className="flex-1">
@@ -242,11 +242,11 @@ export default function BookingPage() {
           </div>
 
           {/* Price estimate */}
-          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+          <div className="rounded-[16px] p-4 mb-4" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-semibold" style={{ color: "var(--text-3)" }}>Estimated Price</p>
-                <p className="text-[16px] font-black" style={{ color: "var(--brand)" }}>
+                <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Estimated Price</p>
+                <p className="text-[18px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>
                   {selectedProblem ? "Starts from ₹150" : "Select a problem"}
                 </p>
               </div>
@@ -286,8 +286,8 @@ export default function BookingPage() {
               }
             }}
             disabled={!selectedProblem || !locationVerified || (selectedProblem === "Other" && !customProblem.trim())}
-            className="w-full rounded-[14px] py-4 text-[14px] font-black text-white active:scale-[0.98] transition-all disabled:opacity-40"
-            style={{ background: selectedProblem && locationVerified ? "var(--brand)" : "var(--bg-elevated)", boxShadow: selectedProblem && locationVerified ? "var(--shadow-brand)" : "none" }}>
+            className="w-full rounded-[16px] py-4 text-[14px] font-black text-white active:scale-[0.97] transition-all disabled:opacity-40"
+            style={{ background: selectedProblem && locationVerified ? "var(--gradient-cta)" : "var(--bg-elevated)", boxShadow: selectedProblem && locationVerified ? "var(--shadow-brand)" : "none" }}>
             {locationVerified ? "🔍 Find Workers Near Me" : "📍 Verify Location First"}
           </button>
         </div>
@@ -306,10 +306,10 @@ export default function BookingPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full flex items-center justify-center text-[28px]"
                style={{ background: "var(--brand)" }}>📍</div>
         </div>
-        <p className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>Finding Workers...</p>
-        <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Searching {selectedTrade}s near you for {selectedProblem}</p>
-        <button onClick={cancelBooking} className="mt-6 text-[12px] font-bold px-6 py-2 rounded-[10px]"
-                style={{ background: "var(--bg-card)", color: "var(--danger)", border: "1px solid var(--border-1)" }}>Cancel</button>
+        <p className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Finding Workers...</p>
+        <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>Searching {selectedTrade}s near you for {selectedProblem}</p>
+        <button onClick={cancelBooking} className="mt-6 text-[11px] font-bold px-6 py-2 rounded-full"
+                style={{ background: "var(--bg-surface)", color: "var(--danger)" }}>Cancel</button>
       </div>
     );
   }
@@ -334,9 +334,9 @@ export default function BookingPage() {
         </div>
 
         {/* Bottom sheet */}
-        <div className="shrink-0 p-4 animate-slide-up" style={{ background: "var(--bg-app)", borderTop: "1px solid var(--border-1)" }}>
-          <p className="text-[15px] font-black mb-1" style={{ color: "var(--text-1)" }}>{state.matchedWorkers.length} workers found</p>
-          <p className="text-[11px] mb-3" style={{ color: "var(--text-3)" }}>Select one or we&apos;ll auto-assign the best match</p>
+        <div className="shrink-0 p-5 anim-up" style={{ background: "var(--bg-app)" }}>
+          <p className="text-[15px] font-black tracking-tight mb-1" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{state.matchedWorkers.length} workers found</p>
+          <p className="text-[10px] mb-3 font-medium" style={{ color: "var(--text-3)" }}>Select one or we&apos;ll auto-assign the best match</p>
 
           <div className="flex flex-col gap-2 mb-3 max-h-[240px] overflow-y-auto">
             {state.matchedWorkers.map((w, i) => {
@@ -387,8 +387,8 @@ export default function BookingPage() {
           )}
 
           <button onClick={confirmBooking} disabled={!state.selectedWorker}
-                  className="w-full rounded-[14px] py-4 text-[14px] font-black text-white active:scale-[0.98] transition-all disabled:opacity-40 mb-16"
-                  style={{ background: state.selectedWorker ? "var(--brand)" : "var(--bg-elevated)", boxShadow: state.selectedWorker ? "var(--shadow-brand)" : "none" }}>
+                  className="w-full rounded-[16px] py-4 text-[14px] font-black text-white active:scale-[0.97] transition-all disabled:opacity-40 mb-16"
+                  style={{ background: state.selectedWorker ? "var(--gradient-cta)" : "var(--bg-elevated)", boxShadow: state.selectedWorker ? "var(--shadow-brand)" : "none" }}>
             {state.selectedWorker ? `Book ${state.selectedWorker.name} — from ₹${state.pricing?.base}` : "Select a worker"}
           </button>
         </div>
@@ -590,7 +590,7 @@ export default function BookingPage() {
             <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 animate-bounce-in" style={{ background: "var(--success)", boxShadow: "0 6px 24px rgba(0,208,132,0.3)" }}>
               <span className="text-white text-[28px]">✓</span>
             </div>
-            <h1 className="text-[20px] font-black" style={{ color: "var(--text-1)" }}>Job Completed! 🎉</h1>
+         <h1 className="text-[20px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Job Completed! 🎉</h1>
             <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Please pay the worker to proceed</p>
           </div>
 
@@ -622,8 +622,8 @@ export default function BookingPage() {
 
           {/* Cash on Hand */}
           <button onClick={() => confirmPayment('cash', state.pricing?.grandTotal || 0)}
-                  className="w-full rounded-xl py-4 mb-3 active:scale-[0.98] transition-all"
-                  style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+                  className="w-full rounded-[16px] py-4 mb-3 active:scale-[0.97] transition-all"
+                  style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
             <p className="text-[15px] font-black text-white">💵 Paid ₹{state.pricing?.grandTotal} Cash</p>
             <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>I have paid {w?.name} directly</p>
           </button>
@@ -647,7 +647,7 @@ export default function BookingPage() {
     return (
       <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
         <div className="px-4 pt-4">
-          <h1 className="text-[18px] font-black mb-1" style={{ color: "var(--text-1)" }}>How was {w?.name}? 🌟</h1>
+          <h1 className="text-[18px] font-black tracking-tight mb-1" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>How was {w?.name}? 🌟</h1>
           <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>Your review helps other hirers find great workers</p>
 
           {/* Worker card */}
@@ -697,8 +697,8 @@ export default function BookingPage() {
           </div>
 
           <button onClick={() => submitReview(reviewRating, reviewTags)}
-                  className="w-full rounded-xl py-4 active:scale-[0.98] transition-all"
-                  style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+                  className="w-full rounded-[16px] py-4 active:scale-[0.97] transition-all"
+                  style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
             <p className="text-[14px] font-black text-white">Submit Review ⭐</p>
           </button>
 
@@ -718,11 +718,11 @@ export default function BookingPage() {
              style={{ background: "var(--success)", boxShadow: "0 8px 32px rgba(0,208,132,0.3)" }}>
           <span className="text-white text-[32px]">✓</span>
         </div>
-        <h1 className="text-[24px] font-black" style={{ color: "var(--text-1)" }}>Payment Done! 🎉</h1>
-        <p className="text-[14px] mt-2 text-center" style={{ color: "var(--text-3)" }}>₹{state.pricing?.workerPayout} released to {state.selectedWorker?.name}</p>
-        <p className="text-[11px] mt-1 text-center" style={{ color: "var(--text-3)" }}>Review saved · Worker notified</p>
-        <Link href="/" onClick={() => resetBooking()} className="mt-8 rounded-xl px-8 py-4 text-[15px] font-black text-white active:scale-[0.98] transition-transform"
-              style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+        <h1 className="text-[24px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Payment Done! 🎉</h1>
+        <p className="text-[13px] mt-2 text-center font-medium" style={{ color: "var(--text-3)" }}>₹{state.pricing?.workerPayout} released to {state.selectedWorker?.name}</p>
+        <p className="text-[10px] mt-1 text-center font-medium" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Review saved · Worker notified</p>
+        <Link href="/" onClick={() => resetBooking()} className="mt-8 rounded-[16px] px-8 py-4 text-[15px] font-black text-white active:scale-[0.97] transition-transform"
+              style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
           Back to Home
         </Link>
       </div>
