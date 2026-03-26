@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Epilogue, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import MobileNav from "@/components/MobileNav";
 import I18nProvider from "@/components/I18nProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
@@ -10,11 +10,17 @@ import { BookingProvider } from "@/stores/BookingStore";
 import { ToastProvider } from "@/components/ToastNotification";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const epilogue = Epilogue({
+  variable: "--font-epilogue",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "600", "700", "800", "900"],
+});
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
@@ -29,7 +35,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#000000",
+  themeColor: "#131313",
 };
 
 export const metadata: Metadata = {
@@ -53,8 +59,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" />
       </head>
-      <body className={`${inter.variable} ${jetbrains.variable} antialiased`}
-            style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+      <body className={`${epilogue.variable} ${jakarta.variable} ${jetbrains.variable} antialiased`}
+            style={{ fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}>
         <ThemeProvider>
           <BookingProvider>
             <ToastProvider>
