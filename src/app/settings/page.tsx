@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// SETTINGS — Real user data from API
+// SETTINGS v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · No harsh borders
 // ============================================================
 
 interface UserProfile {
@@ -88,13 +89,13 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex justify-between items-center mb-4">
-          <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex justify-between items-center mb-5">
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
             <span className="text-[14px]">←</span>
           </Link>
-          <h1 className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>Profile</h1>
+          <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Settings</h1>
           <div className="w-9" />
         </div>
 
@@ -102,66 +103,72 @@ export default function SettingsPage() {
         {loading ? (
           <div className="skeleton rounded-[16px]" style={{ height: 80 }} />
         ) : (
-          <div className="rounded-[16px] p-4 flex items-center gap-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+          <div className="rounded-[20px] p-5 flex items-center gap-4" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
             <div className="rounded-full flex items-center justify-center text-[22px] font-black text-white shrink-0"
-                 style={{ width: 56, height: 56, background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>{initials}</div>
+                 style={{ width: 56, height: 56, background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>{initials}</div>
             <div className="flex-1">
-              <p className="text-[15px] font-extrabold" style={{ color: "var(--text-1)" }}>{displayName}</p>
-              {tradeLine && <p className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>{tradeLine}</p>}
-              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{user?.phone || ""}</p>
+              <p className="text-[15px] font-extrabold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{displayName}</p>
+              {tradeLine && <p className="text-[10px] font-bold mt-0.5" style={{ color: "var(--brand-soft)" }}>{tradeLine}</p>}
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>{user?.phone || ""}</p>
             </div>
-            <Link href={user?.user_type === "worker" ? "/worker/profile" : "/profile"} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Edit →</Link>
+            <Link href={user?.user_type === "worker" ? "/worker/profile" : "/profile"}
+                  className="text-[10px] font-bold px-3 py-1.5 rounded-full"
+                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>Edit</Link>
           </div>
         )}
       </div>
 
       {/* Quick stats */}
       {user?.user_type === "worker" && (
-        <div className="grid grid-cols-3 gap-2 px-4 mt-2">
+        <div className="grid grid-cols-3 gap-2.5 px-5 mt-3">
           {[
             { val: user.avg_rating ? `${user.avg_rating.toFixed(1)}⭐` : "—", label: "Rating" },
             { val: String(user.total_jobs || 0), label: "Jobs" },
             { val: String(user.kaizy_score || 0), label: "KaizyScore" },
           ].map(s => (
-            <div key={s.label} className="rounded-[12px] py-3 px-2 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-              <p className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>{s.val}</p>
-              <p className="text-[9px] font-semibold" style={{ color: "var(--text-3)" }}>{s.label}</p>
+            <div key={s.label} className="rounded-[14px] py-3 px-2 text-center" style={{ background: "var(--bg-surface)" }}>
+              <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{s.val}</p>
+              <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>{s.label}</p>
             </div>
           ))}
         </div>
       )}
 
       {/* THEME TOGGLE */}
-      <div className="px-4 mt-5">
-        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-3)", letterSpacing: "2px" }}>Appearance</p>
-        <div className="rounded-[14px] p-4 flex items-center justify-between" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 mt-6">
+        <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>Appearance</p>
+        <div className="rounded-[16px] p-4 flex items-center justify-between" style={{ background: "var(--bg-card)" }}>
           <div className="flex items-center gap-3">
-            <span className="text-[20px]">{isDark ? "🌙" : "☀️"}</span>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-surface)" }}>
+              <span className="text-[18px]">{isDark ? "🌙" : "☀️"}</span>
+            </div>
             <div>
-              <p className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{isDark ? "Dark Theme" : "Light Theme"}</p>
-              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{isDark ? "Easier on eyes at night" : "Classic bright look"}</p>
+              <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{isDark ? "Dark Theme" : "Light Theme"}</p>
+              <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{isDark ? "Easier on eyes at night" : "Classic bright look"}</p>
             </div>
           </div>
-          <button onClick={toggle} className="relative rounded-[12px] active:scale-95 transition-all"
-                  style={{ width: 52, height: 28, background: isDark ? "var(--brand)" : "var(--bg-elevated)" }}>
-            <div className="absolute top-[4px] rounded-full bg-white transition-all"
-                 style={{ width: 20, height: 20, left: isDark ? 28 : 4, boxShadow: "0 2px 4px rgba(0,0,0,0.3)" }} />
+          <button onClick={toggle} className="relative rounded-full active:scale-95 transition-all"
+                  style={{ width: 48, height: 26, background: isDark ? "var(--brand)" : "var(--bg-elevated)" }}>
+            <div className="absolute top-[3px] rounded-full bg-white transition-all"
+                 style={{ width: 20, height: 20, left: isDark ? 25 : 3, boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }} />
           </button>
         </div>
       </div>
 
       {/* Menu sections — role-based */}
       {(user?.user_type === "worker" ? workerMenuSections : hirerMenuSections).map(section => (
-        <div key={section.title} className="px-4 mt-5">
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-3)", letterSpacing: "2px" }}>{section.title}</p>
-          <div className="rounded-[14px] overflow-hidden" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+        <div key={section.title} className="px-5 mt-6">
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>{section.title}</p>
+          <div className="rounded-[16px] overflow-hidden" style={{ background: "var(--bg-card)" }}>
             {section.items.map((item, i) => (
               <Link key={item.label} href={item.href}
-                    className="flex items-center gap-3 px-4 py-[14px] active:opacity-70 transition-opacity"
+                    className="flex items-center gap-3 px-4 py-[13px] active:opacity-70 transition-opacity"
                     style={{ borderBottom: i < section.items.length - 1 ? "1px solid var(--border-1)" : "none" }}>
-                <span className="text-[16px]">{item.icon}</span>
-                <span className="text-[13px] font-bold flex-1" style={{ color: "var(--text-1)" }}>{item.label}</span>
-                <span className="text-[12px]" style={{ color: "var(--text-3)" }}>→</span>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--bg-surface)" }}>
+                  <span className="text-[14px]">{item.icon}</span>
+                </div>
+                <span className="text-[12px] font-bold flex-1" style={{ color: "var(--text-1)" }}>{item.label}</span>
+                <span className="text-[11px]" style={{ color: "var(--text-3)" }}>›</span>
               </Link>
             ))}
           </div>
@@ -169,15 +176,15 @@ export default function SettingsPage() {
       ))}
 
       {/* Logout */}
-      <div className="px-4 mt-6">
+      <div className="px-5 mt-8">
         <button onClick={handleLogout}
-                className="block w-full py-4 rounded-[14px] text-center text-[13px] font-extrabold active:scale-[0.98] transition-transform"
-                style={{ background: "var(--bg-card)", color: "var(--danger)", border: "1px solid var(--danger-tint)" }}>
+                className="block w-full py-4 rounded-[16px] text-center text-[12px] font-extrabold active:scale-[0.97] transition-transform"
+                style={{ background: "var(--danger-tint)", color: "var(--danger)" }}>
           Log Out
         </button>
       </div>
 
-      <p className="text-center text-[10px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v6.0 · Production</p>
+      <p className="text-center text-[9px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v10.0 · Digital Artisan</p>
     </div>
   );
 }

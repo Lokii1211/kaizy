@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// KAIZY HOME — Mapbox Map-First + Real Supabase Workers
-// ROLE-BASED: This is the HIRER home. Workers redirect to /dashboard/worker
+// KAIZY HOME v10.0 — Stitch "Digital Artisan" Hirer Experience
+// Mapbox Map-First + Epilogue Headlines + Tonal Surfaces
+// ROLE-BASED: Workers redirect to /dashboard/worker
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -299,62 +300,68 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* ── TOP BAR (Glass) ── */}
-      <div className="relative z-20 glass" style={{ padding: "10px 16px 16px" }}>
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-2">
+      {/* ── TOP BAR (Glassmorphism) ── */}
+      <div className="relative z-20" style={{ 
+        background: "var(--bg-overlay)",
+        backdropFilter: "blur(24px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+        padding: "12px 20px 18px",
+        borderBottom: "1px solid var(--border-1)",
+      }}>
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/kaizy-logo.png" alt="Kaizy" className="w-7 h-7 rounded-lg" />
-            <span className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{liveTime}</span>
+            <img src="/kaizy-logo.png" alt="Kaizy" className="w-8 h-8 rounded-xl" style={{ boxShadow: "0 2px 8px rgba(255,107,0,0.2)" }} />
+            <span className="text-[12px] font-bold" style={{ color: "var(--text-2)", fontFamily: "'JetBrains Mono', monospace" }}>{liveTime}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={toggle} className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90"
-                    style={{ background: "var(--bg-elevated)" }}>
+          <div className="flex items-center gap-2">
+            <button onClick={toggle} className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                    style={{ background: "var(--bg-surface)" }}>
               <span className="text-[14px]">{isDark ? "🌙" : "☀️"}</span>
             </button>
-            <Link href="/notifications" className="w-8 h-8 rounded-full flex items-center justify-center relative"
-                  style={{ background: "var(--bg-elevated)" }}>
+            <Link href="/notifications" className="w-9 h-9 rounded-xl flex items-center justify-center relative active:scale-90 transition-transform"
+                  style={{ background: "var(--bg-surface)" }}>
               <span className="text-[14px]">🔔</span>
               <div className="absolute -top-0.5 -right-0.5 w-[10px] h-[10px] rounded-full online-dot" style={{ background: "var(--danger)", border: "2px solid var(--bg-app)" }} />
             </Link>
           </div>
         </div>
 
-        <div className="mb-3">
+        <div className="mb-4">
           <div className="flex items-center gap-1.5">
             <span style={{ color: "var(--brand)", fontSize: 14 }}>📍</span>
-            <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{locationName}</span>
+            <span className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{locationName}</span>
           </div>
-          <p className="text-[11px] mt-0.5" style={{ color: "var(--text-3)" }}>
+          <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>
             {greeting} · <span className="live-badge" style={{ color: "var(--success)" }}>{onlineCount} workers online</span>
             {(() => {
               const h = new Date().getHours();
               const d = new Date().getDay();
               const isPeak = (h >= 8 && h <= 10) || (h >= 18 && h <= 21) || d === 0 || d === 6;
               return isPeak ? (
-                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
-                  ⚡ Peak Hours
+                <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "var(--danger-tint)", color: "var(--danger)" }}>
+                  ⚡ Peak
                 </span>
               ) : (
-                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: "rgba(34,197,94,0.1)", color: "#22C55E" }}>
-                  💚 Normal Rates
+                <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: "var(--success-tint)", color: "var(--success)" }}>
+                  💚 Normal
                 </span>
               );
             })()}
           </p>
         </div>
 
-        {/* Search bar */}
+        {/* Search bar — Soft Focus (Stitch Input Rule) */}
         <Link href="/marketplace"
-              className="flex items-center gap-3 rounded-xl px-4 py-3 active:scale-[0.98] transition-transform"
+              className="flex items-center gap-3 rounded-[16px] px-4 py-3.5 active:scale-[0.98] transition-transform"
               style={{
-                background: isDark ? "rgba(255,255,255,0.95)" : "#FFFFFF",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                background: isDark ? "var(--bg-lowest)" : "#FFFFFF",
+                boxShadow: "var(--shadow-card)",
               }}>
           <span className="text-[18px]">🔍</span>
-          <span className="text-[14px] font-medium flex-1" style={{ color: "#888" }}>What do you need help with?</span>
+          <span className="text-[13px] font-semibold flex-1" style={{ color: "var(--text-3)" }}>What do you need help with?</span>
           <span className="text-[14px]" style={{ color: "var(--brand)" }}>🎤</span>
         </Link>
       </div>
@@ -389,13 +396,12 @@ export default function HomePage() {
       <div className="absolute bottom-0 left-0 right-0 z-10 anim-up" style={{ paddingBottom: 72 }}>
         <div style={{ height: 48, background: `linear-gradient(transparent, var(--bg-app))` }} />
         <div style={{ background: "var(--bg-app)" }}>
-          <div className="flex justify-between items-center px-4 mb-2">
+          <div className="flex justify-between items-center px-5 mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Nearby Workers</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full live-badge"
-                    style={{ background: "var(--success-tint)", color: "var(--success)" }}>LIVE</span>
+              <span className="text-[13px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Nearby Workers</span>
+              <span className="trust-badge">LIVE</span>
             </div>
-            <Link href="/marketplace" className="text-[12px] font-semibold" style={{ color: "var(--brand)" }}>See All →</Link>
+            <Link href="/marketplace" className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>See All →</Link>
           </div>
 
           {loading && (
@@ -420,33 +426,37 @@ export default function HomePage() {
                 const icon = tradeIcons[w.trade] || "🔧";
                 return (
                   <Link key={w.id} href="/booking"
-                        className="shrink-0 rounded-2xl p-3.5 active:scale-[0.97] transition-all"
-                        style={{ width: 172, background: "var(--bg-card)", border: "1px solid var(--border-1)", boxShadow: "var(--shadow-sm)" }}>
+                        className="shrink-0 rounded-[20px] p-4 active:scale-[0.97] transition-all"
+                        style={{ width: 176, background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
                     <div className="flex items-center gap-2.5 mb-3">
                       <div className="relative shrink-0">
                         <div className="flex items-center justify-center rounded-full text-[14px] font-bold text-white"
-                             style={{ width: 40, height: 40, background: color }}>{w.name?.[0] || "?"}</div>
+                             style={{ width: 40, height: 40, background: `linear-gradient(135deg, ${color}, ${color}99)` }}>{w.name?.[0] || "?"}</div>
                         <div className="absolute -bottom-0.5 -right-0.5 rounded-full online-dot"
                              style={{ width: 10, height: 10, background: "var(--success)", border: "2px solid var(--bg-card)" }} />
                         {w.verified && (
-                          <div className="absolute -top-1 -right-1 text-[9px] bg-blue-500 text-white rounded-full w-[14px] h-[14px] flex items-center justify-center">✓</div>
+                          <div className="absolute -top-1 -right-1 text-[8px] rounded-full w-[14px] h-[14px] flex items-center justify-center"
+                               style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[13px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
-                        <p className="text-[11px] font-medium" style={{ color }}>{icon} {w.trade.replace('_',' ')}</p>
+                        <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
+                        <p className="text-[10px] font-semibold" style={{ color }}>{icon} {w.trade.replace('_',' ')}</p>
                       </div>
                     </div>
                     <div className="flex justify-between items-end">
                       <div>
                         <div className="flex items-center gap-1 mb-0.5">
                           <span className="text-[10px]" style={{ color: "var(--warning)" }}>★</span>
-                          <span className="text-[11px] font-semibold" style={{ color: "var(--text-1)" }}>{w.rating}</span>
-                          <span className="text-[9px]" style={{ color: "var(--text-3)" }}>({w.totalJobs})</span>
+                          <span className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{w.rating}</span>
+                          <span className="text-[8px] font-medium" style={{ color: "var(--text-3)" }}>({w.totalJobs})</span>
                         </div>
-                        <p className="text-[10px]" style={{ color: "var(--text-3)" }}>{w.distance}km · {w.eta}m</p>
+                        <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{w.distance}km · {w.eta}m</p>
                       </div>
-                      <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}><span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>from </span>₹{w.rate}<span className="text-[9px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
+                      <p className="text-[14px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                        <span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>from </span>₹{w.rate}
+                        <span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span>
+                      </p>
                     </div>
                   </Link>
                 );
