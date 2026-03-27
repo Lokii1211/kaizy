@@ -2,15 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft, MapPin, Clock, IndianRupee, Camera, Mic,
-  Zap, Calendar, Building2, ChevronRight, Check, Star,
-  Search, BadgeCheck, ArrowRight,
-} from "lucide-react";
 
 // ============================================================
-// Kaizy — Post a Job (Bible §P1.1 Layer 2)
-// KaamNow / KaamLater / KaizyProject modes
+// POST A JOB v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · Gradient CTAs · No borders
 // ============================================================
 
 const trades = [
@@ -34,6 +29,11 @@ export default function PostJobPage() {
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState("");
   const [location, setLocation] = useState("Detecting location...");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPosted, setIsPosted] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("Tomorrow");
+  const [selectedTime, setSelectedTime] = useState("10:00 AM");
+  const [duration, setDuration] = useState("1 day");
 
   useEffect(() => {
     if (!navigator.geolocation) { setLocation("Your area"); return; }
@@ -48,11 +48,6 @@ export default function PostJobPage() {
       }
     }, () => setLocation("Location off"));
   }, []);
-  const [selectedDate, setSelectedDate] = useState("Tomorrow");
-  const [selectedTime, setSelectedTime] = useState("10:00 AM");
-  const [duration, setDuration] = useState("1 day");
-  const [isPosted, setIsPosted] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
 
   const dates = ["Today", "Tomorrow", "Wed 19", "Thu 20", "Fri 21", "Sat 22", "Sun 23"];
   const times = ["8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "2 PM", "3 PM", "4 PM", "5 PM"];
@@ -60,188 +55,161 @@ export default function PostJobPage() {
 
   if (isPosted) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-8">
-        <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center mb-5 shadow-xl shadow-green-500/30 animate-scale-in">
-          <Check className="w-10 h-10 text-white" strokeWidth={3} />
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
+             style={{ background: "var(--success)", boxShadow: "0 8px 24px rgba(34,197,94,0.3)" }}>
+          <span className="text-white text-[32px]">✓</span>
         </div>
-        <h1 className="text-[24px] font-black text-gray-900 text-center animate-slide-up">Job Posted! 🚀</h1>
-        <p className="text-[14px] text-gray-400 mt-2 text-center animate-slide-up" style={{ animationDelay: "0.1s" }}>
+        <h1 className="text-[22px] font-black tracking-tight text-center" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+          Job Posted! 🚀
+        </h1>
+        <p className="text-[12px] mt-2 text-center font-medium" style={{ color: "var(--text-3)" }}>
           {mode === "instant" ? "Finding workers near you..." : "Your job has been posted. Workers will respond shortly."}
         </p>
 
-        <div className="w-full bg-gray-50 rounded-2xl p-5 mt-6 border border-gray-100 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+        <div className="w-full rounded-[18px] p-5 mt-6" style={{ background: "var(--bg-card)" }}>
           <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-[13px] text-gray-400">Trade</span>
-              <span className="text-[13px] font-bold text-gray-900">{trades.find(t => t.id === selectedTrade)?.name || "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[13px] text-gray-400">Mode</span>
-              <span className="text-[13px] font-bold text-[#FF6B2C]">
-                {mode === "instant" ? "⚡ KaamNow" : mode === "scheduled" ? "📅 KaamLater" : "🏗️ KaizyProject"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[13px] text-gray-400">Location</span>
-              <span className="text-[13px] font-bold text-gray-900">{location}</span>
-            </div>
-            {budget && (
-              <div className="flex justify-between">
-                <span className="text-[13px] text-gray-400">Budget</span>
-                <span className="text-[13px] font-bold text-gray-900">₹{budget}</span>
+            {[
+              { l: "Trade", v: trades.find(t => t.id === selectedTrade)?.name || "—" },
+              { l: "Mode", v: mode === "instant" ? "⚡ KaamNow" : mode === "scheduled" ? "📅 KaamLater" : "🏗️ KaizyProject" },
+              { l: "Location", v: location },
+              ...(budget ? [{ l: "Budget", v: `₹${budget}` }] : []),
+            ].map(r => (
+              <div key={r.l} className="flex justify-between">
+                <span className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>{r.l}</span>
+                <span className="text-[11px] font-bold" style={{ color: "var(--text-1)", fontFamily: r.l === "Budget" ? "'JetBrains Mono', monospace" : "inherit" }}>{r.v}</span>
               </div>
-            )}
+            ))}
           </div>
         </div>
 
         {mode === "instant" && (
-          <div className="w-full mt-4 bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3 animate-slide-up" style={{ animationDelay: "0.3s" }}>
-            <div className="w-5 h-5 border-2 border-[#FF6B2C] border-t-transparent rounded-full animate-spin shrink-0" />
-            <p className="text-[12px] text-orange-700 font-semibold">Matching you with the nearest available worker...</p>
+          <div className="w-full mt-4 rounded-[16px] p-4 flex items-center gap-3" style={{ background: "var(--brand-tint)" }}>
+            <div className="w-5 h-5 border-2 rounded-full animate-spin shrink-0" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+            <p className="text-[10px] font-bold" style={{ color: "var(--brand)" }}>Matching you with the nearest available worker...</p>
           </div>
         )}
 
-        <div className="w-full mt-6 space-y-3">
-          <Link href="/marketplace" className="w-full bg-gradient-to-r from-[#FF6B2C] to-[#E55A1B] text-white rounded-2xl py-4 text-[15px] font-black flex items-center justify-center gap-2 shadow-xl shadow-orange-500/20 active:scale-[0.98] transition-transform">
-            {mode === "instant" ? "View Matching Workers" : "View Responses"} <ArrowRight className="w-5 h-5" />
+        <div className="w-full mt-6 space-y-2.5">
+          <Link href="/marketplace" className="block w-full rounded-[16px] py-4 text-[13px] font-black text-white text-center active:scale-[0.97] transition-transform"
+                style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+            {mode === "instant" ? "View Matching Workers →" : "View Responses →"}
           </Link>
-          <Link href="/" className="w-full text-center block py-3 text-[13px] font-semibold text-gray-400">
-            Back to Home
-          </Link>
+          <Link href="/" className="block text-center py-3 text-[11px] font-bold" style={{ color: "var(--text-3)" }}>Back to Home</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen pb-28" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="bg-white px-4 pt-4 pb-4 shadow-sm">
+      <div className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-3">
-          <Link href="/" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center active:scale-90 transition-transform">
-            <ArrowLeft className="w-4.5 h-4.5 text-gray-700" />
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
+            <span className="text-[14px]">←</span>
           </Link>
-          <h1 className="text-[18px] font-black text-gray-900">Post a Job</h1>
+          <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Post a Job</h1>
         </div>
       </div>
 
-      <div className="px-4 mt-4 space-y-4">
-        {/* Job Mode — Bible: KaamNow / KaamLater / KaizyProject */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[14px] font-black text-gray-900 mb-3">Booking Mode</p>
+      <div className="px-5 mt-3 space-y-4">
+        {/* Job Mode */}
+        <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Booking Mode</p>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { key: "instant" as JobMode, icon: "⚡", name: "KaamNow", desc: "Get worker\nin < 2 min", color: "#FF6B2C" },
-              { key: "scheduled" as JobMode, icon: "📅", name: "KaamLater", desc: "Schedule\nfor later", color: "#3B82F6" },
-              { key: "project" as JobMode, icon: "🏗️", name: "KaizyProject", desc: "Multi-day\nproject", color: "#8B5CF6" },
+              { key: "instant" as JobMode, icon: "⚡", name: "KaamNow", desc: "Get worker\nin < 2 min" },
+              { key: "scheduled" as JobMode, icon: "📅", name: "KaamLater", desc: "Schedule\nfor later" },
+              { key: "project" as JobMode, icon: "🏗️", name: "KaizyProject", desc: "Multi-day\nproject" },
             ].map(m => (
-              <button
-                key={m.key}
-                onClick={() => setMode(m.key)}
-                className={`p-3.5 rounded-2xl text-center transition-all active:scale-95 border-2 ${
-                  mode === m.key
-                    ? "border-[#FF6B2C] bg-orange-50 shadow-md shadow-orange-500/10"
-                    : "border-gray-100 bg-white"
-                }`}
-              >
+              <button key={m.key} onClick={() => setMode(m.key)}
+                      className="p-3.5 rounded-[16px] text-center transition-all active:scale-95"
+                      style={{
+                        background: mode === m.key ? "var(--brand-tint)" : "var(--bg-surface)",
+                        boxShadow: mode === m.key ? "0 0 0 2px var(--brand)" : "none",
+                      }}>
                 <span className="text-[24px] block">{m.icon}</span>
-                <p className="text-[12px] font-black text-gray-900 mt-1">{m.name}</p>
-                <p className="text-[9px] text-gray-400 mt-0.5 whitespace-pre-line leading-tight">{m.desc}</p>
+                <p className="text-[11px] font-bold mt-1" style={{ color: "var(--text-1)" }}>{m.name}</p>
+                <p className="text-[8px] font-medium mt-0.5 whitespace-pre-line" style={{ color: "var(--text-3)" }}>{m.desc}</p>
               </button>
             ))}
           </div>
         </div>
 
         {/* Select Trade */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[14px] font-black text-gray-900 mb-3">What skill do you need?</p>
+        <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>What skill do you need?</p>
           <div className="grid grid-cols-5 gap-2">
             {trades.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTrade(t.id)}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all active:scale-95 ${
-                  selectedTrade === t.id
-                    ? "bg-[#FF6B2C]/10 ring-2 ring-[#FF6B2C]"
-                    : "bg-gray-50"
-                }`}
-              >
+              <button key={t.id} onClick={() => setSelectedTrade(t.id)}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-[12px] transition-all active:scale-95"
+                      style={{
+                        background: selectedTrade === t.id ? "var(--brand-tint)" : "var(--bg-surface)",
+                        boxShadow: selectedTrade === t.id ? "0 0 0 2px var(--brand)" : "none",
+                      }}>
                 <span className="text-[20px]">{t.icon}</span>
-                <span className="text-[9px] font-bold text-gray-700">{t.name}</span>
+                <span className="text-[8px] font-bold" style={{ color: "var(--text-1)" }}>{t.name}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Describe the problem — Bible: Voice + Text */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[14px] font-black text-gray-900 mb-3">Describe the job</p>
-
-          {/* Voice button */}
-          <button
-            onClick={() => setIsRecording(!isRecording)}
-            className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl mb-3 transition-all active:scale-[0.98] ${
-              isRecording
-                ? "bg-red-500 text-white shadow-xl shadow-red-500/30 animate-pulse"
-                : "bg-orange-50 text-[#FF6B2C] border border-orange-100"
-            }`}
-          >
-            <Mic className="w-5 h-5" />
-            <span className="text-[13px] font-bold">{isRecording ? "Recording... Tap to stop" : "Describe in voice (Hindi/Tamil/English)"}</span>
+        {/* Describe */}
+        <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Describe the job</p>
+          <button onClick={() => setIsRecording(!isRecording)}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] mb-3 transition-all active:scale-[0.98]"
+                  style={{
+                    background: isRecording ? "var(--danger)" : "var(--brand-tint)",
+                    color: isRecording ? "#fff" : "var(--brand)",
+                  }}>
+            <span className="text-[14px]">🎤</span>
+            <span className="text-[11px] font-bold">{isRecording ? "Recording... Tap to stop" : "Describe in voice (Hindi/Tamil/English)"}</span>
           </button>
-
-          <textarea
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="e.g., Kitchen tap is leaking, need urgent repair..."
-            className="w-full bg-gray-50 rounded-xl p-3.5 text-[13px] text-gray-700 placeholder-gray-400 border border-gray-100 focus:border-[#FF6B2C] focus:ring-1 focus:ring-[#FF6B2C]/20 outline-none resize-none h-20 transition-all"
-          />
-
-          {/* Add photo */}
-          <button className="flex items-center gap-2 mt-3 text-[12px] text-[#FF6B2C] font-bold active:scale-95 transition-transform">
-            <Camera className="w-4 h-4" /> Add problem photo / video
+          <textarea value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="e.g., Kitchen tap is leaking, need urgent repair..."
+                    className="w-full rounded-[14px] p-3.5 text-[12px] font-medium outline-none resize-none h-20"
+                    style={{ background: "var(--bg-surface)", color: "var(--text-1)" }} />
+          <button className="flex items-center gap-2 mt-3 text-[10px] font-bold active:scale-95 transition-transform"
+                  style={{ color: "var(--brand)" }}>
+            📷 Add problem photo / video
           </button>
         </div>
 
         {/* Location */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[14px] font-black text-gray-900 mb-3">Job Location</p>
-          <button className="w-full flex items-center gap-3 bg-gray-50 rounded-xl p-3.5 border border-gray-100 active:bg-gray-100 transition-colors text-left">
-            <MapPin className="w-5 h-5 text-[#FF6B2C] shrink-0" />
+        <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Job Location</p>
+          <button className="w-full flex items-center gap-3 rounded-[14px] p-3.5 text-left active:scale-[0.98] transition-all"
+                  style={{ background: "var(--bg-surface)" }}>
+            <span className="text-[16px]">📍</span>
             <div className="flex-1">
-              <p className="text-[13px] font-bold text-gray-900">{location}</p>
-              <p className="text-[10px] text-green-600 font-semibold">● GPS detected</p>
+              <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{location}</p>
+              <p className="text-[9px] font-bold" style={{ color: "var(--success)" }}>● GPS detected</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-[12px]" style={{ color: "var(--text-3)" }}>→</span>
           </button>
         </div>
 
-        {/* Schedule (for KaamLater) */}
+        {/* Schedule (KaamLater) */}
         {mode === "scheduled" && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm animate-slide-up">
-            <p className="text-[14px] font-black text-gray-900 mb-3">When?</p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3 pb-1">
+          <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>When?</p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
               {dates.map(d => (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDate(d)}
-                  className={`px-4 py-2.5 rounded-xl text-[12px] font-bold shrink-0 transition-all active:scale-95 ${
-                    selectedDate === d ? "bg-[#FF6B2C] text-white shadow-md" : "bg-gray-50 text-gray-600"
-                  }`}
-                >
+                <button key={d} onClick={() => setSelectedDate(d)}
+                        className="px-4 py-2.5 rounded-[12px] text-[10px] font-bold shrink-0 transition-all active:scale-95"
+                        style={{ background: selectedDate === d ? "var(--brand)" : "var(--bg-surface)", color: selectedDate === d ? "#fff" : "var(--text-2)" }}>
                   {d}
                 </button>
               ))}
             </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {times.map(t => (
-                <button
-                  key={t}
-                  onClick={() => setSelectedTime(t)}
-                  className={`px-3 py-2 rounded-lg text-[11px] font-bold shrink-0 transition-all active:scale-95 ${
-                    selectedTime === t ? "bg-[#FF6B2C] text-white" : "bg-gray-50 text-gray-600"
-                  }`}
-                >
+                <button key={t} onClick={() => setSelectedTime(t)}
+                        className="px-3 py-2 rounded-[10px] text-[9px] font-bold shrink-0 transition-all active:scale-95"
+                        style={{ background: selectedTime === t ? "var(--brand)" : "var(--bg-surface)", color: selectedTime === t ? "#fff" : "var(--text-2)" }}>
                   {t}
                 </button>
               ))}
@@ -249,19 +217,15 @@ export default function PostJobPage() {
           </div>
         )}
 
-        {/* Duration (for KaizyProject) */}
+        {/* Duration (KaizyProject) */}
         {mode === "project" && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm animate-slide-up">
-            <p className="text-[14px] font-black text-gray-900 mb-3">Project Duration</p>
+          <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Project Duration</p>
             <div className="flex gap-2 flex-wrap">
               {durations.map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDuration(d)}
-                  className={`px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all active:scale-95 ${
-                    duration === d ? "bg-[#FF6B2C] text-white shadow-md" : "bg-gray-50 text-gray-600"
-                  }`}
-                >
+                <button key={d} onClick={() => setDuration(d)}
+                        className="px-4 py-2.5 rounded-[12px] text-[10px] font-bold transition-all active:scale-95"
+                        style={{ background: duration === d ? "var(--brand)" : "var(--bg-surface)", color: duration === d ? "#fff" : "var(--text-2)" }}>
                   {d}
                 </button>
               ))}
@@ -270,29 +234,27 @@ export default function PostJobPage() {
         )}
 
         {/* Budget */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-[14px] font-black text-gray-900 mb-3">Budget (optional)</p>
-          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 focus-within:border-[#FF6B2C] focus-within:ring-1 focus-within:ring-[#FF6B2C]/20 transition-all">
-            <IndianRupee className="w-4 h-4 text-gray-400" />
-            <input
-              type="number"
-              value={budget}
-              onChange={e => setBudget(e.target.value)}
-              placeholder="Enter your budget"
-              className="flex-1 bg-transparent text-[14px] font-semibold text-gray-900 placeholder-gray-400 outline-none"
-            />
+        <div className="rounded-[18px] p-5" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Budget (optional)</p>
+          <div className="flex items-center gap-2 rounded-[14px] px-4 py-3" style={{ background: "var(--bg-surface)" }}>
+            <span className="text-[14px]">₹</span>
+            <input type="number" value={budget} onChange={e => setBudget(e.target.value)}
+                   placeholder="Enter your budget"
+                   className="flex-1 bg-transparent text-[13px] font-bold outline-none"
+                   style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }} />
           </div>
-          <p className="text-[10px] text-gray-400 mt-2">Avg rate for {trades.find(t => t.id === selectedTrade)?.name || "services"} in Coimbatore: ₹400-800/hr</p>
+          <p className="text-[8px] font-medium mt-2" style={{ color: "var(--text-3)" }}>
+            Avg rate for {trades.find(t => t.id === selectedTrade)?.name || "services"}: ₹400-800/hr
+          </p>
         </div>
       </div>
 
-      {/* Sticky Post Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4 z-50">
-        <button
-          onClick={() => setIsPosted(true)}
-          disabled={!selectedTrade}
-          className="w-full bg-gradient-to-r from-[#FF6B2C] to-[#E55A1B] text-white rounded-2xl py-4 text-[15px] font-black flex items-center justify-center gap-2 shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:shadow-none"
-        >
+      {/* Sticky CTA */}
+      <div className="fixed bottom-0 left-0 right-0 px-5 py-4 z-50"
+           style={{ background: "var(--bg-app)", boxShadow: "0 -4px 16px rgba(0,0,0,0.06)" }}>
+        <button onClick={() => setIsPosted(true)} disabled={!selectedTrade}
+                className="w-full rounded-[16px] py-4 text-[13px] font-black text-white active:scale-[0.97] transition-transform disabled:opacity-40"
+                style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
           {mode === "instant" ? "⚡ Find Worker Now" : mode === "scheduled" ? "📅 Post Scheduled Job" : "🏗️ Post Project"}
         </button>
       </div>

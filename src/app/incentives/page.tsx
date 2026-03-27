@@ -57,7 +57,7 @@ export default function IncentivesPage() {
 
         <div className="flex items-center justify-between mb-5">
           <Link href="/settings" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "rgba(255,255,255,0.15)" }}>
+                style={{ background: "var(--brand-tint)" }}>
             <span className="text-white text-[14px]">←</span>
           </Link>
           <span className="text-white font-bold text-sm">Incentives & Targets</span>
@@ -67,7 +67,7 @@ export default function IncentivesPage() {
         {/* Today's summary */}
         <div className="text-center mb-4">
           <p className="text-[10px] text-white/60 mb-1">TODAY&apos;S BONUS EARNED</p>
-          <p className="text-[38px] font-black text-white leading-none" style={{ fontFamily: "var(--font-syne, 'Syne'), sans-serif" }}>
+          <p className="text-[38px] font-black text-white leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
             ₹{summary.totalEarned.toLocaleString()}
           </p>
           <p className="text-[11px] text-white/50 mt-1">
@@ -98,17 +98,17 @@ export default function IncentivesPage() {
 
       {/* ── Next Target Banner ── */}
       <div className="mx-4 mt-4 rounded-xl p-3 flex items-center gap-3"
-           style={{ background: "var(--brand-tint)", border: "1px solid var(--brand)" }}>
+           style={{ background: "var(--brand-tint)" }}>
         <span className="text-[24px]">🎯</span>
         <div className="flex-1">
           <p className="text-[10px] font-bold" style={{ color: "var(--brand)" }}>NEXT TARGET</p>
           <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{summary.nextTarget}</p>
         </div>
-        <span className="text-[12px]" style={{ color: "var(--brand)" }}>→</span>
+        <span className="text-[12px] font-bold" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>→</span>
       </div>
 
       {/* ── Period Tabs ── */}
-      <div className="flex gap-1 mx-4 mt-4 rounded-xl p-1" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="flex gap-1 mx-4 mt-4 rounded-xl p-1" style={{ background: "var(--bg-card)" }}>
         {(["daily", "weekly", "monthly", "special"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
                   className="flex-1 rounded-lg py-2 text-[10px] font-bold transition-all"
@@ -129,14 +129,14 @@ export default function IncentivesPage() {
         ) : tab === "special" ? (
           /* ── Special Bonuses ── */
           <>
-            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)" }}>
               <p className="text-[10px] font-bold tracking-widest mb-1" style={{ color: "var(--text-3)" }}>SPECIAL BONUSES</p>
               <p className="text-[11px] mb-4" style={{ color: "var(--text-3)" }}>
                 Extra rewards for exceptional performance!
               </p>
               <div className="space-y-2">
                 {(data?.special || []).map(s => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-1)" }}>
+                  <div key={s.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: "var(--bg-surface)" }}>
                     <span className="text-[24px]">{s.icon}</span>
                     <div className="flex-1">
                       <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{s.label}</p>
@@ -149,7 +149,7 @@ export default function IncentivesPage() {
             </div>
 
             {/* Tips to earn more */}
-            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)" }}>
               <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-3)" }}>💡 TIPS TO EARN MORE</p>
               <div className="space-y-2 text-[11px]" style={{ color: "var(--text-2)" }}>
                 <div className="flex gap-2"><span>1.</span><p>Stay online during peak hours (8-11 AM, 5-8 PM)</p></div>
@@ -165,7 +165,7 @@ export default function IncentivesPage() {
           /* ── Target Cards ── */
           <>
             {/* Period header */}
-            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div className="rounded-2xl p-4" style={{ background: "var(--bg-card)" }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-3)" }}>
@@ -188,7 +188,7 @@ export default function IncentivesPage() {
                   <div key={t.id} className="rounded-xl p-3.5"
                        style={{
                          background: t.achieved ? "var(--success-tint)" : "var(--bg-elevated)",
-                         border: t.achieved ? "1.5px solid var(--success)" : "1.5px solid var(--border-1)",
+                         border: t.achieved ? "1.5px solid var(--success)" : "none",
                        }}>
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-[22px]">{t.icon}</span>
@@ -206,7 +206,7 @@ export default function IncentivesPage() {
                       </div>
                     </div>
                     {!t.achieved && (
-                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--border-1)" }}>
+                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-elevated)" }}>
                         <div className="h-full rounded-full transition-all duration-500" 
                              style={{ 
                                width: `${t.progress}%`,
@@ -220,7 +220,7 @@ export default function IncentivesPage() {
             </div>
 
             {/* Potential earnings card */}
-            <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,149,0,0.08))", border: "1px solid var(--brand)" }}>
+            <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,149,0,0.08))" }}>
               <div className="flex items-center gap-3">
                 <span className="text-[28px]">💰</span>
                 <div>

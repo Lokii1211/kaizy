@@ -31,7 +31,7 @@ export default function PaymentPage() {
       <div className="px-4 pt-4">
         <div className="flex items-center gap-3 mb-4">
           <Link href="/booking" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}><span className="text-[14px]">←</span></Link>
+                style={{ background: "var(--bg-surface)" }}><span className="text-[14px]">←</span></Link>
           <div><p className="text-[10px] font-bold tracking-wider" style={{ color: "var(--brand)" }}>REVIEW & PAY</p>
           <h1 className="text-[18px] font-black" style={{ color: "var(--text-1)" }}>Confirm Booking</h1></div>
         </div>
@@ -52,14 +52,14 @@ export default function PaymentPage() {
               <span className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{r.v}</span>
             </div>
           ))}
-          <div className="flex justify-between pt-2 mt-2" style={{ borderTop: "1px solid var(--border-1)" }}>
+          <div className="flex justify-between pt-2 mt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
             <span className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>Total</span>
-            <span className="text-[18px] font-black" style={{ color: "var(--text-1)", fontFamily: "var(--font-syne)" }}>₹665</span>
+            <span className="text-[18px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>₹665</span>
           </div>
         </div>
 
         {/* Escrow */}
-        <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--success-tint)", border: "1px solid var(--success)" }}>
+        <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--success-tint)" }}>
           <p className="text-[11px] font-bold" style={{ color: "var(--success)" }}>🔒 Money held safely until job is done</p>
         </div>
 
@@ -67,7 +67,7 @@ export default function PaymentPage() {
         <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Pay with</p>
         {[{icon:"G",name:"Google Pay",c:"#4285F4"},{icon:"📲",name:"PhonePe",c:"#5B2C8E"},{icon:"🏦",name:"UPI / Bank",c:"var(--brand)"}].map((m,i) => (
           <button key={m.name} className="w-full flex items-center gap-3 rounded-[14px] p-3 mb-2 active:scale-[0.98]"
-                  style={{ background: "var(--bg-card)", border: i === 0 ? "2px solid var(--brand)" : "1px solid var(--border-1)" }}
+                  style={{ background: "var(--bg-card)", boxShadow: i === 0 ? "0 0 0 2px var(--brand)" : "none" }}
                   onClick={handlePay}>
             <span className="text-[16px]" style={{ color: m.c }}>{m.icon}</span>
             <span className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{m.name}</span>
