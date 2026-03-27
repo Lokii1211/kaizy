@@ -2,24 +2,21 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  Users, Plus, MapPin, Star, Clock, TrendingUp, IndianRupee,
-  Calendar, Phone, ChevronRight, CheckCircle2, BarChart3, Shield,
-  Award, Briefcase, ArrowRight, Search, Bell, Settings, LogOut,
-  Zap, Eye, MessageCircle, UserPlus, Crown, Target, Percent,
-} from "lucide-react";
+
+// ============================================================
+// CONTRACTOR PORTAL v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · No borders · JetBrains Mono
+// ============================================================
 
 interface TeamMember {
   name: string; trade: string; status: string; rating: number;
   jobs: number; earnings: string; avatar: string; phone: string;
 }
 
-// Will be populated from API
-
-const statusConfig = {
-  on_job: { label: "On Job", color: "bg-blue-50 text-blue-700", dot: "bg-blue-500" },
-  available: { label: "Available", color: "bg-green-50 text-green-700", dot: "bg-green-500" },
-  off_duty: { label: "Off Duty", color: "bg-gray-50 text-gray-500", dot: "bg-gray-400" },
+const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
+  on_job: { label: "On Job", color: "var(--info)", dot: "var(--info)" },
+  available: { label: "Available", color: "var(--success)", dot: "var(--success)" },
+  off_duty: { label: "Off Duty", color: "var(--text-3)", dot: "var(--text-3)" },
 };
 
 const teamBookings = [
@@ -55,332 +52,261 @@ export default function ContractorPortalPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-72 flex-col bg-[#1E293B] text-white">
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--gradient-primary)" }}>
-              <Zap className="w-5 h-5 text-white" />
-            </div>
+    <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
+      {/* Header */}
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ background: "var(--bg-surface)" }}>
+              <span className="text-[14px]">←</span>
+            </Link>
             <div>
-              <span className="text-lg font-bold">Connect<span className="text-[#FF6B2C]">On</span></span>
-              <p className="text-[10px] text-white/50">Contractor Portal</p>
+              <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+                Contractor Portal
+              </h1>
+              <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>Manage your workforce</p>
             </div>
           </div>
+          <button className="px-3 py-2 rounded-[12px] text-[10px] font-bold text-white active:scale-95 transition-transform"
+                  style={{ background: "var(--gradient-cta)" }}>
+            ➕ Add Worker
+          </button>
         </div>
 
         {/* Subscription Badge */}
-        <div className="px-6 py-4">
-          <div className="bg-white/10 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Crown className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-bold text-yellow-400">Pro Plan</span>
+        <div className="rounded-[16px] p-4 mb-4" style={{ background: "var(--bg-card)" }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[16px]">👑</span>
+              <span className="text-[11px] font-bold" style={{ color: "var(--warning)" }}>Pro Plan</span>
             </div>
-            <p className="text-xs text-white/60 mb-2">₹999/month • 6 workers</p>
-            <div className="w-full bg-white/10 rounded-full h-1.5">
-              <div className="bg-yellow-400 h-1.5 rounded-full" style={{ width: "60%" }} />
-            </div>
-            <p className="text-[10px] text-white/40 mt-1">4 of 6 slots used this month</p>
+            <span className="text-[9px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>₹999/mo</span>
           </div>
+          <div className="w-full h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--bg-surface)" }}>
+            <div className="h-full rounded-full" style={{ width: "60%", background: "var(--warning)" }} />
+          </div>
+          <p className="text-[8px] font-medium mt-1" style={{ color: "var(--text-3)" }}>4 of 6 slots used</p>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        {/* Tab Nav */}
+        <div className="flex gap-1 rounded-[14px] p-1" style={{ background: "var(--bg-surface)" }}>
           {[
-            { icon: Users, label: "My Team", tab: "team" as const },
-            { icon: Briefcase, label: "Team Bookings", tab: "bookings" as const },
-            { icon: BarChart3, label: "Analytics", tab: "analytics" as const },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={() => setActiveTab(item.tab)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                activeTab === item.tab ? "bg-white/15 text-white" : "text-white/60 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
+            { id: "team" as const, icon: "👥", label: "My Team" },
+            { id: "bookings" as const, icon: "📋", label: "Bookings" },
+            { id: "analytics" as const, icon: "📊", label: "Analytics" },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className="flex-1 py-2.5 rounded-[10px] text-[10px] font-bold text-center transition-all flex items-center justify-center gap-1"
+                    style={{ background: activeTab === tab.id ? "var(--brand)" : "transparent", color: activeTab === tab.id ? "#fff" : "var(--text-3)" }}>
+              <span className="text-[12px]">{tab.icon}</span> {tab.label}
             </button>
           ))}
-          <div className="!mt-4 border-t border-white/10 pt-4 space-y-1">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5">
-              <MessageCircle className="w-5 h-5" /> Messages
-            </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5">
-              <Settings className="w-5 h-5" /> Settings
-            </button>
-          </div>
-        </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-xl bg-[#FF6B2C] flex items-center justify-center text-sm font-bold">AS</div>
-            <div>
-              <p className="text-sm font-semibold">Anita Sharma</p>
-              <p className="text-[10px] text-white/50">Contractor • Coimbatore</p>
-            </div>
-          </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-[#E2E8F0] px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-[var(--foreground)]">
-                {activeTab === "team" && "My Team"}
-                {activeTab === "bookings" && "Team Bookings"}
-                {activeTab === "analytics" && "Analytics"}
-              </h1>
-              <p className="text-xs text-[var(--color-muted)]">Manage your workforce from one dashboard</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] hover:bg-gray-100">
-                <Bell className="w-5 h-5" />
-              </button>
-              <button className="btn-primary !py-2.5 !px-4 !text-sm">
-                <UserPlus className="w-4 h-4" /> Add Worker
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-6">
-          {/* Team Tab */}
-          {activeTab === "team" && (
-            <div className="space-y-6 animate-slide-up">
-              {/* Stats Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: "Total Workers", value: "6", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-                  { label: "Available Now", value: "3", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50" },
-                  { label: "On Jobs", value: "2", icon: Briefcase, color: "text-purple-600", bg: "bg-purple-50" },
-                  { label: "Team Rating", value: "4.65", icon: Star, color: "text-yellow-600", bg: "bg-yellow-50" },
-                ].map((stat) => (
-                  <div key={stat.label} className="bg-white rounded-2xl p-4 border border-[#E2E8F0]">
-                    <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-3`}>
-                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-xs text-[var(--color-muted)]">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Workers Grid */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-bold">Workers ({teamMembers.length})</h2>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
-                      <input className="input !pl-9 !py-2 !text-sm !w-56" placeholder="Search workers..." />
-                    </div>
-                  </div>
+      <div className="px-5 mt-3">
+        {/* Team Tab */}
+        {activeTab === "team" && (
+          <div className="space-y-3">
+            {/* Stats */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: "Workers", value: "6", icon: "👥" },
+                { label: "Available", value: "3", icon: "✅" },
+                { label: "On Jobs", value: "2", icon: "💼" },
+                { label: "Rating", value: "4.65", icon: "⭐" },
+              ].map(stat => (
+                <div key={stat.label} className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-card)" }}>
+                  <span className="text-[16px] block mb-1">{stat.icon}</span>
+                  <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{stat.label}</p>
                 </div>
+              ))}
+            </div>
 
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {teamMembers.map((member) => {
-                    const s = statusConfig[member.status as keyof typeof statusConfig];
-                    return (
-                      <div key={member.name} className="bg-white rounded-2xl border border-[#E2E8F0] p-5 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-[#FF6B2C] flex items-center justify-center text-white font-bold">{member.avatar}</div>
-                            <div>
-                              <p className="font-bold text-sm">{member.name}</p>
-                              <p className="text-xs text-[var(--color-muted)]">{member.trade}</p>
-                            </div>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold flex items-center gap-1 ${s.color}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                            {s.label}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          <div className="bg-[#F8FAFC] rounded-xl p-2 text-center">
-                            <p className="text-sm font-bold">{member.rating}</p>
-                            <p className="text-[9px] text-[var(--color-muted)]">Rating</p>
-                          </div>
-                          <div className="bg-[#F8FAFC] rounded-xl p-2 text-center">
-                            <p className="text-sm font-bold">{member.jobs}</p>
-                            <p className="text-[9px] text-[var(--color-muted)]">Jobs</p>
-                          </div>
-                          <div className="bg-[#F8FAFC] rounded-xl p-2 text-center">
-                            <p className="text-sm font-bold">{member.earnings}</p>
-                            <p className="text-[9px] text-[var(--color-muted)]">Earned</p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button className="flex-1 py-2 rounded-xl bg-[#FF6B2C]/10 text-[#FF6B2C] text-xs font-semibold hover:bg-[#FF6B2C]/20 transition-colors flex items-center justify-center gap-1">
-                            <Briefcase className="w-3.5 h-3.5" /> Assign Job
-                          </button>
-                          <button className="py-2 px-3 rounded-xl border border-[#E2E8F0] text-xs hover:bg-gray-50 transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button className="py-2 px-3 rounded-xl border border-[#E2E8F0] text-xs hover:bg-gray-50 transition-colors">
-                            <Phone className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+            {/* Workers */}
+            <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Workers ({teamMembers.length})</p>
+            <div className="space-y-2">
+              {teamMembers.map(member => {
+                const s = statusConfig[member.status] || statusConfig.off_duty;
+                return (
+                  <div key={member.name} className="rounded-[16px] p-4" style={{ background: "var(--bg-card)" }}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[12px] font-bold text-white"
+                           style={{ background: "var(--brand)" }}>{member.avatar}</div>
+                      <div className="flex-1">
+                        <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{member.name}</p>
+                        <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{member.trade}</p>
                       </div>
-                    );
-                  })}
-
-                  {/* Add Worker Card */}
-                  <button className="bg-white rounded-2xl border-2 border-dashed border-[#E2E8F0] p-5 flex flex-col items-center justify-center gap-3 hover:border-[#FF6B2C] transition-colors min-h-[220px]">
-                    <div className="w-14 h-14 rounded-2xl bg-[#FF6B2C]/10 flex items-center justify-center">
-                      <Plus className="w-7 h-7 text-[#FF6B2C]" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold text-sm">Add Worker</p>
-                      <p className="text-xs text-[var(--color-muted)]">WhatsApp invite or manual add</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bookings Tab */}
-          {activeTab === "bookings" && (
-            <div className="space-y-6 animate-slide-up">
-              <div className="grid md:grid-cols-3 gap-4">
-                {[
-                  { label: "Active Projects", value: "1", change: "+1 this week", color: "text-blue-600" },
-                  { label: "Total Revenue", value: "₹1,60,500", change: "+₹32,000 this month", color: "text-green-600" },
-                  { label: "Utilization Rate", value: "78%", change: "+5% vs last month", color: "text-purple-600" },
-                ].map((s) => (
-                  <div key={s.label} className="bg-white rounded-2xl p-5 border border-[#E2E8F0]">
-                    <p className="text-xs text-[var(--color-muted)] mb-1">{s.label}</p>
-                    <p className="text-2xl font-bold">{s.value}</p>
-                    <p className={`text-xs ${s.color} font-medium`}>{s.change}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <h2 className="font-bold mb-4">Team Projects</h2>
-                <div className="space-y-3">
-                  {teamBookings.map((booking) => (
-                    <div key={booking.id} className="bg-white rounded-2xl p-5 border border-[#E2E8F0] hover:shadow-sm transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-bold">{booking.client}</p>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              booking.status === "active" ? "bg-blue-50 text-blue-700" :
-                              booking.status === "upcoming" ? "bg-yellow-50 text-yellow-700" :
-                              "bg-green-50 text-green-700"
-                            }`}>
-                              {booking.status.toUpperCase()}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[var(--color-muted)]">{booking.id} • {booking.workers} workers • {booking.duration}</p>
-                        </div>
-                        <p className="text-lg font-bold text-[#FF6B2C]">{booking.total}</p>
-                      </div>
-
-                      {booking.status === "active" && (
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-[var(--color-muted)]">Progress</span>
-                            <span className="text-xs font-bold">{booking.progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div
-                              className="bg-[#FF6B2C] h-2 rounded-full transition-all"
-                              style={{ width: `${booking.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === "analytics" && (
-            <div className="space-y-6 animate-slide-up">
-              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {[
-                  { label: "Monthly Revenue", value: "₹1,60,500", trend: "+18%", icon: IndianRupee, positive: true },
-                  { label: "Worker Utilization", value: "78%", trend: "+5%", icon: Target, positive: true },
-                  { label: "Team Rating", value: "4.65 / 5", trend: "+0.1", icon: Star, positive: true },
-                  { label: "Dispute Rate", value: "1.2%", trend: "-0.3%", icon: Shield, positive: true },
-                ].map((metric) => (
-                  <div key={metric.label} className="bg-white rounded-2xl p-5 border border-[#E2E8F0]">
-                    <div className="flex items-center justify-between mb-3">
-                      <metric.icon className="w-5 h-5 text-[var(--color-muted)]" />
-                      <span className={`text-xs font-semibold ${metric.positive ? "text-green-600" : "text-red-600"}`}>
-                        {metric.trend}
+                      <span className="text-[8px] font-bold px-2 py-1 rounded-full flex items-center gap-1"
+                            style={{ background: "var(--bg-surface)", color: s.color }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+                        {s.label}
                       </span>
                     </div>
-                    <p className="text-xl font-bold">{metric.value}</p>
-                    <p className="text-xs text-[var(--color-muted)]">{metric.label}</p>
-                  </div>
-                ))}
-              </div>
 
-              {/* Revenue Breakdown */}
-              <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0]">
-                <h3 className="font-bold mb-4">Revenue by Worker</h3>
-                <div className="space-y-3">
-                  {teamMembers.sort((a, b) => parseInt(b.earnings.replace(/[₹,]/g, "")) - parseInt(a.earnings.replace(/[₹,]/g, ""))).map((m) => {
-                    const earnings = parseInt(m.earnings.replace(/[₹,]/g, ""));
-                    const maxEarnings = 62100;
-                    return (
-                      <div key={m.name} className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-lg bg-[#FF6B2C] flex items-center justify-center text-white text-[10px] font-bold">{m.avatar}</div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-sm font-medium">{m.name}</p>
-                            <p className="text-sm font-bold">{m.earnings}</p>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div
-                              className="bg-[#FF6B2C] h-2 rounded-full"
-                              style={{ width: `${(earnings / maxEarnings) * 100}%` }}
-                            />
-                          </div>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {[
+                        { label: "Rating", val: String(member.rating) },
+                        { label: "Jobs", val: String(member.jobs) },
+                        { label: "Earned", val: member.earnings },
+                      ].map(stat => (
+                        <div key={stat.label} className="rounded-[10px] p-2 text-center" style={{ background: "var(--bg-surface)" }}>
+                          <p className="text-[11px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{stat.val}</p>
+                          <p className="text-[7px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button className="flex-1 py-2 rounded-[12px] text-[10px] font-bold active:scale-95 transition-transform"
+                              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                        💼 Assign Job
+                      </button>
+                      <button className="py-2 px-3 rounded-[12px] text-[10px] active:scale-95 transition-transform"
+                              style={{ background: "var(--bg-surface)", color: "var(--text-2)" }}>👁️</button>
+                      <button className="py-2 px-3 rounded-[12px] text-[10px] active:scale-95 transition-transform"
+                              style={{ background: "var(--bg-surface)", color: "var(--text-2)" }}>📞</button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Worker */}
+              <button className="w-full rounded-[16px] p-5 flex flex-col items-center justify-center gap-3"
+                      style={{ background: "var(--bg-card)", border: "2px dashed rgba(255,255,255,0.06)" }}>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "var(--brand-tint)" }}>
+                  <span className="text-[22px]">➕</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Add Worker</p>
+                  <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>WhatsApp invite or manual add</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bookings Tab */}
+        {activeTab === "bookings" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Active", value: "1", icon: "🟢" },
+                { label: "Revenue", value: "₹1.6L", icon: "💰" },
+                { label: "Utilization", value: "78%", icon: "📈" },
+              ].map(s => (
+                <div key={s.label} className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-card)" }}>
+                  <span className="text-[14px] block mb-1">{s.icon}</span>
+                  <p className="text-[14px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{s.value}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Team Projects</p>
+            {teamBookings.map(booking => (
+              <div key={booking.id} className="rounded-[16px] p-4" style={{ background: "var(--bg-card)" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{booking.client}</p>
+                      <span className="text-[7px] font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: booking.status === "active" ? "rgba(59,130,246,0.1)" : booking.status === "upcoming" ? "rgba(245,158,11,0.1)" : "rgba(34,197,94,0.1)",
+                              color: booking.status === "active" ? "var(--info)" : booking.status === "upcoming" ? "var(--warning)" : "var(--success)",
+                            }}>
+                        {booking.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-[9px] font-medium" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {booking.id} • {booking.workers} workers • {booking.duration}
+                    </p>
+                  </div>
+                  <p className="text-[14px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{booking.total}</p>
+                </div>
+                {booking.status === "active" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[8px] font-bold" style={{ color: "var(--text-3)" }}>Progress</span>
+                      <span className="text-[8px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{booking.progress}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-surface)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${booking.progress}%`, background: "var(--gradient-cta)" }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === "analytics" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Monthly Revenue", value: "₹1,60,500", trend: "+18%", positive: true },
+                { label: "Utilization", value: "78%", trend: "+5%", positive: true },
+                { label: "Team Rating", value: "4.65/5", trend: "+0.1", positive: true },
+                { label: "Dispute Rate", value: "1.2%", trend: "-0.3%", positive: true },
+              ].map(metric => (
+                <div key={metric.label} className="rounded-[14px] p-3.5" style={{ background: "var(--bg-card)" }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{metric.label}</p>
+                    <span className="text-[8px] font-bold" style={{ color: metric.positive ? "var(--success)" : "var(--danger)" }}>{metric.trend}</span>
+                  </div>
+                  <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{metric.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Revenue by Worker */}
+            <div className="rounded-[16px] p-4" style={{ background: "var(--bg-card)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Revenue by Worker</p>
+              <div className="space-y-2.5">
+                {teamMembers.sort((a, b) => parseInt(b.earnings.replace(/[₹,]/g, "")) - parseInt(a.earnings.replace(/[₹,]/g, ""))).map(m => {
+                  const earnings = parseInt(m.earnings.replace(/[₹,]/g, ""));
+                  return (
+                    <div key={m.name} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[8px] font-bold text-white"
+                           style={{ background: "var(--brand)" }}>{m.avatar}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[10px] font-bold" style={{ color: "var(--text-1)" }}>{m.name}</p>
+                          <p className="text-[10px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{m.earnings}</p>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-surface)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${Math.min((earnings / 62100) * 100, 100)}%`, background: "var(--gradient-cta)" }} />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Opportunity Alert */}
-              <div className="bg-gradient-to-r from-[#FF6B2C]/10 to-[#3B82F6]/10 rounded-2xl p-6 border border-[#FF6B2C]/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <TrendingUp className="w-6 h-6 text-[#FF6B2C]" />
-                  <h3 className="font-bold">💡 Opportunity Alert</h3>
-                </div>
-                <p className="text-sm text-[var(--color-muted)] mb-3">
-                  You&apos;re missing <span className="font-bold text-[#FF6B2C]">₹18,500/month</span> because
-                  Lakshmi R and Ganesh M have low utilization. Consider:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1.5 bg-white rounded-xl text-xs font-semibold border border-[#E2E8F0]">
-                    📢 Promote their skills
-                  </span>
-                  <span className="px-3 py-1.5 bg-white rounded-xl text-xs font-semibold border border-[#E2E8F0]">
-                    🎯 Assign to team projects
-                  </span>
-                  <span className="px-3 py-1.5 bg-white rounded-xl text-xs font-semibold border border-[#E2E8F0]">
-                    📚 Upskill via KonnectLearn
-                  </span>
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Opportunity */}
+            <div className="rounded-[16px] p-4" style={{ background: "var(--brand-tint)" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[16px]">💡</span>
+                <p className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Opportunity Alert</p>
+              </div>
+              <p className="text-[10px] font-medium mb-2" style={{ color: "var(--text-2)" }}>
+                You&apos;re missing <span className="font-bold" style={{ color: "var(--brand)" }}>₹18,500/month</span> due to low utilization workers.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {["📢 Promote skills", "🎯 Assign to projects", "📚 Upskill via KonnectLearn"].map(tip => (
+                  <span key={tip} className="px-2.5 py-1.5 rounded-[10px] text-[9px] font-bold"
+                        style={{ background: "var(--bg-card)", color: "var(--text-2)" }}>
+                    {tip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

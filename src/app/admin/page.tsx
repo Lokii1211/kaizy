@@ -61,7 +61,7 @@ export default function AdminDashboard() {
       <div className="px-4 pt-4 pb-3" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}>
         <div className="flex justify-between items-center mb-3">
           <div>
-            <p className="text-[10px] font-bold text-gray-400">KAIZY ADMIN</p>
+            <p className="text-[10px] font-bold" style={{ color: "var(--text-3)" }}>KAIZY ADMIN</p>
             <h1 className="text-[20px] font-black text-white">Command Center 🎯</h1>
           </div>
           <div className="flex gap-2">
@@ -78,11 +78,11 @@ export default function AdminDashboard() {
 
         {/* Revenue Hero */}
         <div className="rounded-2xl p-4 text-center" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <p className="text-[10px] font-bold text-gray-400">THIS MONTH&apos;S REVENUE</p>
+          <p className="text-[10px] font-bold" style={{ color: "var(--text-3)" }}>THIS MONTH&apos;S REVENUE</p>
           <p className="text-[36px] font-black" style={{ color: "#22C55E" }}>
             ₹{(s?.revenue.totalCommission || 0).toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">
+          <p className="text-[10px]" style={{ color: "var(--text-3)" }}>
             {Math.round((s?.revenue.totalCommission || 0) / 5)} jobs × ₹5/job ·
             <span style={{ color: "#F59E0B" }}> ₹{s?.revenue.pendingCommission || 0} pending</span>
           </p>
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
             { v: s?.users.hirers || 0, l: "Hirers", c: "#3B82F6", icon: "🏠" },
             { v: s?.users.workersOnline || 0, l: "Online", c: "var(--success)", icon: "🟢" },
           ].map(stat => (
-            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)" }}>
               <span className="text-[14px]">{stat.icon}</span>
               <p className="text-[18px] font-black mt-1" style={{ color: stat.c }}>{stat.v}</p>
               <p className="text-[8px] font-bold" style={{ color: "var(--text-3)" }}>{stat.l}</p>
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
             { v: s?.bookings.thisWeek || 0, l: "This Week", c: "#3B82F6" },
             { v: s?.bookings.total || 0, l: "All Time", c: "var(--text-1)" },
           ].map(stat => (
-            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)" }}>
               <p className="text-[20px] font-black" style={{ color: stat.c }}>{stat.v}</p>
               <p className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>{stat.l}</p>
             </div>
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
             { v: s?.bookings.pending || 0, l: "Pending", c: "var(--warning)" },
             { v: s?.bookings.cancelled || 0, l: "Cancelled", c: "var(--danger)" },
           ].map(stat => (
-            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+            <div key={stat.l} className="rounded-xl p-3 text-center" style={{ background: "var(--bg-card)" }}>
               <p className="text-[16px] font-black" style={{ color: stat.c }}>{stat.v}</p>
               <p className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>{stat.l}</p>
             </div>
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
       {/* Revenue Breakdown */}
       <div className="px-4 mt-4">
         <p className="text-[10px] font-bold uppercase mb-2" style={{ color: "var(--text-3)", letterSpacing: 2 }}>Revenue</p>
-        <div className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+        <div className="rounded-xl p-4" style={{ background: "var(--bg-card)" }}>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Total Commission</span>
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
               <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Pending Collection</span>
               <span className="text-[14px] font-bold" style={{ color: "var(--warning)" }}>₹{s?.revenue.pendingCommission || 0}</span>
             </div>
-            <div className="pt-2" style={{ borderTop: "1px dashed var(--border-1)" }}>
+            <div className="pt-2" style={{ borderTop: "1px dashed rgba(255,255,255,0.04)" }}>
               <div className="flex justify-between items-center">
                 <span className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Projected Monthly</span>
                 <span className="text-[16px] font-black" style={{ color: "var(--success)" }}>
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
         <p className="text-[10px] font-bold uppercase mb-2" style={{ color: "var(--text-3)", letterSpacing: 2 }}>Recent Activity</p>
 
         {(!s?.recentBookings || s.recentBookings.length === 0) ? (
-          <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+          <div className="rounded-xl p-6 text-center" style={{ background: "var(--bg-card)" }}>
             <p className="text-[32px] mb-2">📊</p>
             <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>No bookings yet</p>
           </div>
@@ -180,7 +180,7 @@ export default function AdminDashboard() {
           <div className="space-y-2">
             {s.recentBookings.map(b => (
               <div key={b.id} className="rounded-xl p-3 flex items-center gap-3"
-                   style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+                   style={{ background: "var(--bg-card)" }}>
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: statusColors[b.status] || "#999" }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-bold truncate" style={{ color: "var(--text-1)" }}>

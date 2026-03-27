@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  Star, MapPin, CheckCircle2, BadgeCheck, Clock, IndianRupee, QrCode,
-  ArrowRight, Phone, Calendar, Shield, Award, TrendingUp, Briefcase,
-  CircuitBoard, ThumbsUp, MessageSquare, Share2, Download, ChevronRight,
-  User, Globe, Languages, Zap, Eye,
-} from "lucide-react";
+
+// ============================================================
+// WORKER DETAIL v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · JetBrains Mono data · No borders
+// ============================================================
 
 interface WorkerProfile {
   id: string; name: string; initials: string; skill: string;
@@ -37,7 +36,7 @@ export default function WorkerProfilePage() {
         if (json.success && json.data) {
           const d = json.data;
           setW({
-            id: d.id || params.id,
+            id: d.id || String(params.id),
             name: d.name || d.users?.name || "Worker",
             initials: (d.name || d.users?.name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
             skill: d.trade_primary || "Technician",
@@ -54,10 +53,7 @@ export default function WorkerProfilePage() {
             responseTime: "< 15 min",
             completionRate: d.total_jobs > 0 ? `${Math.round((d.total_jobs / (d.total_jobs + 2)) * 100)}%` : "—",
             rate: { min: d.rate_hourly || 300, max: (d.rate_hourly || 300) * 2.5 },
-            specializations: [],
-            certifications: [],
-            reviews: [],
-            jobHistory: [],
+            specializations: [], certifications: [], reviews: [], jobHistory: [],
           });
         }
       } catch (e) { console.error(e); }
@@ -75,30 +71,40 @@ export default function WorkerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] pb-24">
-      {/* Profile Header */}
-      <div style={{ background: "var(--gradient-hero)" }} className="pt-3 pb-6 px-5 rounded-b-[28px]">
+    <div className="min-h-screen pb-28" style={{ background: "var(--bg-app)" }}>
+      {/* Profile Header — Gradient */}
+      <div className="pt-5 pb-7 px-5 rounded-b-[28px]" style={{ background: "var(--gradient-cta)" }}>
         <div className="flex items-center justify-between mb-5">
-          <Link href="/marketplace" className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center active:scale-90 transition-transform">
-            <ArrowRight className="w-4 h-4 text-white rotate-180" />
+          <Link href="/marketplace" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "rgba(255,255,255,0.15)" }}>
+            <span className="text-[14px] text-white">←</span>
           </Link>
           <div className="flex gap-2">
-            <button className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><Share2 className="w-4 h-4 text-white" /></button>
+            <button className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
+              <span className="text-white text-[14px]">📤</span>
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-4 mb-4">
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] flex items-center justify-center text-white text-2xl font-bold shadow-xl">{w.initials}</div>
-            {w.verified && <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[var(--color-accent)] flex items-center justify-center border-2 border-white"><BadgeCheck className="w-3.5 h-3.5 text-white" /></div>}
+            <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-[22px] font-black"
+                 style={{ background: "rgba(255,255,255,0.2)" }}>{w.initials}</div>
+            {w.verified && (
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                   style={{ background: "var(--info)" }}>
+                <span className="text-white text-[10px]">✓</span>
+              </div>
+            )}
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-white">{w.name}</h1>
-            <p className="text-xs text-white/60">{w.skill} • {w.experience}</p>
-            <p className="text-[10px] text-white/40 flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" /> {w.city}</p>
+            <h1 className="text-[18px] font-black text-white tracking-tight" style={{ fontFamily: "'Epilogue', sans-serif" }}>{w.name}</h1>
+            <p className="text-[11px] text-white/60 font-medium">{w.skill} • {w.experience}</p>
+            <p className="text-[9px] text-white/40 flex items-center gap-1">📍 {w.city}</p>
           </div>
         </div>
 
+        {/* Stats row */}
         <div className="flex gap-2 mb-4">
           {[
             { val: `${w.rating}★`, label: "Rating" },
@@ -106,234 +112,209 @@ export default function WorkerProfilePage() {
             { val: String(w.konnectScore), label: "Score" },
             { val: w.responseTime, label: "Response" },
           ].map(s => (
-            <div key={s.label} className="flex-1 bg-white/10 rounded-xl p-2 text-center">
-              <p className="text-sm font-extrabold text-white">{s.val}</p>
-              <p className="text-[8px] text-white/40">{s.label}</p>
+            <div key={s.label} className="flex-1 rounded-[14px] p-2 text-center" style={{ background: "rgba(255,255,255,0.1)" }}>
+              <p className="text-[12px] font-black text-white" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{s.val}</p>
+              <p className="text-[7px] text-white/40 font-bold uppercase tracking-wider">{s.label}</p>
             </div>
           ))}
         </div>
 
         <div className="flex gap-2">
-          <button className="flex-1 py-3 bg-[var(--color-primary)] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <Phone className="w-4 h-4" /> Book Now
+          <button className="flex-1 py-3 rounded-[14px] font-bold text-[12px] text-white flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                  style={{ background: "rgba(255,255,255,0.2)" }}>
+            📞 Book Now
           </button>
-          <button className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center active:scale-90 transition-transform">
-            <MessageSquare className="w-5 h-5 text-white" />
+          <button className="w-12 h-12 rounded-[14px] flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ background: "rgba(255,255,255,0.15)" }}>
+            <span className="text-[18px]">💬</span>
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-gray-100">
-        <div className="flex">
+      <div className="sticky top-0 z-40 px-5 py-3" style={{ background: "var(--bg-app)" }}>
+        <div className="flex gap-1 rounded-[14px] p-1" style={{ background: "var(--bg-surface)" }}>
           {[
             { id: "overview" as const, label: "Overview" },
             { id: "reviews" as const, label: `Reviews (${w.reviews.length})` },
             { id: "history" as const, label: "Jobs" },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all ${
-                activeTab === tab.id ? "text-[var(--color-primary)] border-[var(--color-primary)]" : "text-gray-400 border-transparent"
-              }`}>{tab.label}</button>
+                    className="flex-1 py-2.5 rounded-[10px] text-[10px] font-bold text-center transition-all"
+                    style={{
+                      background: activeTab === tab.id ? "var(--brand)" : "transparent",
+                      color: activeTab === tab.id ? "#fff" : "var(--text-3)",
+                    }}>
+              {tab.label}
+            </button>
           ))}
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 py-4 space-y-4">
-              {activeTab === "overview" && (
-                <>
-                  {/* Skills */}
-                  <div className="card">
-                    <h2 className="text-lg font-bold mb-4">Skills & Specializations</h2>
-                    <div className="space-y-3">
-                      {w.specializations.map((skill, i) => (
-                        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-[var(--color-surface)]">
-                          <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
-                            <Award className="w-5 h-5 text-[var(--color-primary)]" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-sm">{skill.name}</p>
-                              {skill.verified && <BadgeCheck className="w-4 h-4 text-[var(--color-accent)]" />}
-                            </div>
-                            <p className="text-xs text-[var(--color-muted)]">{skill.level} • {skill.jobs} jobs completed</p>
-                          </div>
-                          <span className={`badge ${skill.verified ? "badge-success" : "badge-warning"} text-[10px]`}>
-                            {skill.verified ? "Verified" : "Self-declared"}
-                          </span>
-                        </div>
-                      ))}
+      <div className="px-5 space-y-3">
+        {activeTab === "overview" && (
+          <>
+            {/* Skills */}
+            <div className="rounded-[18px] p-4" style={{ background: "var(--bg-card)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Skills & Specializations</p>
+              <div className="space-y-2">
+                {w.specializations.length === 0 ? (
+                  <p className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>No specializations listed yet</p>
+                ) : w.specializations.map((skill, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--bg-surface)" }}>
+                    <span className="text-[18px]">🏅</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{skill.name}</p>
+                        {skill.verified && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)" }}>Verified</span>}
+                      </div>
+                      <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{skill.level} • {skill.jobs} jobs</p>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  {/* Certifications */}
-                  <div className="card">
-                    <h2 className="text-lg font-bold mb-4">Certifications</h2>
-                    <div className="space-y-3">
-                      {w.certifications.map((cert, i) => (
-                        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-[var(--color-surface)]">
-                          <div className="w-10 h-10 rounded-xl bg-[var(--color-info)]/10 flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-[var(--color-info)]" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">{cert.name}</p>
-                            <p className="text-xs text-[var(--color-muted)]">{cert.issuer} • {cert.year}</p>
-                          </div>
-                          {cert.verified && (
-                            <span className="badge badge-success text-[10px]">
-                              <CheckCircle2 className="w-3 h-3" /> DigiLocker Verified
-                            </span>
-                          )}
-                        </div>
-                      ))}
+            {/* Details */}
+            <div className="rounded-[18px] p-4" style={{ background: "var(--bg-card)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Details</p>
+              <div className="space-y-2">
+                {[
+                  { icon: "📍", label: "Location", value: `${w.city}, ${w.state}` },
+                  { icon: "🗣️", label: "Languages", value: w.languages.join(", ") },
+                  { icon: "📅", label: "Experience", value: w.experience },
+                  { icon: "💰", label: "Rate Range", value: `₹${w.rate.min} – ₹${w.rate.max}` },
+                ].map((d, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--bg-surface)" }}>
+                    <span className="text-[14px]">{d.icon}</span>
+                    <div>
+                      <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{d.label}</p>
+                      <p className="text-[11px] font-bold" style={{ color: "var(--text-1)", fontFamily: d.label === "Rate Range" ? "'JetBrains Mono', monospace" : "inherit" }}>{d.value}</p>
                     </div>
                   </div>
-                </>
-              )}
+                ))}
+              </div>
+            </div>
 
-              {activeTab === "reviews" && (
-                <div className="space-y-4">
-                  {w.reviews.map((review, i) => (
-                    <div key={i} className="card">
-                      <div className="flex items-center gap-1 mb-2">
-                        {Array.from({ length: review.rating }, (_, j) => (
-                          <Star key={j} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        ))}
-                        {Array.from({ length: 5 - review.rating }, (_, j) => (
-                          <Star key={j} className="w-4 h-4 text-gray-200" />
-                        ))}
-                      </div>
-                      <p className="text-sm text-[var(--foreground)] leading-relaxed mb-3">{review.text}</p>
-                      <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-[var(--color-primary)] text-xs font-bold">
-                            {review.name.split(" ").map((n) => n[0]).join("")}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold">{review.name}</p>
-                            <p className="text-[10px] text-[var(--color-muted)]">{review.business}</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-[var(--color-muted)]">{review.date}</span>
-                      </div>
-                    </div>
-                  ))}
+            {/* KonnectScore */}
+            <div className="rounded-[18px] p-4" style={{ background: "var(--bg-card)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>KaizyScore™</p>
+              <div className="text-center mb-3">
+                <span className="text-[42px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{w.konnectScore}</span>
+                <span className="text-[14px] font-medium" style={{ color: "var(--text-3)" }}>/900</span>
+              </div>
+              <div className="w-full h-2.5 rounded-full overflow-hidden mb-3" style={{ background: "var(--bg-surface)" }}>
+                <div className="h-full rounded-full" style={{ width: `${(w.konnectScore / 900) * 100}%`, background: "var(--gradient-cta)" }} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { range: "300-500", label: "Building" },
+                  { range: "500-700", label: "Good" },
+                  { range: "700-900", label: "Excellent" },
+                ].map((tier, i) => (
+                  <div key={i} className="p-2 rounded-[10px] text-[9px]"
+                       style={{ background: w.konnectScore >= (i === 0 ? 300 : i === 1 ? 500 : 700) ? "var(--brand-tint)" : "var(--bg-surface)", color: "var(--text-2)" }}>
+                    <p className="font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{tier.range}</p>
+                    <p className="font-medium">{tier.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* KonnectPassport Card */}
+            <div className="rounded-[18px] overflow-hidden" style={{ background: "var(--bg-card)" }}>
+              <div className="p-5" style={{ background: "var(--gradient-cta)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-white font-bold text-[11px] flex items-center gap-1.5">⚡ KonnectPassport</span>
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">VERIFIED</span>
                 </div>
-              )}
-
-              {activeTab === "history" && (
-                <div className="card">
-                  <h2 className="text-lg font-bold mb-4">Job History</h2>
-                  <div className="space-y-3">
-                    {w.jobHistory.map((job, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-[var(--color-surface)]">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
-                          <CircuitBoard className="w-5 h-5 text-[var(--color-primary)]" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">{job.title}</p>
-                          <p className="text-xs text-[var(--color-muted)]">{job.client} • {job.date}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-sm">₹{job.amount.toLocaleString()}</p>
-                          <div className="flex items-center gap-0.5 justify-end">
-                            {Array.from({ length: job.rating }, (_, j) => (
-                              <Star key={j} className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-white text-[16px] font-bold">{w.initials}</div>
+                  <div>
+                    <p className="text-white font-bold text-[13px]">{w.name}</p>
+                    <p className="text-white/60 text-[10px]">{w.skill}</p>
+                    <p className="text-white/50 text-[9px] flex items-center gap-1">📍 {w.city}, {w.state}</p>
                   </div>
                 </div>
-              )}
+              </div>
+              <div className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>KonnectID</p>
+                  <p className="text-[12px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{w.id}</p>
+                </div>
+                <div className="w-14 h-14 rounded-[10px] flex items-center justify-center text-[28px]" style={{ background: "var(--bg-surface)" }}>📱</div>
+              </div>
+            </div>
+          </>
+        )}
 
-              {/* KonnectPassport Card */}
-              <div className="card !p-0 overflow-hidden">
-                <div className="p-5" style={{ background: "var(--gradient-primary)" }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-white font-bold text-sm flex items-center gap-1.5">
-                      <Zap className="w-4 h-4" /> KonnectPassport
-                    </span>
-                    <span className="badge bg-white/20 text-white text-[10px]">
-                      <BadgeCheck className="w-3 h-3" /> VERIFIED
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-white text-xl font-bold">
-                      {w.initials}
+        {activeTab === "reviews" && (
+          <div className="space-y-2.5">
+            {w.reviews.length === 0 ? (
+              <div className="text-center py-16">
+                <span className="text-[48px] block mb-3">⭐</span>
+                <p className="text-[14px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No reviews yet</p>
+                <p className="text-[10px] font-medium mt-1" style={{ color: "var(--text-3)" }}>Be the first to review this worker</p>
+              </div>
+            ) : w.reviews.map((review, i) => (
+              <div key={i} className="rounded-[18px] p-4" style={{ background: "var(--bg-card)" }}>
+                <div className="flex items-center gap-0.5 mb-2">
+                  {Array.from({ length: review.rating }, (_, j) => <span key={j} className="text-[14px]">⭐</span>)}
+                </div>
+                <p className="text-[11px] font-medium leading-relaxed mb-3" style={{ color: "var(--text-2)" }}>{review.text}</p>
+                <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "var(--brand)" }}>
+                      {review.name.split(" ").map((n) => n[0]).join("")}
                     </div>
                     <div>
-                      <p className="text-white font-bold">{w.name}</p>
-                      <p className="text-white/60 text-sm">{w.skill}</p>
-                      <p className="text-white/50 text-xs flex items-center gap-1"><MapPin className="w-3 h-3" />{w.city}, {w.state}</p>
+                      <p className="text-[10px] font-bold" style={{ color: "var(--text-1)" }}>{review.name}</p>
+                      <p className="text-[8px] font-medium" style={{ color: "var(--text-3)" }}>{review.business}</p>
                     </div>
                   </div>
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-[10px] text-[var(--color-muted)]">KonnectID</p>
-                      <p className="font-mono font-bold text-sm">{w.id}</p>
-                    </div>
-                    <div className="w-16 h-16 rounded-lg bg-[var(--color-surface)] flex items-center justify-center">
-                      <QrCode className="w-10 h-10 text-[var(--foreground)]" />
-                    </div>
-                  </div>
-                  <button className="btn-primary !w-full !justify-center !py-2.5 !text-sm">
-                    <Phone className="w-4 h-4" /> Contact Worker
-                  </button>
+                  <span className="text-[8px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>{review.date}</span>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              {/* Details */}
-              <div className="card">
-                <h3 className="font-bold text-sm mb-4">Details</h3>
-                <div className="space-y-3">
-                  {[
-                    { icon: MapPin, label: "Location", value: `${w.city}, ${w.state}` },
-                    { icon: Languages, label: "Languages", value: w.languages.join(", ") },
-                    { icon: Calendar, label: "Experience", value: w.experience },
-                    { icon: IndianRupee, label: "Rate Range", value: `₹${w.rate.min} – ₹${w.rate.max}` },
-                  ].map((d, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface)]">
-                      <d.icon className="w-4 h-4 text-[var(--color-muted)]" />
-                      <div>
-                        <p className="text-[10px] text-[var(--color-muted)]">{d.label}</p>
-                        <p className="text-sm font-medium">{d.value}</p>
+        {activeTab === "history" && (
+          <div className="rounded-[18px] p-4" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Job History</p>
+            {w.jobHistory.length === 0 ? (
+              <p className="text-[11px] font-medium py-8 text-center" style={{ color: "var(--text-3)" }}>No job history available</p>
+            ) : (
+              <div className="space-y-2">
+                {w.jobHistory.map((job, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-[14px]" style={{ background: "var(--bg-surface)" }}>
+                    <span className="text-[18px]">🔧</span>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{job.title}</p>
+                      <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{job.client} • {job.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[12px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>₹{job.amount.toLocaleString()}</p>
+                      <div className="flex items-center gap-0.5 justify-end">
+                        {Array.from({ length: job.rating }, (_, j) => <span key={j} className="text-[8px]">⭐</span>)}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+        )}
+      </div>
 
-              {/* KonnectScore */}
-              <div className="card">
-                <h3 className="font-bold text-sm mb-4">KonnectScore™</h3>
-                <div className="text-center mb-4">
-                  <span className="text-5xl font-bold text-[var(--color-primary)]">{w.konnectScore}</span>
-                  <span className="text-sm text-[var(--color-muted)]">/900</span>
-                  <p className="text-xs text-[var(--color-accent)] mt-1 flex items-center gap-1 justify-center">
-                    <TrendingUp className="w-3.5 h-3.5" /> +45 this month
-                  </p>
-                </div>
-                <div className="progress-bar mb-3">
-                  <div className="progress-bar-fill" style={{ width: `${(w.konnectScore / 900) * 100}%` }} />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  {[
-                    { range: "300-500", label: "Building", active: false },
-                    { range: "500-700", label: "Good", active: false },
-                    { range: "700-900", label: "Excellent", active: true },
-                  ].map((tier, i) => (
-                    <div key={i} className={`p-2 rounded-lg text-[10px] ${tier.active ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-semibold" : "bg-[var(--color-surface)] text-[var(--color-muted)]"}`}>
-                      <p className="font-bold">{tier.range}</p>
-                      <p>{tier.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {/* Sticky Book CTA */}
+      <div className="fixed bottom-0 left-0 right-0 px-5 py-4 z-50"
+           style={{ background: "var(--bg-app)", boxShadow: "0 -4px 16px rgba(0,0,0,0.06)" }}>
+        <button className="w-full rounded-[16px] py-4 text-[13px] font-black text-white active:scale-[0.97] transition-transform"
+                style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+          📞 Book {w.name.split(" ")[0]} Now
+        </button>
       </div>
     </div>
   );
