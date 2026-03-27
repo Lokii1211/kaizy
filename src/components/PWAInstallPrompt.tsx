@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, X } from "lucide-react";
+
+// ============================================================
+// PWA INSTALL PROMPT v10.0 — Stitch "Digital Artisan" Design
+// ============================================================
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -14,14 +17,12 @@ export default function PWAInstallPrompt() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if already dismissed
     const wasDismissed = localStorage.getItem("pwa-install-dismissed");
     if (wasDismissed) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show banner after 10 seconds
       setTimeout(() => setShowBanner(true), 10000);
     };
 
@@ -33,9 +34,7 @@ export default function PWAInstallPrompt() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setShowBanner(false);
-    }
+    if (outcome === "accepted") setShowBanner(false);
     setDeferredPrompt(null);
   };
 
@@ -49,25 +48,25 @@ export default function PWAInstallPrompt() {
 
   return (
     <div className="fixed bottom-20 left-3 right-3 z-[60] animate-slide-up">
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF6B2C] to-[#E55A1B] flex items-center justify-center shrink-0">
-          <Download className="w-6 h-6 text-white" />
+      <div className="rounded-[18px] p-4 flex items-center gap-3"
+           style={{ background: "var(--bg-card)", backdropFilter: "blur(20px)", boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-[22px]"
+             style={{ background: "var(--gradient-cta)" }}>
+          📲
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-extrabold text-gray-900">Install Kaizy</p>
-          <p className="text-[11px] text-gray-400">Add to home screen for faster access</p>
+          <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>Install Kaizy</p>
+          <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>Add to home screen for faster access</p>
         </div>
-        <button
-          onClick={handleInstall}
-          className="bg-[#FF6B2C] text-white text-[12px] font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform shrink-0"
-        >
+        <button onClick={handleInstall}
+                className="text-[10px] font-bold px-4 py-2 rounded-[12px] text-white active:scale-95 transition-transform shrink-0"
+                style={{ background: "var(--gradient-cta)" }}>
           Install
         </button>
-        <button
-          onClick={handleDismiss}
-          className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-        >
-          <X className="w-3.5 h-3.5 text-gray-400" />
+        <button onClick={handleDismiss}
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
+          <span className="text-[12px]" style={{ color: "var(--text-3)" }}>✕</span>
         </button>
       </div>
     </div>

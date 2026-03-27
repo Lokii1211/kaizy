@@ -1,137 +1,109 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Zap,
-  Phone,
-  Mail,
-  MapPin,
-  Facebook,
-  Twitter,
-  Instagram,
-  Linkedin,
-  Youtube,
-  ArrowUpRight,
-  Heart,
-} from "lucide-react";
+
+// ============================================================
+// FOOTER v10.0 — Stitch "Digital Artisan" Design
+// Dark gradient · No lucide-react · Tonal surfaces
+// ============================================================
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden" style={{ background: "var(--gradient-dark)" }}>
-      {/* Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#FF6B2C]/30 to-transparent" />
-      <div className="absolute top-20 right-10 w-64 h-64 rounded-full bg-[#FF6B2C]/5 blur-3xl" />
-      <div className="absolute bottom-20 left-10 w-48 h-48 rounded-full bg-[#3B82F6]/5 blur-3xl" />
+    <footer className="relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0a0a, #131313)" }}>
+      {/* Decorative */}
+      <div className="absolute top-0 left-0 w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(255,107,0,0.3), transparent)" }} />
+      <div className="absolute top-20 right-10 w-64 h-64 rounded-full blur-3xl" style={{ background: "rgba(255,107,0,0.04)" }} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8 relative z-10">
-        {/* Top Section — CTA */}
-        <div className="glass rounded-3xl p-8 md:p-12 mb-16 text-center">
-          <h3 className="text-2xl md:text-4xl font-bold text-white mb-4">
+        {/* CTA */}
+        <div className="rounded-[28px] p-8 md:p-12 mb-16 text-center"
+             style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(10px)" }}>
+          <h3 className="text-2xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Epilogue', sans-serif" }}>
             Ready to Transform India&apos;s Workforce?
           </h3>
-          <p className="text-white/60 max-w-2xl mx-auto mb-8 text-lg">
-            Join 55 crore skilled workers building their digital work identity. Start earning more. Start getting found.
+          <p className="text-white/50 max-w-2xl mx-auto mb-8 text-lg">
+            Join 55 crore skilled workers building their digital work identity.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register/worker" className="btn-primary !py-3 !px-8 !text-base">
-              I&apos;m a Worker
-              <ArrowUpRight className="w-5 h-5" />
+            <Link href="/register/worker"
+                  className="px-8 py-3 rounded-[16px] text-base font-bold text-white inline-flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                  style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+              I&apos;m a Worker ↗
             </Link>
-            <Link href="/register/hirer" className="btn-accent !py-3 !px-8 !text-base">
-              I&apos;m Hiring
-              <ArrowUpRight className="w-5 h-5" />
+            <Link href="/register/hirer"
+                  className="px-8 py-3 rounded-[16px] text-base font-bold inline-flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                  style={{ background: "var(--bg-surface)", color: "var(--text-1)" }}>
+              I&apos;m Hiring ↗
             </Link>
           </div>
         </div>
 
-        {/* Main Footer Grid */}
+        {/* Footer Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
-          {/* Brand Column */}
+          {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--gradient-primary)" }}
-              >
-                <Zap className="w-5 h-5 text-white" />
-              </div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px]"
+                   style={{ background: "var(--gradient-cta)" }}>⚡</div>
               <div>
-                <span className="text-xl font-bold text-white">
-                  kai<span className="text-[#FF6B2C]">zy</span>
-                </span>
-                <p className="text-[10px] text-white/40 -mt-1">India's Workforce OS</p>
+                <span className="text-xl font-bold text-white">kai<span style={{ color: "var(--brand)" }}>zy</span></span>
+                <p className="text-[10px] text-white/40 -mt-1">India&apos;s Workforce OS</p>
               </div>
             </Link>
             <p className="text-white/50 text-sm leading-relaxed mb-4">
-              India&apos;s Workforce Operating System. Verified work identity, instant job matching, same-day UPI payments.
+              Verified work identity, instant job matching, same-day UPI payments.
             </p>
             <div className="flex gap-3">
-              {[Facebook, Twitter, Instagram, Linkedin, Youtube].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="w-9 h-9 rounded-lg bg-white/5 hover:bg-[#FF6B2C]/20 flex items-center justify-center text-white/50 hover:text-[#FF6B2C] transition-all"
-                >
-                  <Icon className="w-4 h-4" />
+              {["📘", "🐦", "📸", "💼", "📺"].map((icon, i) => (
+                <a key={i} href="#"
+                   className="w-9 h-9 rounded-lg flex items-center justify-center transition-all text-[14px]"
+                   style={{ background: "rgba(255,255,255,0.05)" }}>
+                  {icon}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Links Columns */}
+          {/* Link Columns */}
           {[
-            {
-              title: "For Workers",
-              links: [
-                { name: "Register", href: "/register/worker" },
-                { name: "Find Jobs", href: "/marketplace" },
-                { name: "KaizyPass", href: "/worker/profile" },
-                { name: "KaizyScore", href: "#" },
-                { name: "Skill Courses", href: "#" },
-              ],
-            },
-            {
-              title: "For Businesses",
-              links: [
-                { name: "Post a Job", href: "/register/hirer" },
-                { name: "Find Workers", href: "/marketplace" },
-                { name: "Team Booking", href: "#" },
-                { name: "Contractor Portal", href: "#" },
-                { name: "Enterprise", href: "#" },
-              ],
-            },
-            {
-              title: "Platform",
-              links: [
-                { name: "How It Works", href: "#" },
-                { name: "KaizyPay", href: "#" },
-                { name: "Pricing", href: "#" },
-                { name: "API Docs", href: "#" },
-                { name: "Trust & Safety", href: "#" },
-              ],
-            },
-            {
-              title: "Company",
-              links: [
-                { name: "About Us", href: "#" },
-                { name: "Careers", href: "#" },
-                { name: "Blog", href: "#" },
-                { name: "Press", href: "#" },
-                { name: "Contact", href: "#" },
-              ],
-            },
+            { title: "For Workers", links: [
+              { name: "Register", href: "/register/worker" },
+              { name: "Find Jobs", href: "/marketplace" },
+              { name: "KaizyPass", href: "/worker/profile" },
+              { name: "KaizyScore", href: "#" },
+              { name: "Skill Courses", href: "/konnectlearn" },
+            ]},
+            { title: "For Businesses", links: [
+              { name: "Post a Job", href: "/post-job" },
+              { name: "Find Workers", href: "/marketplace" },
+              { name: "Team Booking", href: "#" },
+              { name: "Contractor Portal", href: "/contractor" },
+              { name: "Enterprise", href: "#" },
+            ]},
+            { title: "Platform", links: [
+              { name: "How It Works", href: "/#how-it-works" },
+              { name: "KaizyPay", href: "/konnectpay" },
+              { name: "Pricing", href: "/pricing" },
+              { name: "API Docs", href: "#" },
+              { name: "Trust & Safety", href: "#" },
+            ]},
+            { title: "Company", links: [
+              { name: "About Us", href: "#" },
+              { name: "Careers", href: "#" },
+              { name: "Blog", href: "#" },
+              { name: "Press", href: "#" },
+              { name: "Contact", href: "#" },
+            ]},
           ].map((col) => (
             <div key={col.title}>
               <h4 className="text-white font-semibold mb-4 text-sm">{col.title}</h4>
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.name}>
-                    <Link
-                      href={link.href}
-                      className="text-white/50 hover:text-[#FF6B2C] text-sm transition-colors"
-                    >
+                    <Link href={link.href}
+                          className="text-white/50 hover:text-white text-sm transition-colors">
                       {link.name}
                     </Link>
                   </li>
@@ -141,26 +113,23 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Contact Row */}
-        <div className="flex flex-wrap gap-6 py-6 border-t border-white/10 mb-6">
+        {/* Contact */}
+        <div className="flex flex-wrap gap-6 py-6 mb-6" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <a href="tel:+919876543210" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
-            <Phone className="w-4 h-4" />
-            +91 98765 43210
+            📞 +91 98765 43210
           </a>
           <a href="mailto:support@kaizy.com" className="flex items-center gap-2 text-white/50 hover:text-white text-sm transition-colors">
-            <Mail className="w-4 h-4" />
-            support@kaizy.com
+            ✉️ support@kaizy.com
           </a>
           <span className="flex items-center gap-2 text-white/50 text-sm">
-            <MapPin className="w-4 h-4" />
-            Coimbatore, Tamil Nadu, India
+            📍 Coimbatore, Tamil Nadu, India
           </span>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-white/10">
+        {/* Bottom */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="text-white/40 text-sm flex items-center gap-1">
-            © {currentYear} Kaizy. Made with <Heart className="w-3.5 h-3.5 text-[#FF6B2C] fill-[#FF6B2C]" /> in India
+            © {currentYear} Kaizy. Made with ❤️ in India
           </p>
           <div className="flex gap-6">
             {[
@@ -168,11 +137,8 @@ export default function Footer() {
               { text: "Terms of Service", href: "/terms" },
               { text: "DPDP Compliance", href: "/privacy" },
             ].map((link) => (
-              <Link
-                key={link.text}
-                href={link.href}
-                className="text-white/40 hover:text-white/70 text-sm transition-colors"
-              >
+              <Link key={link.text} href={link.href}
+                    className="text-white/40 hover:text-white/70 text-sm transition-colors">
                 {link.text}
               </Link>
             ))}
