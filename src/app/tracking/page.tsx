@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 
 // ============================================================
-// LIVE TRACKING — Real-time worker tracking with Mapbox
-// Uses REAL booking data from sessionStorage
-// Redirects to /booking if no booking data exists
+// LIVE TRACKING v10.0 — Stitch "Digital Artisan" Design
+// Glassmorphism overlays · JetBrains Mono · Gradient CTAs
 // ============================================================
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -335,16 +334,16 @@ export default function TrackingPage() {
              style={{ background: "var(--brand-tint)" }}>
           <span className="text-[36px]">📍</span>
         </div>
-        <h1 className="text-[20px] font-black mb-2" style={{ color: "var(--text-1)" }}>No Active Booking</h1>
-        <p className="text-[13px] text-center mb-6" style={{ color: "var(--text-3)" }}>
+        <h1 className="text-[20px] font-black tracking-tight mb-2" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No Active Booking</h1>
+        <p className="text-[12px] text-center mb-6 font-medium" style={{ color: "var(--text-3)" }}>
           Book a worker first to see live tracking with real-time map, ETA, and route navigation.
         </p>
         <Link href="/booking"
-              className="rounded-xl px-8 py-4 text-[15px] font-black text-white active:scale-[0.98] transition-transform"
-              style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+              className="rounded-[16px] px-8 py-4 text-[14px] font-black text-white active:scale-[0.97] transition-transform"
+              style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
           📋 Book a Worker
         </Link>
-        <Link href="/" className="mt-3 text-[12px] font-semibold" style={{ color: "var(--text-3)" }}>
+        <Link href="/" className="mt-3 text-[11px] font-bold" style={{ color: "var(--text-3)" }}>
           ← Back to Home
         </Link>
       </div>
@@ -369,15 +368,15 @@ export default function TrackingPage() {
         )}
 
         {/* Top bar */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-3">
-          <Link href="/" className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 shadow-lg"
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-5 pt-4">
+          <Link href="/" className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 shadow-lg"
                 style={{ background: "var(--bg-card)" }}>
             <span className="text-[15px]">←</span>
           </Link>
           <div className="rounded-full px-4 py-2 shadow-lg flex items-center gap-2"
-               style={{ background: "var(--bg-card)" }}>
+               style={{ background: "var(--bg-card)", backdropFilter: "blur(12px)" }}>
             <div className="w-2 h-2 rounded-full online-dot" style={{ background: info.color }} />
-            <span className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{info.label}</span>
+            <span className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{info.label}</span>
           </div>
           <button onClick={async () => {
             const url = window.location.href;
@@ -391,7 +390,7 @@ export default function TrackingPage() {
               await navigator.clipboard.writeText(url);
               alert("Tracking link copied!");
             }
-          }} className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 shadow-lg"
+          }} className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 shadow-lg"
                   style={{ background: "var(--bg-card)" }}>
             <span className="text-[15px]">📤</span>
           </button>
@@ -399,11 +398,11 @@ export default function TrackingPage() {
 
         {/* ETA badge — only with real data */}
         {status === "en_route" && eta > 0 && eta < 500 && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 rounded-2xl px-5 py-3 shadow-xl text-center"
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 rounded-[16px] px-5 py-3 shadow-xl text-center"
                style={{ background: "var(--brand)" }}>
-            <p className="text-[28px] font-black text-white leading-none">{eta}</p>
-            <p className="text-[9px] font-bold text-white mt-0.5" style={{ opacity: 0.8 }}>min away</p>
-            {distanceKm && <p className="text-[8px] text-white mt-0.5" style={{ opacity: 0.6 }}>{distanceKm}</p>}
+            <p className="text-[28px] font-black text-white leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{eta}</p>
+            <p className="text-[8px] font-bold text-white mt-0.5 uppercase tracking-wider" style={{ opacity: 0.8 }}>min away</p>
+            {distanceKm && <p className="text-[8px] text-white mt-0.5" style={{ opacity: 0.6, fontFamily: "'JetBrains Mono', monospace" }}>{distanceKm}</p>}
           </div>
         )}
 
@@ -423,34 +422,33 @@ export default function TrackingPage() {
       </div>
 
       {/* BOTTOM SHEET */}
-      <div className="shrink-0 rounded-t-3xl -mt-4 relative z-10 px-4 pt-5 pb-6"
-           style={{ background: "var(--bg-app)", boxShadow: "0 -4px 20px rgba(0,0,0,0.08)" }}>
+      <div className="shrink-0 rounded-t-[24px] -mt-4 relative z-10 px-5 pt-5 pb-6"
+           style={{ background: "var(--bg-app)", boxShadow: "0 -4px 24px rgba(0,0,0,0.06)" }}>
         <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: "var(--bg-elevated)" }} />
 
         {/* Worker info */}
         {worker && (
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold text-white"
-                 style={{ background: "var(--brand)" }}>{worker.initials}</div>
+                 style={{ background: "var(--gradient-cta)" }}>{worker.initials}</div>
             <div className="flex-1">
-              <p className="text-[15px] font-black" style={{ color: "var(--text-1)" }}>{worker.name}</p>
+              <p className="text-[14px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{worker.name}</p>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{tradeIcons[worker.trade.toLowerCase()] || "🔧"} {worker.trade}</span>
-                {worker.rating > 0 && <span className="text-[11px]" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>}
-                {worker.kaizyScore > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold text-white"
-                      style={{ background: "var(--info)" }}>KS {worker.kaizyScore}</span>}
+                <span className="text-[10px] font-bold" style={{ color: "var(--text-3)" }}>{tradeIcons[worker.trade.toLowerCase()] || "🔧"} {worker.trade}</span>
+                {worker.rating > 0 && <span className="text-[10px] font-bold" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>}
+                {worker.kaizyScore > 0 && <span className="trust-badge">KS {worker.kaizyScore}</span>}
               </div>
             </div>
             <div className="flex gap-2">
               {worker.phone && (
                 <a href={`tel:${worker.phone}`}
-                   className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
+                   className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
                    style={{ background: "var(--success)" }}>
                   <span className="text-white text-[16px]">📞</span>
                 </a>
               )}
               <Link href="/chat"
-                    className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
                     style={{ background: "var(--brand)" }}>
                 <span className="text-white text-[16px]">💬</span>
               </Link>
@@ -460,9 +458,9 @@ export default function TrackingPage() {
 
         {/* OTP Card */}
         {status === "arrived" && (
-          <div className="rounded-xl p-4 mb-4 text-center anim-pop"
-               style={{ background: "var(--brand-tint)", border: "2px solid var(--brand)" }}>
-            <p className="text-[11px] font-semibold" style={{ color: "var(--brand)" }}>Share this OTP to start the job</p>
+          <div className="rounded-[16px] p-4 mb-4 text-center anim-pop"
+               style={{ background: "var(--brand-tint)" }}>
+            <p className="text-[10px] font-bold" style={{ color: "var(--brand)" }}>Share this OTP to start the job</p>
             <p className="text-[32px] font-black tracking-[0.3em] mt-1"
                style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{otp}</p>
           </div>
@@ -508,12 +506,12 @@ export default function TrackingPage() {
                 if (userPos) {
                   window.open(`https://www.google.com/maps/dir/?api=1&destination=${userPos.lat},${userPos.lng}&travelmode=driving`, '_blank');
                 }
-              }} className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
+              }} className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
                       style={{ background: "var(--info)" }}>
                 🗺️ Navigate
               </button>
               <button onClick={() => { setStatus("arrived"); setEta(0); }}
-                      className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
+                      className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
                       style={{ background: "var(--success)" }}>
                 📍 Arrived
               </button>
@@ -521,28 +519,28 @@ export default function TrackingPage() {
           )}
           {status === "arrived" && (
             <button onClick={() => setStatus("working")}
-                    className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
-                    style={{ background: "var(--brand)" }}>
+                    className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
+                    style={{ background: "var(--gradient-cta)" }}>
               ▶ Start Job
             </button>
           )}
           {status === "working" && (
             <button onClick={() => setStatus("completed")}
-                    className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white active:scale-95"
+                    className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
                     style={{ background: "var(--success)" }}>
               ✓ Job Complete
             </button>
           )}
           {status === "completed" && (
             <Link href="/booking"
-                  className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold text-white active:scale-95"
-                  style={{ background: "var(--brand)" }}>
+                  className="flex-1 rounded-[14px] py-3.5 text-center text-[12px] font-bold text-white active:scale-95 transition-transform"
+                  style={{ background: "var(--gradient-cta)" }}>
               💵 Pay Cash & Review →
             </Link>
           )}
           <Link href="/"
-                className="rounded-xl py-3.5 px-5 text-[13px] font-bold active:scale-95"
-                style={{ background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>
+                className="rounded-[14px] py-3.5 px-5 text-[12px] font-bold active:scale-95 transition-transform"
+                style={{ background: "var(--bg-surface)", color: "var(--text-2)" }}>
             ✕
           </Link>
         </div>

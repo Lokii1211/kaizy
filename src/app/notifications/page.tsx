@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 // ============================================================
-// NOTIFICATIONS — Real Supabase data + working Accept/Decline
+// NOTIFICATIONS v10.0 — Stitch "Digital Artisan" Design
+// Epilogue headlines · Tonal surfaces · No borders
 // ============================================================
 
 interface Notification {
@@ -157,23 +158,23 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex justify-between items-center mb-3">
-          <Link href="/" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-                style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 pt-5 pb-3">
+        <div className="flex justify-between items-center mb-4">
+          <Link href="/" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                style={{ background: "var(--bg-surface)" }}>
             <span className="text-[14px]">←</span>
           </Link>
-          <h1 className="text-[16px] font-black" style={{ color: "var(--text-1)" }}>Activity</h1>
-          <button onClick={markAllRead} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Mark all read</button>
+          <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Activity</h1>
+          <button onClick={markAllRead} className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>Mark read</button>
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {tabs.map((t, i) => (
             <button key={t} onClick={() => setActiveTab(i)}
-                    className="shrink-0 rounded-full px-3.5 py-[7px] text-[11px] font-bold active:scale-95"
-                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-card)", color: activeTab === i ? "#fff" : "var(--text-2)" }}>
+                    className="shrink-0 rounded-full px-4 py-[7px] text-[10px] font-bold active:scale-95 transition-all"
+                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-surface)", color: activeTab === i ? "#FFDBCC" : "var(--text-3)" }}>
               {t}
               {i === 0 && notifications.filter(n => !n.is_read).length > 0 && (
-                <span className="ml-1 text-[9px] bg-white text-orange-500 rounded-full px-1.5 font-black">
+                <span className="ml-1 text-[8px] bg-white text-orange-500 rounded-full px-1.5 font-black">
                   {notifications.filter(n => !n.is_read).length}
                 </span>
               )}
@@ -182,7 +183,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="px-4 mt-3 space-y-2">
+      <div className="px-5 mt-3 space-y-2.5">
         {/* Loading */}
         {loading && [1,2,3].map(i => (
           <div key={i} className="skeleton rounded-xl" style={{ height: 80 }} />
@@ -209,33 +210,32 @@ export default function NotificationsPage() {
           const isDeclined = declined.includes(n.id);
 
           return (
-            <div key={n.id} className="rounded-xl p-3 anim-up"
+            <div key={n.id} className="rounded-[16px] p-3.5 anim-up"
                  style={{
-                   background: !n.is_read ? "var(--brand-tint)" : "var(--bg-card)",
-                   border: !n.is_read ? "1px solid rgba(255,107,0,0.15)" : "1px solid var(--border-1)",
+                   background: !n.is_read ? "var(--brand-tint)" : "var(--bg-surface)",
                  }}>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-[18px] shrink-0"
-                     style={{ background: "var(--bg-elevated)" }}>{icon}</div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[16px] shrink-0"
+                     style={{ background: "var(--bg-card)" }}>{icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{n.title}</p>
+                    <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{n.title}</p>
                     {!n.is_read && <div className="w-2 h-2 rounded-full shrink-0 online-dot" style={{ background: "var(--brand)" }} />}
                   </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: "var(--text-2)" }}>{n.body}</p>
-                  <p className="text-[9px] mt-1 font-semibold" style={{ color: "var(--text-3)" }}>{timeAgo(n.created_at)}</p>
+                  <p className="text-[10px] mt-0.5 font-medium" style={{ color: "var(--text-2)" }}>{n.body}</p>
+                  <p className="text-[8px] mt-1 font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>{timeAgo(n.created_at)}</p>
                 </div>
               </div>
 
               {/* Real Accept/Decline for job alerts — WORKERS ONLY */}
               {isJobAlert && !isAccepted && !isDeclined && userType === "worker" && (
-                <div className="flex gap-2 mt-2 pl-[52px]">
+                <div className="flex gap-2 mt-2.5 pl-[52px]">
                   <button onClick={() => handleAccept(n)}
-                          className="flex-1 rounded-lg py-2 text-[11px] font-bold text-white active:scale-95"
+                          className="flex-1 rounded-full py-2 text-[10px] font-bold text-white active:scale-95 transition-transform"
                           style={{ background: "var(--success)" }}>✓ Accept</button>
                   <button onClick={() => handleDecline(n)}
-                          className="flex-1 rounded-lg py-2 text-[11px] font-bold active:scale-95"
-                          style={{ background: "var(--danger-tint)", color: "var(--danger)", border: "1px solid var(--danger)" }}>✕ Decline</button>
+                          className="flex-1 rounded-full py-2 text-[10px] font-bold active:scale-95 transition-transform"
+                          style={{ background: "var(--danger-tint)", color: "var(--danger)" }}>✕ Decline</button>
                 </div>
               )}
               {isAccepted && <p className="text-[10px] font-bold mt-2 pl-[52px]" style={{ color: "var(--success)" }}>✓ Accepted — Navigating to job</p>}

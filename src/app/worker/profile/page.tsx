@@ -38,71 +38,71 @@ export default function KaizyPassPage() {
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
-      <div className="px-4 pt-4 pb-2">
-        <Link href="/settings" className="w-9 h-9 rounded-full flex items-center justify-center active:scale-90"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+      <div className="px-5 pt-5 pb-2">
+        <Link href="/settings" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+              style={{ background: "var(--bg-surface)" }}>
           <span className="text-[14px]">←</span>
         </Link>
       </div>
 
       {/* Hero */}
-      <div className="text-center px-4 pt-2 pb-5" style={{ background: "linear-gradient(180deg, rgba(255,107,0,0.08) 0%, var(--bg-app) 100%)" }}>
+      <div className="text-center px-5 pt-3 pb-6" style={{ background: "linear-gradient(180deg, rgba(255,107,0,0.06) 0%, var(--bg-app) 100%)" }}>
         <div className="w-[80px] h-[80px] rounded-full flex items-center justify-center text-[32px] font-black text-white mx-auto mb-3"
-             style={{ background: "var(--brand)", boxShadow: "0 0 0 4px rgba(255,107,0,0.15), var(--shadow-brand)" }}>{initials}</div>
-        <h1 className="text-[20px] font-black" style={{ color: "var(--text-1)", fontFamily: "var(--font-syne)" }}>{name}</h1>
-        <p className="text-[12px] font-bold" style={{ color: "var(--brand)" }}>{trade} · {exp} yrs</p>
-        <div className="flex justify-center gap-2 mt-2">
+             style={{ background: "var(--gradient-cta)", boxShadow: "0 0 0 4px rgba(255,107,0,0.12), var(--shadow-brand)" }}>{initials}</div>
+        <h1 className="text-[20px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{name}</h1>
+        <p className="text-[11px] font-bold mt-0.5" style={{ color: "var(--brand-soft)" }}>{trade} · {exp} yrs</p>
+        <div className="flex justify-center gap-2 mt-2.5">
           {user?.aadhaar_verified && (
-            <span className="text-[9px] font-bold px-2.5 py-1 rounded-[20px]" style={{ border: "1px solid var(--success)", color: "var(--success)" }}>✓ Aadhaar</span>
+            <span className="trust-badge">✓ Aadhaar</span>
           )}
           {rating >= 4.5 && (
-            <span className="text-[9px] font-bold px-2.5 py-1 rounded-[20px]" style={{ border: "1px solid var(--warning)", color: "var(--warning)" }}>⭐ Top Rated</span>
+            <span className="text-[8px] font-bold px-2.5 py-1 rounded-full" style={{ background: "var(--warning)", color: "#fff" }}>⭐ Top Rated</span>
           )}
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 mx-4 mb-4">
+      <div className="grid grid-cols-3 gap-2.5 mx-5 mb-5">
         {[
           { v: rating > 0 ? `${rating.toFixed(1)} ⭐` : "—", l: "Rating", c: "var(--brand)" },
           { v: String(jobs), l: "Jobs Done", c: "var(--text-1)" },
           { v: jobs > 0 ? `${Math.round((jobs / Math.max(jobs + 2, 1)) * 100)}%` : "—", l: "Completion", c: "var(--success)" },
         ].map(s => (
-          <div key={s.l} className="rounded-[14px] py-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <p className="text-[18px] font-black" style={{ color: s.c }}>{s.v}</p>
-            <p className="text-[9px] font-semibold" style={{ color: "var(--text-3)" }}>{s.l}</p>
+          <div key={s.l} className="rounded-[14px] py-3 text-center" style={{ background: "var(--bg-surface)" }}>
+            <p className="text-[18px] font-black" style={{ color: s.c, fontFamily: "'JetBrains Mono', monospace" }}>{s.v}</p>
+            <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>{s.l}</p>
           </div>
         ))}
       </div>
 
       {/* KaizyScore */}
-      <div className="mx-4 rounded-[14px] p-4 mb-4" style={{ background: "var(--bg-card)", border: "2px solid var(--brand)" }}>
+      <div className="mx-5 rounded-[16px] p-4 mb-5" style={{ background: "var(--brand-tint)" }}>
         <div className="flex items-center gap-3">
-          <p className="text-[36px] font-black" style={{ color: "var(--brand)", fontFamily: "var(--font-syne)" }}>{ks}</p>
+          <p className="text-[36px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{ks}</p>
           <div className="flex-1">
-            <p className="text-[12px] font-extrabold" style={{ color: "var(--text-1)" }}>
+            <p className="text-[11px] font-extrabold" style={{ color: "var(--text-1)" }}>
               {ks >= 700 ? "Credit Ready" : ks >= 500 ? "Building Score" : "Getting Started"}
             </p>
             <div className="rounded-full overflow-hidden mt-1" style={{ height: 6, background: "var(--bg-elevated)" }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (ks / 900) * 100)}%`, background: "linear-gradient(90deg, var(--brand), var(--warning))" }} />
+              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (ks / 900) * 100)}%`, background: "var(--gradient-cta)" }} />
             </div>
-            {ks >= 600 && <p className="text-[10px] mt-1" style={{ color: "var(--brand)" }}>Loan eligible →</p>}
+            {ks >= 600 && <p className="text-[9px] mt-1 font-bold" style={{ color: "var(--brand)" }}>Loan eligible →</p>}
           </div>
         </div>
       </div>
 
       {/* Bio */}
       {user?.bio && (
-        <div className="px-4 mb-4">
-          <p className="text-[12px] font-extrabold mb-2" style={{ color: "var(--text-1)" }}>About</p>
-          <p className="text-[11px] rounded-[14px] p-3" style={{ color: "var(--text-2)", background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>{user.bio}</p>
+        <div className="px-5 mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>About</p>
+          <p className="text-[11px] rounded-[14px] p-3.5 font-medium" style={{ color: "var(--text-2)", background: "var(--bg-surface)" }}>{user.bio}</p>
         </div>
       )}
 
       {/* Actions */}
-      <div className="px-4">
-        <Link href="/settings" className="block w-full py-3.5 rounded-[14px] text-center text-[13px] font-bold text-white active:scale-95"
-              style={{ background: "var(--brand)" }}>Edit Profile</Link>
+      <div className="px-5">
+        <Link href="/settings" className="block w-full py-3.5 rounded-[16px] text-center text-[12px] font-bold text-white active:scale-[0.97] transition-transform"
+              style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>Edit Profile</Link>
       </div>
     </div>
   );

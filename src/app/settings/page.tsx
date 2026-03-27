@@ -19,6 +19,7 @@ interface UserProfile {
 const workerMenuSections = [
   { title: "Worker", items: [
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
+    { icon: "📊", label: "Performance Dashboard", href: "/dashboard/performance" },
     { icon: "📋", label: "My Jobs", href: "/my-bookings" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
     { icon: "🪪", label: "Verify Identity", href: "/verify" },
@@ -30,6 +31,7 @@ const workerMenuSections = [
     { icon: "⏰", label: "My Schedule", href: "/schedule" },
     { icon: "🌐", label: "Language", href: "#" },
     { icon: "🔔", label: "Notifications", href: "/notifications" },
+    { icon: "⚙️", label: "Notification Settings", href: "/settings/notifications" },
   ]},
   { title: "Support", items: [
     { icon: "💬", label: "KaizyBot Help", href: "/konnectbot" },
@@ -46,11 +48,13 @@ const hirerMenuSections = [
     { icon: "📋", label: "My Bookings", href: "/my-bookings" },
     { icon: "❤️", label: "Saved Workers", href: "/saved-workers" },
     { icon: "📝", label: "Post a Job", href: "/booking" },
+    { icon: "💰", label: "Pricing Guide", href: "/pricing" },
     { icon: "🎁", label: "Refer & Earn", href: "/referral" },
   ]},
   { title: "Preferences", items: [
     { icon: "🌐", label: "Language", href: "#" },
     { icon: "🔔", label: "Notifications", href: "/notifications" },
+    { icon: "⚙️", label: "Notification Settings", href: "/settings/notifications" },
     { icon: "📍", label: "Saved Locations", href: "/saved-addresses" },
   ]},
   { title: "Support", items: [
@@ -163,7 +167,7 @@ export default function SettingsPage() {
             {section.items.map((item, i) => (
               <Link key={item.label} href={item.href}
                     className="flex items-center gap-3 px-4 py-[13px] active:opacity-70 transition-opacity"
-                    style={{ borderBottom: i < section.items.length - 1 ? "1px solid var(--border-1)" : "none" }}>
+                     style={{ borderBottom: i < section.items.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--bg-surface)" }}>
                   <span className="text-[14px]">{item.icon}</span>
                 </div>
