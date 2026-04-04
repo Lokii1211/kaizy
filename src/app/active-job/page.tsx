@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import SafetyCheckIn from "@/components/SafetyCheckIn";
 
 // ============================================================
 // WORKER ACTIVE JOB v11.0 — Job lifecycle from worker's POV
@@ -32,6 +33,14 @@ export default function ActiveJobPage() {
   const [showChat, setShowChat] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+
+  // ─── DIAGNOSIS/QUOTE STATE (3-Stage Pricing) ───
+  const [showDiagnosis, setShowDiagnosis] = useState(false);
+  const [diagnosisText, setDiagnosisText] = useState("");
+  const [complexity, setComplexity] = useState<"simple" | "medium" | "complex">("simple");
+  const [quotedAmount, setQuotedAmount] = useState(300);
+  const [quoteSent, setQuoteSent] = useState(false);
+  const [quoteApproved, setQuoteApproved] = useState(false);
 
   // Mock job data (from API in production)
   const job = {
@@ -311,6 +320,128 @@ export default function ActiveJobPage() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ═══ SAFETY CHECK-IN (Uber RideCheck inspired) ═══ */}
+      <SafetyCheckIn
+        bookingId={job.id}
+        workerId="current-worker"
+        isWorkerArrived={status === "arrived" || status === "in_progress"}
+        isNightJob={new Date().getHours() >= 21 || new Date().getHours() < 6}
+        onSOS={() => router.push("/emergency")}
+      />
+
+      {/* ═══ DIAGNOSIS / QUOTE FORM (3-Stage Pricing) ═══ */}
+      {status === "arrived" && !quoteSent && (
+        <div className="mx-5 mb-4">
+          <button
+            onClick={() => setShowDiagnosis(!showDiagnosis)}
+            className="w-full rounded-[16px] py-3.5 text-[13px] font-bold active:scale-[0.97] transition-all"
+            style={{ background: "var(--bg-card)", color: "var(--brand)", border: "1px solid var(--brand)" }}
+          >
+            🔍 Diagnose & Send Quote
+          </button>
+
+          {showDiagnosis && (
+            <div className="mt-3 rounded-[20px] p-4 anim-up" style={{ background: "var(--bg-card)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>
+                What did you find?
+              </p>
+
+              {/* Diagnosis text */}
+              <textarea
+                value={diagnosisText}
+                onChange={e => setDiagnosisText(e.target.value)}
+                placeholder="e.g. Faulty wiring behind switchboard, capacitor needs replacement"
+                className="w-full rounded-[12px] p-3 text-[12px] resize-none"
+                style={{ background: "var(--bg-surface)", color: "var(--text-1)", border: "1px solid var(--border)", minHeight: 60 }}
+                rows={2}
+              />
+
+              {/* Complexity */}
+              <p className="text-[9px] font-bold uppercase tracking-widest mt-3 mb-2" style={{ color: "var(--text-3)" }}>
+                Complexity
+              </p>
+              <div className="flex gap-2">
+                {(["simple", "medium", "complex"] as const).map(c => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setComplexity(c);
+                      setQuotedAmount(c === "simple" ? 300 : c === "medium" ? 600 : 1200);
+                    }}
+                    className="flex-1 rounded-[12px] py-2.5 text-[11px] font-bold transition-all"
+                    style={{
+                      background: complexity === c ? "var(--brand)" : "var(--bg-surface)",
+                      color: complexity === c ? "#fff" : "var(--text-2)",
+                    }}
+                  >
+                    {c === "simple" ? "⚡ Simple" : c === "medium" ? "🔧 Medium" : "⚠️ Complex"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Amount */}
+              <p className="text-[9px] font-bold uppercase tracking-widest mt-3 mb-1" style={{ color: "var(--text-3)" }}>
+                Your Quote: ₹{quotedAmount}
+              </p>
+              <input
+                type="range"
+                min={100}
+                max={3000}
+                step={50}
+                value={quotedAmount}
+                onChange={e => setQuotedAmount(Number(e.target.value))}
+                className="w-full"
+                style={{ accentColor: "var(--brand)" }}
+              />
+              <div className="flex justify-between text-[9px] font-medium" style={{ color: "var(--text-3)" }}>
+                <span>₹100</span>
+                <span>₹3,000</span>
+              </div>
+
+              {/* Send Quote */}
+              <button
+                onClick={async () => {
+                  if (!diagnosisText.trim()) return;
+                  try {
+                    await fetch("/api/bookings/quote", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        bookingId: job.id,
+                        workerId: "current-worker",
+                        diagnosis: diagnosisText,
+                        complexityLevel: complexity,
+                        suggestedAmount: quotedAmount,
+                        estimatedDuration: complexity === "simple" ? "30 min" : complexity === "medium" ? "1-2 hours" : "2-3 hours",
+                      }),
+                    });
+                  } catch {}
+                  setQuoteSent(true);
+                  setShowDiagnosis(false);
+                }}
+                disabled={!diagnosisText.trim()}
+                className="w-full mt-3 rounded-[14px] py-3.5 text-[13px] font-bold text-white active:scale-[0.97] transition-all"
+                style={{
+                  background: diagnosisText.trim() ? "var(--gradient-cta)" : "var(--bg-elevated)",
+                  color: diagnosisText.trim() ? "#fff" : "var(--text-3)",
+                }}
+              >
+                📩 Send Quote ₹{quotedAmount} to Customer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quote sent — waiting for approval */}
+      {quoteSent && !quoteApproved && status === "arrived" && (
+        <div className="mx-5 mb-4 rounded-[16px] p-4 text-center" style={{ background: "var(--warning-tint, rgba(255,184,0,0.1))", border: "1px solid rgba(255,184,0,0.2)" }}>
+          <p className="text-[14px] font-bold" style={{ color: "var(--warning, #FFB800)" }}>⏳ Quote Sent — ₹{quotedAmount}</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>Waiting for customer approval...</p>
+          <p className="text-[9px] mt-2" style={{ color: "var(--text-3)" }}>Diagnosis: {diagnosisText}</p>
         </div>
       )}
 
