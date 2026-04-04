@@ -1,17 +1,17 @@
 "use client";
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // MOBILE NAV — Stitch "Digital Artisan" Bottom Dock
-// Glassmorphism base · Saffron active bubble · No harsh borders
+// Uses AuthStore for instant role detection (no cookie parsing)
 // ============================================================
 
 const hirerNav: Array<{ emoji: string; label: string; href: string; isSos?: boolean }> = [
   { emoji: "🏠", label: "Home", href: "/" },
   { emoji: "🆘", label: "SOS", href: "/emergency", isSos: true },
-  { emoji: "📋", label: "Bookings", href: "/dashboard/hirer" },
+  { emoji: "📋", label: "Bookings", href: "/my-bookings" },
   { emoji: "👤", label: "Profile", href: "/settings" },
 ];
 
@@ -22,21 +22,20 @@ const workerNav: Array<{ emoji: string; label: string; href: string; isSos?: boo
   { emoji: "👤", label: "Profile", href: "/settings" },
 ];
 
+const hideOnRoutes = [
+  "/login", "/register/worker", "/register/hirer",
+  "/tracking", "/chat", "/verify",
+  "/onboarding/specialization", "/onboarding/bank",
+];
+
 export default function MobileNav() {
   const pathname = usePathname();
-  const [userType, setUserType] = useState<string>("hirer");
+  const { userType } = useAuth();
 
-  useEffect(() => {
-    const cookies = document.cookie.split(';').reduce((acc, c) => {
-      const [k, v] = c.trim().split('=');
-      acc[k] = v;
-      return acc;
-    }, {} as Record<string, string>);
-    if (cookies.kaizy_user_type) setUserType(cookies.kaizy_user_type);
-  }, [pathname]);
-
-  const hideOn = ["/login", "/register/worker", "/register/hirer", "/tracking", "/chat"];
-  if (hideOn.some(p => pathname === p)) return null;
+  // Hide nav on auth/onboarding/fullscreen routes
+  if (hideOnRoutes.some(p => pathname === p || pathname.startsWith(p + "/"))) return null;
+  // Also hide on booking tracking states
+  if (pathname.startsWith("/booking/") && pathname !== "/my-bookings") return null;
 
   const navItems = userType === "worker" ? workerNav : hirerNav;
 

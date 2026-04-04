@@ -532,10 +532,10 @@ export default function TrackingPage() {
             </button>
           )}
           {status === "completed" && (
-            <Link href="/booking"
+            <Link href={`/review?worker=${encodeURIComponent(worker?.name || "Worker")}&trade=${encodeURIComponent(worker?.trade || "worker")}&amount=500`}
                   className="flex-1 rounded-[14px] py-3.5 text-center text-[12px] font-bold text-white active:scale-95 transition-transform"
                   style={{ background: "var(--gradient-cta)" }}>
-              💵 Pay Cash & Review →
+              ⭐ Rate & Review →
             </Link>
           )}
           <Link href="/"
@@ -545,15 +545,6 @@ export default function TrackingPage() {
           </Link>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes track-pulse {
-          0% { transform: scale(1); opacity: 0.5; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        .mapboxgl-ctrl-attrib { display: none !important; }
-        #worker-tracker { transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-      `}</style>
     </div>
   );
 }

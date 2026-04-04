@@ -203,10 +203,6 @@ export default function AdminDashboard() {
       <p className="text-center text-[9px] mt-6 pb-4" style={{ color: "var(--text-3)" }}>
         Last refreshed: {s?.generatedAt ? new Date(s.generatedAt).toLocaleTimeString("en-IN") : "—"}
       </p>
-
-      <style jsx global>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

@@ -1,226 +1,179 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 
 // ============================================================
-// Kaizy — FULL-SCREEN JOB ALERT (Rapido/Uber style)
-// 45-second countdown · Accept/Decline · Sound + Vibration
-// Shows when worker is ONLINE and receives a JOB_ALERT
+// JOB ALERT v11.0 — Full-screen worker job notification
+// Reference: Rapido captain full-screen alert
+// 45-second countdown · Accept/Decline · Voice readout
+// The most critical moment in the entire app
 // ============================================================
 
-interface JobAlertData {
-  alertId: string;
-  jobId: string;
+export interface JobAlert {
+  id: string;
   trade: string;
+  tradeIcon: string;
+  problem: string;
   distance: number;
+  eta: number;
   earnings: number;
-  problemType?: string;
-  address?: string;
-  hirerName?: string;
-  isEmergency?: boolean;
+  hirerRating: number;
+  hirerName: string;
+  duration: string;
+  isEmergency: boolean;
+  address: string;
 }
 
-interface JobAlertProps {
-  alert: JobAlertData;
-  onAccept: (alertId: string) => void;
-  onDecline: (alertId: string) => void;
+interface JobAlertOverlayProps {
+  alert: JobAlert;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
 }
 
-const TRADE_ICONS: Record<string, string> = {
-  electrician: "⚡", electrical: "⚡", plumber: "🔧", plumbing: "🔧",
-  mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨",
-  mason: "⚒️", puncture: "🛞", technician: "🔧",
-};
-const TRADE_COLORS: Record<string, string> = {
-  electrician: "#FF6B00", plumber: "#3B82F6", mechanic: "#8B5CF6",
-  ac_repair: "#06B6D4", carpenter: "#10B981", painter: "#F59E0B",
-  mason: "#6366F1", puncture: "#EF4444",
-};
-
-export default function JobAlertOverlay({ alert, onAccept, onDecline }: JobAlertProps) {
+export default function JobAlertOverlay({ alert, onAccept, onDecline }: JobAlertOverlayProps) {
   const [timeLeft, setTimeLeft] = useState(45);
-  const [accepting, setAccepting] = useState(false);
   const [declining, setDeclining] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const trade = alert.trade?.toLowerCase() || "technician";
-  const icon = TRADE_ICONS[trade] || "🔧";
-  const color = TRADE_COLORS[trade] || "#FF6B00";
-
-  // Countdown timer
+  // 45-second countdown
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          onDecline(alert.alertId);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    // Vibrate pattern
-    if (navigator.vibrate) {
-      navigator.vibrate([200, 100, 200, 100, 400]);
+    if (timeLeft <= 0) {
+      onDecline(alert.id);
+      return;
     }
+    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, alert.id, onDecline]);
 
-    // Try to play alert sound (may fail on mobile without user gesture)
-    try {
-      audioRef.current = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczHjmYv9/TqVFFO3++0tu5fVY9WKjGy7JxRjttt83OuohdSl+ry8avZ0M6ZbLKxqlhQDlqtsrGpmA/OWy3ysepYkE6bLfKx6ljQTpst8rHqWNBOm23ysmqZEI7b7nLyatmQzxwuszJq2ZDO2+5y8mrZkM8cLrMyatmQztvu8vJq2dEPHG7zMmsZ0Q8crvMyaxnRDxyu8zJrGdEPHK7zMmsaEU9c7zNya1oRj50vc7KrmhGPnS9zsquaUc+db7Oyq5pRz52vs7KrmpHP3a/z8uva0hAd8DPy69sSEB3wM/Lr2xIQHfBz8uvbElBeMHP");
-      audioRef.current.volume = 0.5;
-      audioRef.current.play().catch(() => {});
-    } catch {}
+  // Vibration pattern: long-short-short
+  useEffect(() => {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }, []);
 
-    return () => {
-      clearInterval(timerRef.current);
-      audioRef.current?.pause();
-    };
-  }, [alert.alertId, onDecline]);
+  const handleDecline = useCallback(() => setDeclining(true), []);
 
-  const handleAccept = useCallback(async () => {
-    setAccepting(true);
-    clearInterval(timerRef.current);
-    audioRef.current?.pause();
-    if (navigator.vibrate) navigator.vibrate(100);
-    onAccept(alert.alertId);
-  }, [alert.alertId, onAccept]);
+  const confirmDecline = () => onDecline(alert.id);
 
-  const handleDecline = useCallback(() => {
-    setDeclining(true);
-    clearInterval(timerRef.current);
-    audioRef.current?.pause();
-    if (navigator.vibrate) navigator.vibrate(50);
-    onDecline(alert.alertId);
-  }, [alert.alertId, onDecline]);
-
+  const urgencyMultiplier = alert.isEmergency ? 1.8 : 1;
+  const displayEarnings = Math.round(alert.earnings * urgencyMultiplier);
   const progress = (timeLeft / 45) * 100;
-  const isUrgent = timeLeft <= 10;
+
+  const declineReasons = ["Too far away", "Currently busy", "Don't have tools", "Taking a break", "Other"];
+
+  if (declining) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-end" style={{ background: "rgba(0,0,0,0.85)" }}>
+        <div className="w-full rounded-t-[28px] p-6 anim-up" style={{ background: "var(--bg-card)" }}>
+          <h3 className="text-[16px] font-black mb-4" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+            Why are you declining?
+          </h3>
+          <div className="space-y-2 mb-4">
+            {declineReasons.map(reason => (
+              <button key={reason} onClick={confirmDecline}
+                      className="w-full text-left rounded-[14px] p-3.5 text-[12px] font-bold active:scale-[0.98] transition-transform"
+                      style={{ background: "var(--bg-surface)", color: "var(--text-1)" }}>
+                {reason}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setDeclining(false)}
+                  className="w-full rounded-[14px] py-3 text-[12px] font-bold"
+                  style={{ background: "var(--bg-surface)", color: "var(--text-3)" }}>
+            ← Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col" style={{ background: "rgba(0,0,0,0.95)" }}>
-      {/* Animated background pulse */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `radial-gradient(circle at 50% 40%, ${color}22 0%, transparent 70%)`,
-        animation: "pulse 2s ease-in-out infinite",
-      }} />
-
-      {/* Top countdown bar */}
-      <div className="relative w-full h-1.5" style={{ background: "rgba(255,255,255,0.1)" }}>
-        <div className="h-full transition-all duration-1000 ease-linear" style={{
-          width: `${progress}%`,
-          background: isUrgent ? "#EF4444" : color,
-          boxShadow: `0 0 12px ${isUrgent ? "#EF4444" : color}`,
-        }} />
+    <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: "#0A0A0A" }}>
+      {/* Countdown bar */}
+      <div className="w-full h-1" style={{ background: "var(--bg-elevated)" }}>
+        <div className="h-full rounded-r-full transition-all"
+             style={{ width: `${progress}%`, background: timeLeft <= 10 ? "var(--danger)" : "var(--brand)", transition: "width 1s linear" }} />
       </div>
 
       {/* Timer */}
-      <div className="text-center pt-8 pb-4">
-        <p className="text-[13px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.5)" }}>
-          {alert.isEmergency ? "🆘 EMERGENCY JOB" : "NEW JOB ALERT"}
+      <div className="text-center pt-6 pb-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-1"
+           style={{ color: timeLeft <= 10 ? "var(--danger)" : "var(--text-3)" }}>
+          {alert.isEmergency ? "🆘 EMERGENCY JOB ALERT" : "NEW JOB ALERT"}
         </p>
-        <div className="relative inline-flex items-center justify-center">
-          {/* Circular timer */}
-          <svg width="120" height="120" className="transform -rotate-90">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
-            <circle cx="60" cy="60" r="52" fill="none" stroke={isUrgent ? "#EF4444" : color}
-                    strokeWidth="6" strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 52}`}
-                    strokeDashoffset={`${2 * Math.PI * 52 * (1 - progress / 100)}`}
-                    className="transition-all duration-1000 ease-linear" />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="text-[36px] font-black text-white" style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: isUrgent ? "#EF4444" : "#fff",
-            }}>
-              {timeLeft}
-            </span>
-            <span className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>SECONDS</span>
-          </div>
-        </div>
+        <p className="text-[48px] font-black"
+           style={{ color: timeLeft <= 10 ? "var(--danger)" : "var(--brand)", fontFamily: "'JetBrains Mono', monospace",
+                    animation: timeLeft <= 10 ? "live-blink 1s ease-in-out infinite" : "none" }}>
+          {timeLeft}<span className="text-[16px] font-bold" style={{ color: "var(--text-3)" }}>s</span>
+        </p>
       </div>
 
-      {/* Job details card */}
-      <div className="flex-1 px-5 overflow-y-auto">
-        <div className="rounded-2xl p-5 mb-4" style={{
-          background: "rgba(255,255,255,0.08)",
-          border: `1.5px solid ${color}44`,
-          backdropFilter: "blur(10px)",
-        }}>
-          {/* Trade icon + earnings */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[28px]"
-                   style={{ background: `${color}22`, border: `2px solid ${color}` }}>
-                {icon}
-              </div>
-              <div>
-                <p className="text-[16px] font-black text-white capitalize">{trade}</p>
-                <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  {alert.problemType?.replace(/_/g, ' ') || "General Service"}
+      {/* Job details */}
+      <div className="flex-1 px-5 overflow-auto">
+        {alert.isEmergency && (
+          <div className="rounded-[14px] p-3 mb-3 text-center"
+               style={{ background: "var(--danger-tint)", border: "1px solid var(--danger)" }}>
+            <p className="text-[12px] font-bold" style={{ color: "var(--danger)" }}>
+              🆘 Emergency · 1.8× pay · Nearest worker priority
+            </p>
+          </div>
+        )}
+
+        <div className="rounded-[24px] p-5 mb-4" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-float)" }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-14 h-14 rounded-[18px] flex items-center justify-center text-[28px]"
+                 style={{ background: "var(--brand-tint)" }}>{alert.tradeIcon}</div>
+            <div className="flex-1">
+              <p className="text-[16px] font-black capitalize" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+                {alert.trade.replace("_", " ")}
+              </p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>{alert.problem}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {[
+              { v: `${alert.distance}`, u: "km", l: "Distance", c: "var(--text-1)", bg: "var(--bg-surface)" },
+              { v: `₹${displayEarnings}`, u: "", l: "Earnings", c: alert.isEmergency ? "var(--danger)" : "var(--brand)", bg: alert.isEmergency ? "var(--danger-tint)" : "var(--brand-tint)" },
+              { v: `${alert.eta}`, u: "min", l: "ETA", c: "var(--text-1)", bg: "var(--bg-surface)" },
+            ].map(s => (
+              <div key={s.l} className="rounded-[14px] p-3 text-center" style={{ background: s.bg }}>
+                <p className="text-[20px] font-black" style={{ color: s.c, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {s.v}{s.u && <span className="text-[10px]" style={{ color: "var(--text-3)" }}>{s.u}</span>}
                 </p>
+                <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>{s.l}</p>
               </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[28px] font-black" style={{ color }}>₹{alert.earnings}</p>
-              <p className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>EARN</p>
-            </div>
+            ))}
           </div>
 
-          {/* Distance + Address */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-              <p className="text-[10px] font-bold mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>DISTANCE</p>
-              <p className="text-[16px] font-black text-white">{alert.distance?.toFixed(1) || "?"} km</p>
+          <div className="rounded-[14px] p-3 flex items-center gap-3" style={{ background: "var(--bg-surface)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-black text-white shrink-0"
+                 style={{ background: "var(--gradient-cta)" }}>
+              {alert.hirerName.split(" ").map(w => w[0]).join("").slice(0, 2)}
             </div>
-            <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-              <p className="text-[10px] font-bold mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>ETA</p>
-              <p className="text-[16px] font-black text-white">~{Math.max(3, Math.round((alert.distance || 1) * 6))} min</p>
+            <div className="flex-1">
+              <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{alert.hirerName}</p>
+              <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>⭐ {alert.hirerRating} · ~{alert.duration}</p>
             </div>
           </div>
-
-          {alert.address && (
-            <div className="mt-3 rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-              <p className="text-[10px] font-bold mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>📍 LOCATION</p>
-              <p className="text-[12px] font-semibold text-white">{alert.address}</p>
-            </div>
-          )}
+          <div className="mt-3 flex items-start gap-2">
+            <span className="text-[12px] mt-0.5">📍</span>
+            <p className="text-[10px] font-medium leading-relaxed" style={{ color: "var(--text-3)" }}>{alert.address}</p>
+          </div>
         </div>
       </div>
 
-      {/* Accept / Decline buttons */}
-      <div className="px-5 pb-8 pt-3">
-        <button onClick={handleAccept} disabled={accepting}
-                className="w-full rounded-2xl py-5 mb-3 active:scale-[0.97] transition-all disabled:opacity-60"
-                style={{
-                  background: `linear-gradient(135deg, ${color}, ${color}CC)`,
-                  boxShadow: `0 8px 32px ${color}55`,
-                }}>
-          <p className="text-[18px] font-black text-white">
-            {accepting ? "Accepting..." : "✓ ACCEPT JOB"}
-          </p>
-          <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Earn ₹{alert.earnings} · {alert.distance?.toFixed(1)}km away
-          </p>
+      {/* Action buttons */}
+      <div className="px-5 pb-8 pt-4 flex gap-3" style={{ background: "linear-gradient(180deg, transparent, #0A0A0A 30%)" }}>
+        <button onClick={handleDecline}
+                className="rounded-[16px] py-4 px-5 text-[13px] font-bold active:scale-95 transition-transform"
+                style={{ width: "35%", background: "transparent", color: "var(--danger)", border: "2px solid var(--danger)" }}>
+          ✕ Decline
         </button>
-
-        <button onClick={handleDecline} disabled={declining}
-                className="w-full rounded-2xl py-4 active:scale-[0.97] transition-all disabled:opacity-60"
-                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}>
-          <p className="text-[14px] font-bold" style={{ color: "rgba(255,255,255,0.6)" }}>
-            {declining ? "Declining..." : "✕ DECLINE"}
-          </p>
+        <button onClick={() => onAccept(alert.id)}
+                className="flex-1 rounded-[16px] py-4 text-[14px] font-black text-white active:scale-95 transition-transform"
+                style={{ background: "var(--success)", boxShadow: "0 8px 24px -4px rgba(52,211,153,0.4)" }}>
+          ✓ ACCEPT · ₹{displayEarnings}
         </button>
       </div>
-
-      {/* CSS for pulse animation */}
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

@@ -30,15 +30,18 @@ interface AlertNotification {
 }
 
 interface ActiveJobAlert {
-  alertId: string;
-  jobId: string;
+  id: string;
   trade: string;
+  tradeIcon: string;
+  problem: string;
   distance: number;
+  eta: number;
   earnings: number;
-  problemType?: string;
-  address?: string;
-  hirerName?: string;
-  isEmergency?: boolean;
+  hirerRating: number;
+  hirerName: string;
+  duration: string;
+  isEmergency: boolean;
+  address: string;
 }
 
 export default function WorkerDashboardPage() {
@@ -151,15 +154,21 @@ export default function WorkerDashboardPage() {
 
           if (unreadJobAlert && !activeJobAlert && !acceptedJob) {
             const data = unreadJobAlert.data || {};
+            const tradeIcons: Record<string, string> = { electrician: "⚡", plumber: "🔧", mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨" };
+            const tradeStr = String(data.trade || 'technician');
             setActiveJobAlert({
-              alertId: unreadJobAlert.id,
-              jobId: String(data.jobId || ''),
-              trade: String(data.trade || 'technician'),
-              distance: Number(data.distance || 0),
-              earnings: Number(data.earnings || 0),
-              problemType: String(data.problemType || ''),
-              address: String(data.address || ''),
+              id: unreadJobAlert.id,
+              trade: tradeStr,
+              tradeIcon: tradeIcons[tradeStr] || "🔧",
+              problem: String(data.problemType || 'Service request'),
+              distance: Number(data.distance || 2),
+              eta: Number(data.eta || 10),
+              earnings: Number(data.earnings || 500),
+              hirerRating: Number(data.hirerRating || 4.5),
+              hirerName: String(data.hirerName || 'Customer'),
+              duration: String(data.duration || '1-2 hours'),
               isEmergency: Boolean(data.isEmergency),
+              address: String(data.address || 'Nearby location'),
             });
           }
         }
@@ -251,8 +260,39 @@ export default function WorkerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+      <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+        {/* Header shimmer */}
+        <div className="px-5 pt-5 pb-5">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <div className="skeleton h-3 w-20 rounded-full mb-2" />
+              <div className="skeleton h-6 w-40 rounded-full mb-1" />
+              <div className="skeleton h-3 w-28 rounded-full" />
+            </div>
+            <div className="flex gap-2">
+              <div className="skeleton w-9 h-9 rounded-xl" />
+              <div className="skeleton w-9 h-9 rounded-xl" />
+            </div>
+          </div>
+          <div className="skeleton h-16 w-full rounded-[20px]" />
+        </div>
+        {/* Stats shimmer */}
+        <div className="grid grid-cols-3 gap-2.5 px-5 mb-5">
+          {[1,2,3].map(i => <div key={i} className="skeleton h-20 rounded-[16px]" />)}
+        </div>
+        {/* Quick actions shimmer */}
+        <div className="px-5 mb-5">
+          <div className="skeleton h-3 w-24 rounded-full mb-3" />
+          <div className="grid grid-cols-3 gap-2.5">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton h-16 rounded-[14px]" />)}
+          </div>
+        </div>
+        {/* Alerts shimmer */}
+        <div className="px-5 space-y-2">
+          <div className="skeleton h-3 w-20 rounded-full mb-3" />
+          <div className="skeleton h-20 rounded-[18px]" />
+          <div className="skeleton h-20 rounded-[18px]" />
+        </div>
       </div>
     );
   }

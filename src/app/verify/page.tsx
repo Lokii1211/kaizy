@@ -29,21 +29,73 @@ export default function VerifyPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Start camera
+  // Start camera with improved error handling & mobile compatibility
   const startCamera = async () => {
     setError("");
+    // Stop any existing stream first
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+
+    // Check for camera API
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Camera not supported on this browser. Please use Chrome or Safari, or upload from gallery.");
+      return;
+    }
+
+    // Check HTTPS
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      setError("Camera requires HTTPS. Please access via https:// URL.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: step === "selfie" ? "user" : "environment", width: 640, height: 480 },
-      });
+      // Try with preferred constraints first
+      const constraints = {
+        video: {
+          facingMode: step === "selfie" ? "user" : { ideal: "environment" },
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 960 },
+        },
+        audio: false,
+      };
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch {
+        // Fallback: try without facingMode constraint
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
       streamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        // Wait for video to actually load
+        await new Promise<void>((resolve, reject) => {
+          const video = videoRef.current!;
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(reject);
+          };
+          video.onerror = () => reject(new Error("Video load failed"));
+          // Timeout after 5 seconds
+          setTimeout(() => resolve(), 5000);
+        });
       }
       setCameraActive(true);
-    } catch {
-      setError("Camera access denied. Please allow camera permission.");
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("NotAllowedError") || errMsg.includes("Permission")) {
+        setError("📷 Camera permission denied. Please allow camera access in your browser settings and try again.");
+      } else if (errMsg.includes("NotFoundError") || errMsg.includes("DevicesNotFound")) {
+        setError("📷 No camera found. Please use 'Upload from Gallery' instead.");
+      } else if (errMsg.includes("NotReadableError") || errMsg.includes("TrackStartError")) {
+        setError("📷 Camera is in use by another app. Close other apps and try again.");
+      } else {
+        setError(`📷 Camera error: ${errMsg}. Try 'Upload from Gallery' instead.`);
+      }
     }
   };
 

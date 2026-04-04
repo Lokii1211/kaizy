@@ -53,7 +53,24 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const r = await authApi.verifyOtp(phone, full, userType);
-      if (r.success) { setStep("success"); setTimeout(() => router.push(userType === "worker" ? "/dashboard/worker" : "/dashboard/hirer"), 1500); }
+      if (r.success) {
+        // Use the actual user_type from backend response (not the local selection)
+        const actualRole = r.data?.user?.userType || userType;
+        const isNew = r.data?.isNewUser || false;
+        // Store role in localStorage + cookie for instant dashboard rendering
+        try {
+          localStorage.setItem("kaizy_user_type", actualRole);
+          localStorage.setItem("kaizy_user_phone", phone);
+          if (r.data?.user?.name) localStorage.setItem("kaizy_user_name", r.data.user.name);
+          document.cookie = `kaizy_user_type=${actualRole};path=/;max-age=31536000`;
+        } catch {}
+        setStep("success");
+        // Route new users to onboarding, existing to dashboard
+        const destination = isNew
+          ? (actualRole === "worker" ? "/register/worker" : "/onboarding/hirer")
+          : (actualRole === "worker" ? "/dashboard/worker" : "/dashboard/hirer");
+        setTimeout(() => router.push(destination), 1500);
+      }
       else { setError(r.error || "Invalid OTP"); setOtp(["","","","","",""]); otpRefs.current[0]?.focus(); }
     } catch { setError("Network error"); } finally { setLoading(false); }
   };

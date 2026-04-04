@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // KAIZY HOME v10.0 — Stitch "Digital Artisan" Hirer Experience
@@ -40,6 +41,7 @@ interface RealWorker {
 
 export default function HomePage() {
   const { isDark, toggle } = useTheme();
+  const { userType } = useAuth();
   const router = useRouter();
   const [activeTrade, setActiveTrade] = useState(-1);
   const [greeting, setGreeting] = useState("Good evening");
@@ -57,15 +59,10 @@ export default function HomePage() {
 
   // ── ROLE CHECK: Workers go to /dashboard/worker ──
   useEffect(() => {
-    const cookies = document.cookie.split(';').reduce((acc, c) => {
-      const [k, v] = c.trim().split('=');
-      if (k) acc[k] = v;
-      return acc;
-    }, {} as Record<string, string>);
-    if (cookies.kaizy_user_type === 'worker') {
+    if (userType === 'worker') {
       router.replace('/dashboard/worker');
     }
-  }, [router]);
+  }, [userType, router]);
 
   // Get REAL GPS location
   useEffect(() => {
@@ -354,7 +351,7 @@ export default function HomePage() {
         </div>
 
         {/* Search bar — Soft Focus (Stitch Input Rule) */}
-        <Link href="/marketplace"
+        <Link href="/search"
               className="flex items-center gap-3 rounded-[16px] px-4 py-3.5 active:scale-[0.98] transition-transform"
               style={{
                 background: isDark ? "var(--bg-lowest)" : "#FFFFFF",
@@ -425,7 +422,7 @@ export default function HomePage() {
                 const color = tradeColors[w.trade] || "#FF6B00";
                 const icon = tradeIcons[w.trade] || "🔧";
                 return (
-                  <Link key={w.id} href="/booking"
+                  <Link key={w.id} href={`/worker/${w.id}`}
                         className="shrink-0 rounded-[20px] p-4 active:scale-[0.97] transition-all"
                         style={{ width: 176, background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
                     <div className="flex items-center gap-2.5 mb-3">
@@ -467,21 +464,6 @@ export default function HomePage() {
       </div>
 
       <div style={{ height: "100vh" }} />
-
-      <style jsx global>{`
-        @keyframes map-pulse {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        @keyframes gps-ring {
-          0% { transform: scale(0.8); opacity: 0.6; }
-          50% { opacity: 0.3; }
-          100% { transform: scale(2.2); opacity: 0; }
-        }
-        #kaizy-gps-arrow svg { transition: transform 0.3s ease-out; }
-        .mapboxgl-ctrl-attrib { display: none !important; }
-        .mapboxgl-ctrl-logo { display: none !important; }
-      `}</style>
     </div>
   );
 }

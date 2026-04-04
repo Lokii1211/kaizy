@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
-// MY BOOKINGS v10.0 — Stitch "Digital Artisan" Design
-// Epilogue headlines · JetBrains Mono pricing · Tonal surfaces
+// MY BOOKINGS v11.0 — Stitch "Digital Artisan" Design
+// Tabs: Upcoming · Active · Completed · Cancelled
 // ============================================================
 
 const tradeIcons: Record<string, string> = {
@@ -15,6 +16,7 @@ const tradeIcons: Record<string, string> = {
 const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: "Pending", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
   accepted: { label: "Accepted", color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
+  scheduled: { label: "Scheduled", color: "#8B5CF6", bg: "rgba(139,92,246,0.1)" },
   in_progress: { label: "In Progress", color: "#FF6B00", bg: "rgba(255,107,0,0.1)" },
   completed: { label: "Completed", color: "#22C55E", bg: "rgba(34,197,94,0.1)" },
   cancelled: { label: "Cancelled", color: "#EF4444", bg: "rgba(239,68,68,0.1)" },
@@ -23,21 +25,17 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 interface BookingItem {
   id: string; status: string; created_at: string; hirer_price: number;
   trade: string; description: string; worker_name: string; worker_id: string;
+  scheduled_for?: string; booking_type?: string;
 }
 
-const tabs = ["All", "Active", "Completed", "Cancelled"];
+const tabs = ["Upcoming", "Active", "Completed", "Cancelled"];
 
 export default function MyBookingsPage() {
-  const [activeTab, setActiveTab] = useState(0);
+  const { userType } = useAuth();
+  const [activeTab, setActiveTab] = useState(1);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [userType, setUserType] = useState<string>("hirer");
-
-  useEffect(() => {
-    const c = document.cookie.split(';').find(c => c.trim().startsWith('kaizy_user_type='));
-    if (c) setUserType(c.split('=')[1]?.trim() || 'hirer');
-  }, []);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -81,7 +79,7 @@ export default function MyBookingsPage() {
   };
 
   const filteredBookings = bookings.filter(b => {
-    if (activeTab === 0) return true;
+    if (activeTab === 0) return b.booking_type === "scheduled" || b.status === "scheduled";
     if (activeTab === 1) return ["pending", "accepted", "in_progress"].includes(b.status);
     if (activeTab === 2) return b.status === "completed";
     if (activeTab === 3) return b.status === "cancelled";

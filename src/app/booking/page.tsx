@@ -24,7 +24,7 @@ const tradeProblems: Record<string, string[]> = {
 };
 
 export default function BookingPage() {
-  const { isDark } = useTheme();
+  const {} = useTheme();
   const { state, startSearch, selectWorker, confirmBooking, sendMessage, cancelBooking, workerArrived, jobStarted, jobCompleted, confirmPayment, submitReview, resetBooking, calculatePricing } = useBooking();
   const [selectedTrade, setSelectedTrade] = useState("Electrician");
   const [selectedProblem, setSelectedProblem] = useState("");
@@ -42,6 +42,9 @@ export default function BookingPage() {
   const [addressResults, setAddressResults] = useState<Array<{ place_name: string; center: [number, number] }>>([]);
   const [addressSearching, setAddressSearching] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+
+  const [bookingMode, setBookingMode] = useState<"instant" | "scheduled">("instant");
+  const [scheduledTime, setScheduledTime] = useState("");
 
   // GPS reverse geocode for location label
   useEffect(() => {
@@ -83,6 +86,24 @@ export default function BookingPage() {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
   }, [state.messages.length]);
 
+  // Generate time slots for scheduled booking
+  const getTimeSlots = () => {
+    const now = new Date();
+    const slots: { label: string; value: string; icon: string }[] = [];
+    const h = now.getHours();
+
+    if (h < 17) slots.push({ label: "Today Evening", value: "today_evening", icon: "🌇" });
+    if (h < 20) slots.push({ label: "Today Night", value: "today_night", icon: "🌙" });
+
+    slots.push(
+      { label: "Tomorrow Morning", value: "tomorrow_morning", icon: "🌅" },
+      { label: "Tomorrow Afternoon", value: "tomorrow_afternoon", icon: "☀️" },
+      { label: "Tomorrow Evening", value: "tomorrow_evening", icon: "🌇" },
+      { label: "Day After Tomorrow", value: "day_after", icon: "📅" },
+    );
+    return slots;
+  };
+
   // ── STEP 1: SELECT TRADE + PROBLEM ──
   if (state.status === "idle") {
     return (
@@ -95,6 +116,58 @@ export default function BookingPage() {
             </Link>
             <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Book a Worker</h1>
           </div>
+
+          {/* ═══ DUAL-TRACK MODE SELECTOR ═══ */}
+          <div className="grid grid-cols-2 gap-2.5 mb-5">
+            <button onClick={() => setBookingMode("instant")}
+                    className="rounded-[18px] p-4 text-left active:scale-[0.96] transition-all"
+                    style={{
+                      background: bookingMode === "instant" ? "var(--gradient-cta)" : "var(--bg-card)",
+                      boxShadow: bookingMode === "instant" ? "var(--shadow-brand)" : "none",
+                    }}>
+              <span className="text-[28px] block mb-2">⚡</span>
+              <p className="text-[13px] font-black" style={{ color: bookingMode === "instant" ? "#fff" : "var(--text-1)" }}>
+                FastBook
+              </p>
+              <p className="text-[9px] font-medium mt-0.5" style={{ color: bookingMode === "instant" ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>
+                Instant match • Worker in 15-30 min
+              </p>
+            </button>
+            <button onClick={() => setBookingMode("scheduled")}
+                    className="rounded-[18px] p-4 text-left active:scale-[0.96] transition-all"
+                    style={{
+                      background: bookingMode === "scheduled" ? "var(--bg-card)" : "var(--bg-card)",
+                      border: bookingMode === "scheduled" ? "2px solid var(--brand)" : "2px solid transparent",
+                    }}>
+              <span className="text-[28px] block mb-2">📅</span>
+              <p className="text-[13px] font-black" style={{ color: "var(--text-1)" }}>
+                Schedule
+              </p>
+              <p className="text-[9px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>
+                Book for later • Browse & choose worker
+              </p>
+            </button>
+          </div>
+
+          {/* Schedule Time Slots (only for scheduled mode) */}
+          {bookingMode === "scheduled" && (
+            <div className="mb-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>When do you need?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {getTimeSlots().map(slot => (
+                  <button key={slot.value} onClick={() => setScheduledTime(slot.value)}
+                          className="rounded-[14px] p-3 flex items-center gap-2.5 active:scale-95 transition-all"
+                          style={{
+                            background: scheduledTime === slot.value ? "var(--brand-tint)" : "var(--bg-surface)",
+                            border: scheduledTime === slot.value ? "2px solid var(--brand)" : "2px solid transparent",
+                          }}>
+                    <span className="text-[18px]">{slot.icon}</span>
+                    <span className="text-[10px] font-bold" style={{ color: scheduledTime === slot.value ? "var(--brand)" : "var(--text-2)" }}>{slot.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Trade selection */}
           <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>Select Category</p>

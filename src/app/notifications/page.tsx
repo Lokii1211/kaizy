@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // NOTIFICATIONS v10.0 — Stitch "Digital Artisan" Design
@@ -25,22 +26,13 @@ const typeToIcon: Record<string, string> = {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { userType: authUserType } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepted, setAccepted] = useState<string[]>([]);
   const [declined, setDeclined] = useState<string[]>([]);
-  const [userType, setUserType] = useState<string>("hirer");
-
-  // Detect user role from cookie
-  useEffect(() => {
-    const cookies = document.cookie.split(';').reduce((acc, c) => {
-      const [k, v] = c.trim().split('=');
-      if (k) acc[k] = v;
-      return acc;
-    }, {} as Record<string, string>);
-    if (cookies.kaizy_user_type) setUserType(cookies.kaizy_user_type);
-  }, []);
+  const userType = authUserType || "hirer";
 
   // Fetch real notifications via API
   const fetchNotifications = async () => {

@@ -63,7 +63,7 @@ export default function WorkerRegisterPage() {
     }
   };
 
-  // Success step
+  // Success step — redirect to onboarding specialization
   if (step === 4) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
@@ -73,13 +73,19 @@ export default function WorkerRegisterPage() {
         </div>
         <h1 className="text-[22px] font-black text-center" style={{ color: "var(--text-1)" }}>Welcome, {name}! 🎉</h1>
         <p className="text-[14px] mt-2 text-center" style={{ color: "var(--text-2)" }}>
-          Your worker profile is live
+          Profile created! Now let&apos;s set up your services
         </p>
         <p className="text-[12px] mt-1 text-center" style={{ color: "var(--text-3)" }}>
-          Log in to start receiving job alerts
+          Tell hirers what you offer and at what price
         </p>
-        <Link href="/login" className="mt-6 rounded-xl px-8 py-4 text-[14px] font-black text-white active:scale-95"
-              style={{ background: "var(--brand)" }}>Login Now →</Link>
+        <Link href={`/onboarding/specialization?trade=${trade}&name=${encodeURIComponent(name)}`}
+              className="mt-6 rounded-xl px-8 py-4 text-[14px] font-black text-white active:scale-95"
+              style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+          Set Up Services & Pricing →
+        </Link>
+        <Link href="/login" className="mt-3 text-[11px] font-bold" style={{ color: "var(--text-3)" }}>
+          Skip for now →
+        </Link>
       </div>
     );
   }

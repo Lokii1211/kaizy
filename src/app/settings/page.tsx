@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // SETTINGS v10.0 — Stitch "Digital Artisan" Design
@@ -21,7 +22,11 @@ const workerMenuSections = [
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
     { icon: "📊", label: "Performance Dashboard", href: "/dashboard/performance" },
     { icon: "📋", label: "My Jobs", href: "/my-bookings" },
+    { icon: "💲", label: "My Pricing", href: "/onboarding/specialization" },
+    { icon: "🧾", label: "Commission", href: "/commission" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
+    { icon: "🏅", label: "KaizyScore", href: "/kaizy-score" },
+    { icon: "🏆", label: "Leaderboard", href: "/leaderboard" },
     { icon: "🪪", label: "Verify Identity", href: "/verify" },
     { icon: "🎯", label: "Incentives & Targets", href: "/incentives" },
     { icon: "📸", label: "Job Photos", href: "/job-photos" },
@@ -68,6 +73,7 @@ const hirerMenuSections = [
 
 export default function SettingsPage() {
   const { toggle, isDark } = useTheme();
+  const { logout: authLogout } = useAuth();
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,8 +85,15 @@ export default function SettingsPage() {
   }, []);
 
   const handleLogout = () => {
-    document.cookie = "kaizy_token=; Max-Age=0; path=/";
-    document.cookie = "kaizy_user_type=; Max-Age=0; path=/";
+    if (!confirm("Sign out of this device only?")) return;
+    authLogout();
+    router.push("/login");
+  };
+
+  const handleDeleteAccount = () => {
+    if (!confirm("⚠️ Delete your account?\n\nThis will permanently remove all your data.\nYou have 30 days to change your mind.")) return;
+    if (!confirm("This is irreversible. Are you absolutely sure?")) return;
+    authLogout();
     router.push("/login");
   };
 
@@ -180,15 +193,20 @@ export default function SettingsPage() {
       ))}
 
       {/* Logout */}
-      <div className="px-5 mt-8">
+      <div className="px-5 mt-8 space-y-3">
         <button onClick={handleLogout}
                 className="block w-full py-4 rounded-[16px] text-center text-[12px] font-extrabold active:scale-[0.97] transition-transform"
                 style={{ background: "var(--danger-tint)", color: "var(--danger)" }}>
           Log Out
         </button>
+        <button onClick={handleDeleteAccount}
+                className="block w-full py-3 rounded-[16px] text-center text-[10px] font-bold active:scale-[0.97] transition-transform"
+                style={{ color: "var(--text-3)" }}>
+          Delete My Account
+        </button>
       </div>
 
-      <p className="text-center text-[9px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v10.0 · Digital Artisan</p>
+      <p className="text-center text-[9px] mt-4 pb-4" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Kaizy v11.0 · Digital Artisan</p>
     </div>
   );
 }

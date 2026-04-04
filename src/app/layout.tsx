@@ -6,6 +6,7 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import NetworkStatus from "@/components/NetworkStatus";
 import { ThemeProvider } from "@/stores/ThemeStore";
+import { AuthProvider } from "@/stores/AuthStore";
 import { BookingProvider } from "@/stores/BookingStore";
 import { ToastProvider } from "@/components/ToastNotification";
 import "./globals.css";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className={`${epilogue.variable} ${jakarta.variable} ${jetbrains.variable} antialiased`}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}>
+        <AuthProvider>
         <ThemeProvider>
           <BookingProvider>
             <ToastProvider>
@@ -77,6 +79,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </ToastProvider>
           </BookingProvider>
         </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
