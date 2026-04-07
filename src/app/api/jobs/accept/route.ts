@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call the atomic accept function (handles race conditions)
-    const { data, error } = await supabaseAdmin.rpc('accept_job', {
+    const { data, error } = await supabaseAdmin.rpc('accept_job_atomic', {
       p_alert_id: alertId,
       p_worker_id: workerId,
     });
