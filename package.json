@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.99.2",
     "crypto-js": "^4.2.0",
     "framer-motion": "^12.36.0",
+    "jose": "^6.2.2",
     "lucide-react": "^0.577.0",
     "mapbox-gl": "^3.20.0",
     "next": "16.1.6",

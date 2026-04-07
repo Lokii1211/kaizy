@@ -1,125 +1,188 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import crypto from 'crypto';
+import { generateJWT } from '@/lib/auth';
+import { rateLimits, getClientIP } from '@/lib/rateLimit';
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // POST /api/auth/verify-otp
-// Verify OTP → Create/find user → Return JWT
-// ═══════════════════════════════════════
-
-function generateJWT(userId: string, phone: string, userType: string): string {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
-    sub: userId, phone, userType,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
-  })).toString('base64url');
-  const signature = crypto
-    .createHmac('sha256', process.env.JWT_SECRET || 'kaizy-jwt-secret')
-    .update(`${header}.${payload}`)
-    .digest('base64url');
-  return `${header}.${payload}.${signature}`;
-}
-
-export function verifyJWT(token: string): { sub: string; phone: string; userType: string } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-    // Verify signature
-    const expectedSig = crypto
-      .createHmac('sha256', process.env.JWT_SECRET || 'kaizy-jwt-secret')
-      .update(`${parts[0]}.${parts[1]}`)
-      .digest('base64url');
-    if (expectedSig !== parts[2]) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
+// Verifies OTP against Supabase otp_codes table
+// Creates user if new, returns signed JWT
+// ═══════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
   try {
-    const { phone, otp, userType } = await req.json();
-    const cleanPhone = phone?.replace(/\s/g, '');
-
-    if (!cleanPhone || !otp) {
-      return NextResponse.json({ success: false, error: 'Phone and OTP required' }, { status: 400 });
+    // Rate limit
+    const ip = getClientIP(req.headers);
+    const rl = rateLimits.auth(ip);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many attempts. Wait a moment.' },
+        { status: 429 }
+      );
     }
 
-    // Find valid OTP
-    const { data: otpRecord } = await supabaseAdmin
+    const { phone, otp, userType } = await req.json();
+
+    // Validate input
+    const cleanPhone = phone?.replace(/\s/g, '');
+    if (!cleanPhone || !/^\+91\d{10}$/.test(cleanPhone)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid phone number' },
+        { status: 400 }
+      );
+    }
+
+    if (!otp || !/^\d{6}$/.test(otp)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid OTP. Must be 6 digits.' },
+        { status: 400 }
+      );
+    }
+
+    // ── 1. Find the latest OTP for this phone ──
+    const { data: otpRecord, error: otpError } = await supabaseAdmin
       .from('otp_codes')
       .select('*')
       .eq('phone', cleanPhone)
-      .eq('otp', otp)
       .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (!otpRecord) {
-      return NextResponse.json({ success: false, error: 'Invalid or expired OTP' }, { status: 401 });
+    if (otpError || !otpRecord) {
+      return NextResponse.json(
+        { success: false, error: 'OTP not found. Request a new one.' },
+        { status: 400 }
+      );
     }
 
-    // Mark OTP as used
-    await supabaseAdmin.from('otp_codes').update({ used: true }).eq('id', otpRecord.id);
+    // ── 2. Check expiry ──
+    if (new Date(otpRecord.expires_at) < new Date()) {
+      // Mark as used so it can't be retried
+      await supabaseAdmin
+        .from('otp_codes')
+        .update({ used: true })
+        .eq('id', otpRecord.id);
 
-    // Check if user exists
+      return NextResponse.json(
+        { success: false, error: 'OTP expired. Request a new one.' },
+        { status: 400 }
+      );
+    }
+
+    // ── 3. Check attempts (max 5) ──
+    if ((otpRecord.attempts || 0) >= 5) {
+      await supabaseAdmin
+        .from('otp_codes')
+        .update({ used: true })
+        .eq('id', otpRecord.id);
+
+      return NextResponse.json(
+        { success: false, error: 'Too many wrong attempts. Request a new OTP.' },
+        { status: 400 }
+      );
+    }
+
+    // ── 4. Verify OTP ──
+    if (otpRecord.otp !== otp) {
+      // Increment attempts
+      await supabaseAdmin
+        .from('otp_codes')
+        .update({ attempts: (otpRecord.attempts || 0) + 1 })
+        .eq('id', otpRecord.id);
+
+      const remaining = 5 - (otpRecord.attempts || 0) - 1;
+      return NextResponse.json(
+        { success: false, error: `Wrong OTP. ${remaining} attempts remaining.` },
+        { status: 400 }
+      );
+    }
+
+    // ── 5. OTP is correct — mark as used ──
+    await supabaseAdmin
+      .from('otp_codes')
+      .update({ used: true })
+      .eq('id', otpRecord.id);
+
+    // ── 6. Find or create user ──
+    let isNewUser = false;
+    let user;
+
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('phone', cleanPhone)
       .single();
 
-    let user = existingUser;
-    let isNewUser = false;
-
-    if (!user) {
+    if (existingUser) {
+      user = existingUser;
+      // If user exists but has no user_type and one was provided, update it
+      if (!existingUser.user_type && userType) {
+        await supabaseAdmin
+          .from('users')
+          .update({ user_type: userType })
+          .eq('id', existingUser.id);
+        user.user_type = userType;
+      }
+    } else {
       // Create new user
       isNewUser = true;
-      const { data: newUser } = await supabaseAdmin
+      const { data: newUser, error: createError } = await supabaseAdmin
         .from('users')
-        .insert({ phone: cleanPhone, user_type: userType || 'hirer' })
+        .insert({
+          phone: cleanPhone,
+          user_type: userType || null,
+          name: null,
+          language: 'en',
+          is_active: true,
+        })
         .select()
         .single();
+
+      if (createError || !newUser) {
+        console.error('[verify-otp] Failed to create user:', createError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create account. Try again.' },
+          { status: 500 }
+        );
+      }
+
       user = newUser;
     }
 
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Failed to create user' }, { status: 500 });
-    }
+    // ── 7. Generate real JWT ──
+    const resolvedType = user.user_type || userType || 'hirer';
+    const token = await generateJWT(user.id, cleanPhone, resolvedType);
 
-    // Generate JWT
-    const token = generateJWT(user.id, user.phone, user.user_type);
-
-    // Set httpOnly cookie
+    // ── 8. Set cookie + return response ──
     const response = NextResponse.json({
       success: true,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        name: user.name,
-        userType: user.user_type,
-        profilePhoto: user.profile_photo,
-        city: user.city,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user.id,
+          phone: user.phone,
+          name: user.name,
+          userType: resolvedType,
+          profilePhoto: user.profile_photo,
+        },
+        token,
+        isNewUser,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       },
-      isNewUser,
-      token,
     });
 
+    // Set secure HTTP-only cookie
     response.cookies.set('kaizy_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/',
     });
 
-    // Client-readable cookie for user type routing
-    response.cookies.set('kaizy_user_type', user.user_type, {
+    // Also set a non-httponly cookie for client-side role checking
+    response.cookies.set('kaizy_user_type', resolvedType, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -129,7 +192,10 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('[verify-otp error]', error);
-    return NextResponse.json({ success: false, error: 'Verification failed' }, { status: 500 });
+    console.error('[verify-otp] Unexpected error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Verification failed. Please try again.' },
+      { status: 500 }
+    );
   }
 }
