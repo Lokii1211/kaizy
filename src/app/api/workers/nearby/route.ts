@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
           rating: Number(w.avg_rating),
           totalJobs: w.total_jobs,
           experience: w.experience_years,
-          rate: Number(w.rate_hourly),
+          rate: 0, // Real pricing is per-problem-type, shown on worker profile
           distance: w.distance,
           eta: w.eta,
           kaizyScore: w.kaizy_score,

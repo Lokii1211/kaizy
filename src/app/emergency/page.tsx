@@ -88,13 +88,22 @@ export default function EmergencyPage() {
     }, 2000);
 
     try {
-      const res = await fetch("/api/emergency/trigger", {
+      // Map emergency type to trade
+      const tradeMap: Record<string, string> = {
+        vehicle_breakdown: 'mechanic', tyre_puncture: 'mechanic',
+        pipe_burst: 'plumber', power_failure: 'electrician',
+        lock_broken: 'carpenter', ac_emergency: 'ac_repair',
+      };
+      const trade = tradeMap[emergencies[selected].key] || 'mechanic';
+
+      const res = await fetch("/api/sos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat: location.lat,
-          lng: location.lng,
+          trade,
           problemType: emergencies[selected].key,
+          latitude: location.lat,
+          longitude: location.lng,
           description: `EMERGENCY: ${emergencies[selected].name}`,
         }),
       });
@@ -102,21 +111,32 @@ export default function EmergencyPage() {
 
       if (searchInterval.current) clearInterval(searchInterval.current);
 
-      if (json.success && json.data?.workersNotified > 0) {
-        setWorkersNotified(json.data.workersNotified);
-        // Simulate a match after 3 seconds (in production, this would be a real WebSocket/poll)
-        setTimeout(() => {
-          setMatchedWorker({
-            name: json.data.matchedWorker?.name || "Suresh M.",
-            rating: json.data.matchedWorker?.rating || 4.8,
-            trade: emergencies[selected].name,
-            eta: json.data.matchedWorker?.eta || 12,
-            distance: json.data.matchedWorker?.distance || 2.4,
-            jobId: json.data.jobId || "",
-          });
-          setPhase("matched");
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      if (json.success && json.data?.workersAlerted > 0) {
+        setWorkersNotified(json.data.workersAlerted);
+        // Poll for worker acceptance
+        const pollId = setInterval(async () => {
+          try {
+            const statusRes = await fetch(`/api/sos?jobId=${json.data.jobId}`);
+            const statusJson = await statusRes.json();
+            if (statusJson.data?.booking) {
+              clearInterval(pollId);
+              setMatchedWorker({
+                name: statusJson.data.booking.worker?.name || "Worker",
+                rating: 4.8,
+                trade: emergencies[selected].name,
+                eta: json.data.nearestWorker?.eta || 12,
+                distance: json.data.nearestWorker?.distance || 2.4,
+                jobId: json.data.jobId,
+              });
+              setPhase("matched");
+              if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            }
+          } catch { /* retry */ }
         }, 3000);
+        // Auto-stop polling after 2 minutes
+        setTimeout(() => { clearInterval(pollId); if (phase === "searching") setPhase("no_workers"); }, 120000);
+      } else if (json.data?.status === 'no_workers') {
+        setPhase("no_workers");
       } else {
         setPhase("no_workers");
       }
