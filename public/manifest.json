@@ -1,0 +1,25 @@
+{
+  "name": "Kaizy — India's Workforce OS",
+  "short_name": "Kaizy",
+  "description": "Book verified workers instantly — electricians, plumbers, mechanics, carpenters, painters & cleaners. Real-time tracking, secure payments, and rated professionals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF6B00",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["business", "lifestyle", "utilities"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/kaizy-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    { "name": "Book a Worker", "url": "/booking", "description": "Book an electrician, plumber or mechanic", "icons": [{ "src": "/kaizy-logo.png", "sizes": "512x512" }] },
+    { "name": "My Bookings", "url": "/my-bookings", "description": "View your active and past bookings" },
+    { "name": "Emergency SOS", "url": "/emergency", "description": "Trigger emergency alert" }
+  ]
+}

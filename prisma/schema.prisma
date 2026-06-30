@@ -1,0 +1,432 @@
+// KonnectOn Database Schema
+// PostgreSQL via Prisma ORM
+// This schema represents the full data model for the platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ENUMS ==========
+
+enum UserRole {
+  WORKER
+  HIRER
+  ADMIN
+  CONTRACTOR
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum BookingStatus {
+  CREATED
+  FUNDED
+  JOB_STARTED
+  JOB_COMPLETED
+  RELEASED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  WALLET
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum Urgency {
+  IMMEDIATE
+  TODAY
+  TOMORROW
+  THIS_WEEK
+  NEXT_WEEK
+  FLEXIBLE
+}
+
+enum Language {
+  HI // Hindi
+  TA // Tamil
+  BN // Bengali
+  TE // Telugu
+  KN // Kannada
+  MR // Marathi
+  GU // Gujarati
+  OD // Odia
+  EN // English
+}
+
+// ========== USER & AUTH ==========
+
+model User {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  name          String
+  email         String?
+  role          UserRole
+  preferredLang Language  @default(HI)
+  photoUrl      String?
+  voiceIntroUrl String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  worker        Worker?
+  hirer         Hirer?
+  sessions      Session[]
+  notifications Notification[]
+
+  @@index([phone])
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  deviceInfo String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ========== WORKER ==========
+
+model Worker {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  konnectId       String   @unique // KON-YYYY-XXXXX
+  city            String
+  state           String
+  pincode         String?
+  latitude        Float?
+  longitude       Float?
+  experience      String   // "0-2", "2-5", "5-10", "10+"
+  bio             String?
+  konnectScore    Int      @default(300)
+  totalEarnings   Float    @default(0)
+  totalJobs       Int      @default(0)
+  avgRating       Float    @default(0)
+  isAvailable     Boolean  @default(true)
+  responseTimeMin Int?     // avg response time in minutes
+  completionRate  Float    @default(100)
+  verified        VerificationStatus @default(PENDING)
+  verifiedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills         WorkerSkill[]
+  certifications Certification[]
+  bookingsAsWorker Booking[]    @relation("WorkerBookings")
+  reviews        Review[]       @relation("WorkerReviews")
+  languages      WorkerLanguage[]
+  scoreHistory   KonnectScoreLog[]
+
+  @@index([city])
+  @@index([konnectScore])
+  @@index([isAvailable])
+  @@index([verified])
+}
+
+model WorkerSkill {
+  id         String   @id @default(cuid())
+  workerId   String
+  skillId    String
+  level      SkillLevel @default(BEGINNER)
+  verified   Boolean    @default(false)
+  jobCount   Int        @default(0)
+  createdAt  DateTime   @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  skill  Skill  @relation(fields: [skillId], references: [id])
+
+  @@unique([workerId, skillId])
+  @@index([skillId])
+}
+
+model WorkerLanguage {
+  id       String  @id @default(cuid())
+  workerId String
+  language Language
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, language])
+}
+
+// ========== HIRER ==========
+
+model Hirer {
+  id            String  @id @default(cuid())
+  userId        String  @unique
+  businessName  String
+  businessType  String
+  gstNumber     String?
+  city          String
+  state         String
+  hiringFreq    String? // "daily", "weekly", "monthly", "project"
+  totalSpent    Float   @default(0)
+  totalBookings Int     @default(0)
+  verified      VerificationStatus @default(PENDING)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs     Job[]
+  bookingsAsHirer Booking[] @relation("HirerBookings")
+  reviews  Review[]  @relation("HirerReviews")
+
+  @@index([city])
+  @@index([businessType])
+}
+
+// ========== SKILLS ==========
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "electrician", "plumber"
+  displayName String   // "Electrician"
+  displayNameHi String? // "इलेक्ट्रीशियन"
+  category    String   // "trades", "construction", "home_services"
+  icon        String?  // icon name from lucide
+  color       String?  // hex color
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  workerSkills  WorkerSkill[]
+  specializations Specialization[]
+  jobs          Job[]
+
+  @@index([name])
+  @@index([category])
+}
+
+model Specialization {
+  id      String @id @default(cuid())
+  skillId String
+  name    String
+  nameHi  String?
+
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([skillId, name])
+}
+
+// ========== CERTIFICATIONS ==========
+
+model Certification {
+  id           String  @id @default(cuid())
+  workerId     String
+  name         String
+  issuer       String
+  year         String
+  certificateUrl String?
+  digilockerVerified Boolean @default(false)
+  verified     Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+}
+
+// ========== JOBS ==========
+
+model Job {
+  id              String   @id @default(cuid())
+  hirerId         String
+  title           String
+  description     String?
+  skillId         String
+  city            String
+  locality        String?
+  latitude        Float?
+  longitude       Float?
+  amount          Float
+  urgency         Urgency  @default(THIS_WEEK)
+  duration        String?
+  status          JobStatus @default(OPEN)
+  teamSize        Int       @default(1)
+  postedAt        DateTime  @default(now())
+  expiresAt       DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  hirer    Hirer     @relation(fields: [hirerId], references: [id])
+  skill    Skill     @relation(fields: [skillId], references: [id])
+  bookings Booking[]
+
+  @@index([skillId])
+  @@index([city])
+  @@index([status])
+  @@index([urgency])
+}
+
+// ========== BOOKINGS & ESCROW ==========
+
+model Booking {
+  id            String   @id @default(cuid())
+  jobId         String
+  workerId      String
+  hirerId       String
+  amount        Float
+  platformFee   Float    // 10% take rate
+  workerPayout  Float
+  escrowStatus  BookingStatus @default(CREATED)
+  paymentMethod PaymentMethod @default(UPI)
+  upiId         String?
+  scheduledDate DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+  releasedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  job     Job     @relation(fields: [jobId], references: [id])
+  worker  Worker  @relation("WorkerBookings", fields: [workerId], references: [id])
+  hirer   Hirer   @relation("HirerBookings", fields: [hirerId], references: [id])
+  review  Review?
+  payments Payment[]
+  escrowLogs EscrowLog[]
+
+  @@index([workerId])
+  @@index([hirerId])
+  @@index([escrowStatus])
+  @@index([scheduledDate])
+}
+
+model EscrowLog {
+  id        String   @id @default(cuid())
+  bookingId String
+  fromState BookingStatus
+  toState   BookingStatus
+  actor     String   // "system", "worker", "hirer", "admin"
+  reason    String?
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+}
+
+// ========== PAYMENTS ==========
+
+model Payment {
+  id            String   @id @default(cuid())
+  bookingId     String
+  amount        Float
+  type          String   // "escrow_fund", "worker_payout", "refund", "platform_fee"
+  method        PaymentMethod
+  upiTransId    String?
+  status        String   // "pending", "completed", "failed"
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+// ========== REVIEWS ==========
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  workerId   String
+  hirerId    String
+  rating     Int      // 1-5
+  text       String?
+  createdAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  worker  Worker  @relation("WorkerReviews", fields: [workerId], references: [id])
+  hirer   Hirer   @relation("HirerReviews", fields: [hirerId], references: [id])
+
+  @@index([workerId])
+  @@index([hirerId])
+}
+
+// ========== KONNECT SCORE ==========
+
+model KonnectScoreLog {
+  id        String   @id @default(cuid())
+  workerId  String
+  oldScore  Int
+  newScore  Int
+  delta     Int
+  reason    String   // "job_completed", "review_positive", "certification_added", etc.
+  createdAt DateTime @default(now())
+
+  worker Worker @relation(fields: [workerId], references: [id])
+
+  @@index([workerId])
+  @@index([createdAt])
+}
+
+// ========== NOTIFICATIONS ==========
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "job_match", "payment", "booking_update", "score_update"
+  title     String
+  body      String
+  channel   String   @default("in_app") // "in_app", "whatsapp", "sms"
+  read      Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// ========== PLATFORM ANALYTICS ==========
+
+model PlatformMetric {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  city      String
+  metric    String   // "new_workers", "new_hirers", "bookings", "gmv", "revenue"
+  value     Float
+  createdAt DateTime @default(now())
+
+  @@unique([date, city, metric])
+  @@index([date])
+  @@index([city])
+}
