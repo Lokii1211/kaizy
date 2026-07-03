@@ -24,14 +24,23 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<"forbidden" | "failed" | null>(null);
 
   const fetchStats = async () => {
     try {
       const res = await fetch("/api/admin/stats");
       const json = await res.json();
-      if (json.success && json.data) setStats(json.data);
+      if (json.success && json.data) {
+        setStats(json.data);
+        setError(null);
+      } else if (res.status === 403) {
+        setError("forbidden");
+      } else {
+        setError("failed");
+      }
     } catch (e) {
       console.error("[admin]", e);
+      setError("failed");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -40,7 +49,7 @@ export default function AdminDashboard() {
 
   useEffect(() => { fetchStats(); }, []);
 
-  const refresh = () => { setRefreshing(true); fetchStats(); };
+  const refresh = () => { setError(null); setRefreshing(true); fetchStats(); };
 
   if (loading) {
     return (
@@ -48,6 +57,36 @@ export default function AdminDashboard() {
         <div className="text-center">
           <div className="w-10 h-10 border-3 rounded-full animate-spin mx-auto" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
           <p className="text-[12px] font-bold mt-3" style={{ color: "var(--text-3)" }}>Loading admin data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="text-center">
+          <p className="text-[40px] mb-3">{error === "forbidden" ? "🔒" : "⚠️"}</p>
+          <p className="text-[15px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+            {error === "forbidden" ? "You don't have admin access" : "Failed to load stats"}
+          </p>
+          <p className="text-[11px] mt-1.5 font-medium" style={{ color: "var(--text-3)" }}>
+            {error === "forbidden" ? "This area is restricted to Kaizy admins." : "Something went wrong while fetching the dashboard."}
+          </p>
+          {error === "failed" && (
+            <button onClick={refresh} disabled={refreshing}
+                    className="inline-block mt-6 rounded-[16px] px-6 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
+                    style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)", opacity: refreshing ? 0.6 : 1 }}>
+              {refreshing ? "Retrying..." : "Retry"}
+            </button>
+          )}
+          {error === "forbidden" && (
+            <Link href="/settings"
+                  className="inline-block mt-6 rounded-[16px] px-6 py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
+                  style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+              Back to Settings
+            </Link>
+          )}
         </div>
       </div>
     );

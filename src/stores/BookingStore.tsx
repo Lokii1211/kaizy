@@ -1,5 +1,7 @@
 "use client";
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // ============================================================
 // Kaizy — REAL-TIME BOOKING STORE (v8.0)
@@ -123,6 +125,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const moveTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const bookingChannelRef = useRef<RealtimeChannel | undefined>(undefined);
 
   // ── Restore booking state from sessionStorage on mount ──
   useEffect(() => {
@@ -154,6 +157,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       clearInterval(moveTimerRef.current);
       clearInterval(pollRef.current);
       clearTimeout(timeoutRef.current);
+      if (bookingChannelRef.current && supabase) {
+        supabase.removeChannel(bookingChannelRef.current);
+        bookingChannelRef.current = undefined;
+      }
     };
   }, []);
 
@@ -314,49 +321,87 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           }));
         } catch {}
 
-        // Poll for worker acceptance (real DB polling)
+        // ── Shared "worker accepted" handler — called by either the realtime
+        // INSERT event (fast path) or the polling fallback (safety net) ──
+        let acceptanceHandled = false;
+        const handleAcceptance = (realBookingId: string | undefined) => {
+          if (acceptanceHandled) return;
+          acceptanceHandled = true;
+
+          clearInterval(pollRef.current);
+          clearTimeout(timeoutRef.current);
+          pollRef.current = undefined;
+          timeoutRef.current = undefined;
+          if (bookingChannelRef.current && supabase) {
+            supabase.removeChannel(bookingChannelRef.current);
+            bookingChannelRef.current = undefined;
+          }
+
+          setState(prev => ({
+            ...prev,
+            status: "accepted",
+            bookingId: realBookingId || prev.bookingId,
+            eta: prev.selectedWorker?.eta || 8,
+            messages: [
+              ...prev.messages,
+              { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted your booking!`, timestamp: Date.now(), read: true },
+            ],
+          }));
+
+          // Store booking ID
+          try {
+            const existing = sessionStorage.getItem('kaizy_active_job');
+            if (existing) {
+              const parsed = JSON.parse(existing);
+              parsed.bookingId = realBookingId;
+              sessionStorage.setItem('kaizy_active_job', JSON.stringify(parsed));
+            }
+          } catch {}
+
+          // Move to en_route after 1 second
+          setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+        };
+
+        // Realtime: primary fast-path — listen for the booking row being
+        // INSERTed for this job (fires the instant a worker accepts).
+        // Falls back to the poll below if Realtime isn't enabled on the
+        // user's Supabase project (Database → Replication).
+        if (supabase) {
+          bookingChannelRef.current = supabase
+            .channel(`booking-accept-${realJobId}`)
+            .on(
+              'postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'bookings', filter: `job_id=eq.${realJobId}` },
+              (payload) => {
+                const row = payload.new as { id?: string; booking_id?: string; status?: string } | null;
+                if (!row) return;
+                handleAcceptance(row.id || row.booking_id);
+              }
+            )
+            .subscribe();
+        }
+
+        // Poll for worker acceptance (real DB polling) — fallback safety net,
+        // slightly longer interval now that realtime is the primary path.
         pollRef.current = setInterval(async () => {
           try {
             const statusRes = await fetch(`/api/bookings/status?jobId=${realJobId}`);
             const statusJson = await statusRes.json();
             if (statusJson.success && statusJson.data?.status === 'accepted') {
-              clearInterval(pollRef.current);
-              clearTimeout(timeoutRef.current);
-              pollRef.current = undefined;
-              timeoutRef.current = undefined;
               const realBookingId = statusJson.data.id || statusJson.data.booking_id;
-
-              setState(prev => ({
-                ...prev,
-                status: "accepted",
-                bookingId: realBookingId || prev.bookingId,
-                eta: prev.selectedWorker?.eta || 8,
-                messages: [
-                  ...prev.messages,
-                  { id: "sys-2", sender: "system", text: `${prev.selectedWorker?.name || 'Worker'} accepted your booking!`, timestamp: Date.now(), read: true },
-                ],
-              }));
-
-              // Store booking ID
-              try {
-                const existing = sessionStorage.getItem('kaizy_active_job');
-                if (existing) {
-                  const parsed = JSON.parse(existing);
-                  parsed.bookingId = realBookingId;
-                  sessionStorage.setItem('kaizy_active_job', JSON.stringify(parsed));
-                }
-              } catch {}
-
-              // Move to en_route after 1 second
-              setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+              handleAcceptance(realBookingId);
             }
           } catch {}
-        }, 5000);
+        }, 8000);
 
         // 5-minute timeout: if no worker accepts, reset to idle
         timeoutRef.current = setTimeout(() => {
           clearInterval(pollRef.current);
           pollRef.current = undefined;
+          if (bookingChannelRef.current && supabase) {
+            supabase.removeChannel(bookingChannelRef.current);
+            bookingChannelRef.current = undefined;
+          }
           setState(prev => {
             if (prev.status === 'matching' || prev.status === 'matched') {
               return {
@@ -508,6 +553,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     moveTimerRef.current = undefined;
     pollRef.current = undefined;
     timeoutRef.current = undefined;
+    if (bookingChannelRef.current && supabase) {
+      supabase.removeChannel(bookingChannelRef.current);
+      bookingChannelRef.current = undefined;
+    }
     try { sessionStorage.removeItem('kaizy_booking_state'); } catch {}
     if (state.bookingId) updateBookingDB(state.bookingId, 'cancelled');
     if (state.jobId) {
@@ -532,6 +581,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     moveTimerRef.current = undefined;
     pollRef.current = undefined;
     timeoutRef.current = undefined;
+    if (bookingChannelRef.current && supabase) {
+      supabase.removeChannel(bookingChannelRef.current);
+      bookingChannelRef.current = undefined;
+    }
     try { sessionStorage.removeItem('kaizy_booking_state'); } catch {}
     setState(defaultState);
   }, []);

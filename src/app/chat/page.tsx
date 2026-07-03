@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
+import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // REAL-TIME CHAT — Supabase Realtime subscriptions
@@ -28,6 +29,7 @@ export default function ChatPage() {
   const [workerName, setWorkerName] = useState("Worker");
   const [workerInitials, setWorkerInitials] = useState("W");
   const [workerPhone, setWorkerPhone] = useState("");
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   // Load worker info from sessionStorage
   useEffect(() => {
@@ -42,12 +44,22 @@ export default function ChatPage() {
         if (w.phone) setWorkerPhone(w.phone);
       }
     } catch {}
+
+    // Load booking ID (set by BookingStore v8.0) so chat + realtime can scope to this booking
+    try {
+      const activeJob = sessionStorage.getItem("kaizy_active_job");
+      if (activeJob) {
+        const job = JSON.parse(activeJob);
+        if (job.bookingId) setBookingId(job.bookingId);
+      }
+    } catch {}
   }, []);
 
   // Fetch messages via API
   const fetchMessages = async () => {
     try {
-      const res = await fetch("/api/chat?limit=100");
+      const url = bookingId ? `/api/chat?limit=100&booking_id=${bookingId}` : "/api/chat?limit=100";
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success && json.data) setMessages(json.data);
     } catch (e) {
@@ -59,10 +71,36 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchMessages();
-    // Poll every 3 seconds for real-time feel
-    const id = setInterval(fetchMessages, 3000);
+    // Fallback poll — slowed down now that Realtime (below) is the primary path.
+    // Still required in case the user's Supabase project doesn't have Realtime
+    // replication enabled for the `messages` table.
+    const id = setInterval(fetchMessages, 15000); // Poll every 15s (fallback)
     return () => clearInterval(id);
-  }, []);
+  }, [bookingId]);
+
+  // Realtime: subscribe to new messages for this booking — primary fast-path.
+  // Appends the new row directly instead of refetching the whole list.
+  useEffect(() => {
+    if (!bookingId) return;
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`messages-${bookingId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `booking_id=eq.${bookingId}` },
+        (payload) => {
+          const row = payload.new as Message;
+          if (!row) return;
+          setMessages(prev => prev.some(m => m.id === row.id) ? prev : [...prev, row]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [bookingId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -78,7 +116,7 @@ export default function ChatPage() {
       await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, senderType: "user" }),
+        body: JSON.stringify({ content, senderType: "user", bookingId }),
       });
       setInput("");
       fetchMessages();

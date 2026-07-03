@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Epilogue, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import MobileNav from "@/components/MobileNav";
 import I18nProvider from "@/components/I18nProvider";
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className={`${epilogue.variable} ${jakarta.variable} ${jetbrains.variable} antialiased`}
             style={{ fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
         <AuthProvider>
         <ThemeProvider>
           <BookingProvider>

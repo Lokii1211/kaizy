@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { subscribeToPush } from "@/lib/push";
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
@@ -25,6 +26,13 @@ export default function ServiceWorkerRegistration() {
               }
             });
           });
+
+          // Only prompt for push subscription if the user is logged in
+          if (document.cookie.includes("kaizy_token")) {
+            subscribeToPush().catch((err) => {
+              console.warn("[push] subscription failed:", err);
+            });
+          }
 
           return () => clearInterval(interval);
         })

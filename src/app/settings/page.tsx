@@ -136,7 +136,11 @@ export default function SettingsPage() {
       </div>
 
       {/* Quick stats */}
-      {user?.user_type === "worker" && (
+      {loading ? (
+        <div className="grid grid-cols-3 gap-2.5 px-5 mt-3">
+          {[1, 2, 3].map(i => <div key={i} className="skeleton rounded-[14px]" style={{ height: 56 }} />)}
+        </div>
+      ) : user?.user_type === "worker" && (
         <div className="grid grid-cols-3 gap-2.5 px-5 mt-3">
           {[
             { val: user.avg_rating ? `${user.avg_rating.toFixed(1)}⭐` : "—", label: "Rating" },
@@ -173,7 +177,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Menu sections — role-based */}
-      {(user?.user_type === "worker" ? workerMenuSections : hirerMenuSections).map(section => (
+      {loading ? (
+        <div className="px-5 mt-6 space-y-6">
+          {[1, 2, 3].map(s => (
+            <div key={s}>
+              <div className="skeleton h-3 w-20 rounded-full mb-2" />
+              <div className="skeleton rounded-[16px]" style={{ height: 130 }} />
+            </div>
+          ))}
+        </div>
+      ) : (user?.user_type === "worker" ? workerMenuSections : hirerMenuSections).map(section => (
         <div key={section.title} className="px-5 mt-6">
           <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>{section.title}</p>
           <div className="rounded-[16px] overflow-hidden" style={{ background: "var(--bg-card)" }}>

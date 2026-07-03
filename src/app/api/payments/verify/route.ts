@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, createNotification } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
+import { createNotification } from '@/lib/push-server';
 import crypto from 'crypto';
 
 // ═══════════════════════════════════════

@@ -94,3 +94,50 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ── Push notifications ──
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'Kaizy', body: event.data.text() };
+  }
+
+  const { title, body, icon, url, tag } = payload;
+
+  event.waitUntil(
+    self.registration.showNotification(title || 'Kaizy', {
+      body: body || '',
+      icon: icon || '/icon-192.png',
+      badge: '/icon-192.png',
+      tag,
+      data: { url: url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Focus an existing Kaizy window if one is already open
+      for (const client of windowClients) {
+        const clientUrl = new URL(client.url);
+        if (clientUrl.origin === self.location.origin && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

@@ -125,17 +125,41 @@ function PaymentContent() {
             order_id: json.data.orderId,
             name: "Kaizy",
             description: `Payment for booking #${bookingData.bookingId.substring(0, 8)}`,
-            handler: () => {
-              // Payment successful
-              router.push(
-                `/booking/payment-success?bookingId=${bookingData.bookingId}&amount=${totalAmount}&worker=${encodeURIComponent(bookingData.worker.name)}&method=upi`
-              );
+            handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+              // Verify signature server-side before treating payment as successful —
+              // a client-side "success" callback alone proves nothing.
+              try {
+                const verifyRes = await fetch("/api/payments/verify", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    bookingId: bookingData.bookingId,
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    signature: response.razorpay_signature,
+                  }),
+                });
+                const verifyJson = await verifyRes.json();
+                if (verifyJson.success) {
+                  router.push(
+                    `/booking/payment-success?bookingId=${bookingData.bookingId}&amount=${totalAmount}&worker=${encodeURIComponent(bookingData.worker.name)}&method=upi`
+                  );
+                } else {
+                  setPaymentError("Payment could not be verified. If money was deducted, contact support — it will be refunded.");
+                  setProcessing(false);
+                }
+              } catch {
+                setPaymentError("Payment verification failed. If money was deducted, contact support — it will be refunded.");
+                setProcessing(false);
+              }
+            },
+            modal: {
+              ondismiss: () => setProcessing(false),
             },
             prefill: {},
-            theme: { color: "#6C5CE7" },
+            theme: { color: "#FF6B00" },
           });
           rzp.open();
-          setProcessing(false);
           return;
         }
       }

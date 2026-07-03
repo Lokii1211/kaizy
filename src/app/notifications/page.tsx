@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/stores/AuthStore";
+import { supabase } from "@/lib/supabase";
 
 // ============================================================
 // NOTIFICATIONS v10.0 — Stitch "Digital Artisan" Design
@@ -49,8 +50,10 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications every 15 seconds
-    const id = setInterval(fetchNotifications, 15000);
+    // Fallback poll — slowed down now that Realtime (below) is the primary path.
+    // Still required in case the user's Supabase project doesn't have Realtime
+    // replication enabled for the `notifications` table.
+    const id = setInterval(fetchNotifications, 60000); // Poll every 60s (fallback)
     return () => clearInterval(id);
   }, []);
 
@@ -67,6 +70,32 @@ export default function NotificationsPage() {
     } catch {}
     return "";
   };
+
+  // Realtime: subscribe to new notifications for the current user — primary
+  // fast-path. Falls back to the polling effect above if Realtime isn't
+  // enabled on the user's Supabase project (Database → Replication).
+  useEffect(() => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`notifications-page-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as Notification;
+          if (!row) return;
+          setNotifications(prev => prev.some(n => n.id === row.id) ? prev : [row, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Accept job alert — uses REAL user ID from auth
   const handleAccept = async (notif: Notification) => {

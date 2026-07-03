@@ -27,22 +27,36 @@ export default function IncentivesPage() {
   const [tab, setTab] = useState<"daily" | "weekly" | "monthly" | "special">("daily");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<IncentiveData | null>(null);
+  const [error, setError] = useState(false);
+
+  const fetchIncentives = async () => {
+    try {
+      const authRes = await fetch("/api/auth/me");
+      const authJson = await authRes.json();
+      const workerId = authJson.data?.id || "guest";
+
+      const res = await fetch(`/api/incentives?worker_id=${workerId}`);
+      if (!res.ok) { setError(true); setLoading(false); return; }
+      const json = await res.json();
+      if (json.success) { setData(json.data); setError(false); }
+      else setError(true);
+    } catch {
+      setError(true);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchIncentives = async () => {
-      try {
-        const authRes = await fetch("/api/auth/me");
-        const authJson = await authRes.json();
-        const workerId = authJson.data?.id || "guest";
-        
-        const res = await fetch(`/api/incentives?worker_id=${workerId}`);
-        const json = await res.json();
-        if (json.success) setData(json.data);
-      } catch {}
-      setLoading(false);
-    };
-    fetchIncentives();
+    let cancelled = false;
+    (async () => { if (!cancelled) await fetchIncentives(); })();
+    return () => { cancelled = true; };
   }, []);
+
+  const retry = () => {
+    setLoading(true);
+    setError(false);
+    fetchIncentives();
+  };
 
   const stats = data?.stats || { dailyJobs: 0, weeklyJobs: 0, monthlyJobs: 0, monthlyEarnings: 0, rating: 0, streak: 0 };
   const summary = data?.summary || { totalEarned: 0, totalPotential: 0, nextTarget: "Loading..." };
@@ -125,6 +139,33 @@ export default function IncentivesPage() {
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+          </div>
+        ) : error ? (
+          /* ── Fetch failed — distinct from legitimate empty state ── */
+          <div className="rounded-2xl p-8 text-center" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[36px] mb-2">⚠️</p>
+            <p className="text-[13px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+              Couldn&apos;t load incentives
+            </p>
+            <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>
+              Check your connection
+            </p>
+            <button onClick={retry}
+                    className="inline-block mt-5 rounded-[14px] px-6 py-3 text-[12px] font-bold text-white active:scale-95 transition-transform"
+                    style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
+              Retry
+            </button>
+          </div>
+        ) : !data ? (
+          /* ── Legitimate empty state — fetch succeeded but no incentive data yet ── */
+          <div className="rounded-2xl p-8 text-center" style={{ background: "var(--bg-card)" }}>
+            <p className="text-[36px] mb-2">🎯</p>
+            <p className="text-[13px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+              No incentives yet
+            </p>
+            <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>
+              Complete jobs to start earning bonuses
+            </p>
           </div>
         ) : tab === "special" ? (
           /* ── Special Bonuses ── */

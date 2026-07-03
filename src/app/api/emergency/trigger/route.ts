@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, findNearbyWorkers, calculateJobPricing, createNotification } from '@/lib/supabase';
+import { supabaseAdmin, findNearbyWorkers, calculateJobPricing } from '@/lib/supabase';
+import { createNotification } from '@/lib/push-server';
 
 // ═══════════════════════════════════════
 // POST /api/emergency/trigger

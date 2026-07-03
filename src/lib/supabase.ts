@@ -126,7 +126,11 @@ export async function calculateJobPricing(trade: string, problemType: string, di
   };
 }
 
-// ═══ HELPER: Send notification to user ═══
+// ═══ HELPER: Send in-app notification to user ═══
+// NOTE: this does NOT send a push notification. For push + in-app together,
+// use createNotification from '@/lib/push-server' instead (server-only,
+// isolated from this file because this file is also imported by client
+// components and 'web-push' can't be bundled into client code).
 export async function createNotification(userId: string, type: string, title: string, body: string, data: Record<string, unknown> = {}) {
   await supabaseAdmin.from('notifications').insert({ user_id: userId, type, title, body, data });
 }

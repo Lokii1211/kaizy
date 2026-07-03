@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
+import { supabase } from "@/lib/supabase";
 import JobAlertOverlay from "@/components/JobAlertOverlay";
 import LivenessCheck from "@/components/LivenessCheck";
 import NightSafetyBriefing from "@/components/NightSafetyBriefing";
@@ -62,6 +63,7 @@ export default function WorkerDashboardPage() {
   const [showLivenessCheck, setShowLivenessCheck] = useState(false);
   const [showNightBriefing, setShowNightBriefing] = useState(false);
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
+  const [alertFetchFailures, setAlertFetchFailures] = useState(0);
 
   // Get greeting
   useEffect(() => {
@@ -163,6 +165,9 @@ export default function WorkerDashboardPage() {
       try {
         const res = await fetch(`/api/notifications?userId=${user.id}&limit=10`);
         const json = await res.json();
+        if (!res.ok) throw new Error('bad response');
+        setAlertFetchFailures(0);
+
         if (json.success && json.data?.length) {
           setAlerts(json.data);
 
@@ -191,12 +196,66 @@ export default function WorkerDashboardPage() {
             });
           }
         }
-      } catch {}
+      } catch {
+        // Intentionally silent — don't spam a toast every poll on a network blip.
+        // Track consecutive failures so we can surface a non-blocking indicator
+        // if alerts might be getting missed.
+        setAlertFetchFailures(prev => prev + 1);
+      }
     };
 
     checkForAlerts();
-    const intervalId = setInterval(checkForAlerts, 10000); // Poll every 10s
+    // Fallback poll — slowed down now that Realtime (below) is the primary path.
+    // Still required in case the user's Supabase project doesn't have Realtime
+    // replication enabled for the `notifications` table.
+    const intervalId = setInterval(checkForAlerts, 60000); // Poll every 60s (fallback)
     return () => clearInterval(intervalId);
+  }, [user, isOnline, activeJobAlert, acceptedJob]);
+
+  // Realtime: subscribe to new notifications for this worker — primary fast-path
+  // for job alerts. Falls back to the polling effect above if Realtime isn't
+  // enabled on the user's Supabase project (Database → Replication).
+  useEffect(() => {
+    if (!user || !isOnline) return;
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as AlertNotification;
+          if (!row) return;
+
+          setAlerts(prev => [row, ...prev.filter(a => a.id !== row.id)].slice(0, 10));
+
+          if (row.type === 'JOB_ALERT' && !row.is_read && !activeJobAlert && !acceptedJob) {
+            const data = row.data || {};
+            const tradeIcons: Record<string, string> = { electrician: "⚡", plumber: "🔧", mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨" };
+            const tradeStr = String(data.trade || 'technician');
+            setActiveJobAlert({
+              id: row.id,
+              trade: tradeStr,
+              tradeIcon: tradeIcons[tradeStr] || "🔧",
+              problem: String(data.problemType || 'Service request'),
+              distance: Number(data.distance || 2),
+              eta: Number(data.eta || 10),
+              earnings: Number(data.earnings || 500),
+              hirerRating: Number(data.hirerRating || 4.5),
+              hirerName: String(data.hirerName || 'Customer'),
+              duration: String(data.duration || '1-2 hours'),
+              isEmergency: Boolean(data.isEmergency),
+              address: String(data.address || 'Nearby location'),
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, isOnline, activeJobAlert, acceptedJob]);
 
   // Update GPS every 30 seconds while online
@@ -289,243 +348,273 @@ export default function WorkerDashboardPage() {
     handleAcceptJob(alertId);
   }, [handleAcceptJob]);
 
-  const displayName = user?.name || user?.phone?.replace('+91', '') || "Worker";
+  const displayName = (user?.name || "").split(" ")[0] || user?.phone?.replace('+91', '') || "Worker";
   const tradeName = user?.trade || "Worker";
+  const kaizyScore = user?.kaizy_score || 0;
+  const scoreProgress = Math.min((kaizyScore / 1000) * 100, 100);
 
   if (loading) {
     return (
-      <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
-        {/* Header shimmer */}
-        <div className="px-5 pt-5 pb-5">
+      <div className="min-h-screen pb-28" style={{ background: "var(--bg-app)" }}>
+        <div className="px-5 pt-6 pb-5">
           <div className="flex justify-between items-center mb-5">
             <div>
               <div className="skeleton h-3 w-20 rounded-full mb-2" />
-              <div className="skeleton h-6 w-40 rounded-full mb-1" />
-              <div className="skeleton h-3 w-28 rounded-full" />
+              <div className="skeleton h-7 w-36 rounded-full mb-2" />
+              <div className="skeleton h-3 w-24 rounded-full" />
             </div>
             <div className="flex gap-2">
-              <div className="skeleton w-9 h-9 rounded-xl" />
-              <div className="skeleton w-9 h-9 rounded-xl" />
+              <div className="skeleton w-10 h-10 rounded-xl" />
+              <div className="skeleton w-10 h-10 rounded-xl" />
             </div>
           </div>
-          <div className="skeleton h-16 w-full rounded-[20px]" />
-        </div>
-        {/* Stats shimmer */}
-        <div className="grid grid-cols-3 gap-2.5 px-5 mb-5">
-          {[1,2,3].map(i => <div key={i} className="skeleton h-20 rounded-[16px]" />)}
-        </div>
-        {/* Quick actions shimmer */}
-        <div className="px-5 mb-5">
-          <div className="skeleton h-3 w-24 rounded-full mb-3" />
+          <div className="skeleton h-[100px] w-full rounded-[22px] mb-4" />
           <div className="grid grid-cols-3 gap-2.5">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton h-16 rounded-[14px]" />)}
+            {[1, 2, 3].map(i => <div key={i} className="skeleton h-20 rounded-[18px]" />)}
           </div>
         </div>
-        {/* Alerts shimmer */}
-        <div className="px-5 space-y-2">
-          <div className="skeleton h-3 w-20 rounded-full mb-3" />
-          <div className="skeleton h-20 rounded-[18px]" />
-          <div className="skeleton h-20 rounded-[18px]" />
+        <div className="px-5 space-y-2.5">
+          {[1, 2, 3].map(i => <div key={i} className="skeleton h-16 rounded-[16px]" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+    <div className="min-h-screen pb-28" style={{ background: "var(--bg-app)" }}>
 
-      {/* ═══ FULL-SCREEN JOB ALERT OVERLAY ═══ */}
+      {/* ═══ OVERLAYS ═══ */}
       {activeJobAlert && (
-        <JobAlertOverlay
-          alert={activeJobAlert}
-          onAccept={handleJobAlertAccept}
-          onDecline={handleDeclineJob}
-        />
+        <JobAlertOverlay alert={activeJobAlert} onAccept={handleJobAlertAccept} onDecline={handleDeclineJob} />
       )}
-
-      {/* ═══ NIGHT SAFETY BRIEFING — required before accepting 9PM–6AM jobs ═══ */}
       {showNightBriefing && activeJobAlert && (
         <NightSafetyBriefing
-          jobDetails={{
-            trade: activeJobAlert.trade,
-            distance: activeJobAlert.distance,
-            earnings: activeJobAlert.earnings,
-            area: activeJobAlert.address,
-          }}
-          onAccept={() => {
-            setShowNightBriefing(false);
-            if (pendingAlertId) handleAcceptJob(pendingAlertId);
-            setPendingAlertId(null);
-          }}
-          onDecline={() => {
-            setShowNightBriefing(false);
-            setPendingAlertId(null);
-            setActiveJobAlert(null);
-          }}
+          jobDetails={{ trade: activeJobAlert.trade, distance: activeJobAlert.distance, earnings: activeJobAlert.earnings, area: activeJobAlert.address }}
+          onAccept={() => { setShowNightBriefing(false); if (pendingAlertId) handleAcceptJob(pendingAlertId); setPendingAlertId(null); }}
+          onDecline={() => { setShowNightBriefing(false); setPendingAlertId(null); setActiveJobAlert(null); }}
         />
       )}
-
-      {/* ═══ WEEKLY LIVENESS CHECK — required before going online ═══ */}
       {showLivenessCheck && user && (
-        <LivenessCheck
-          workerId={user.id}
-          lastVerifiedAt={undefined}
-          onVerified={() => {
-            setShowLivenessCheck(false);
-            performToggle(true);
-          }}
-          onSkip={() => setShowLivenessCheck(false)}
-        />
+        <LivenessCheck workerId={user.id} lastVerifiedAt={undefined}
+          onVerified={() => { setShowLivenessCheck(false); performToggle(true); }}
+          onSkip={() => setShowLivenessCheck(false)} />
       )}
 
-      {/* ═══ JOB ACCEPTED BANNER ═══ */}
+      {/* ═══ ACCEPTED JOB BANNER ═══ */}
       {acceptedJob && (
         <div className="fixed top-0 left-0 right-0 z-[9998] p-4 animate-slide-down"
              style={{ background: acceptedJob.bookingId ? "var(--success)" : "var(--warning)" }}>
           <div className="max-w-md mx-auto text-center">
             <p className="text-[16px] font-black text-white">{acceptedJob.bookingId ? "✅ Job Accepted!" : "⚠️"}</p>
-            <p className="text-[12px] mt-1 text-white opacity-80">{acceptedJob.message}</p>
+            <p className="text-[12px] mt-1 text-white/80">{acceptedJob.message}</p>
             {acceptedJob.otp && (
-              <p className="text-[20px] font-black text-white mt-2" style={{ letterSpacing: "4px" }}>
-                OTP: {acceptedJob.otp}
+              <p className="text-[24px] font-black text-white mt-2" style={{ letterSpacing: "6px", fontFamily: "'JetBrains Mono', monospace" }}>
+                {acceptedJob.otp}
               </p>
             )}
             <button onClick={() => setAcceptedJob(null)}
-                    className="mt-3 text-[12px] font-bold px-4 py-2 rounded-xl"
+                    className="mt-3 text-[12px] font-bold px-5 py-2 rounded-xl"
                     style={{ background: "rgba(255,255,255,0.2)", color: "#fff" }}>
-              {acceptedJob.bookingId ? "Start Navigation" : "OK"}
+              {acceptedJob.bookingId ? "Start Navigation →" : "OK"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Header — Tonal layered */}
-      <div className="px-5 pt-5 pb-5" style={{ background: isOnline ? (isDark ? "rgba(52,211,153,0.04)" : "#F0FFF4") : "var(--bg-app)" }}>
-        <div className="flex justify-between items-center mb-5">
+      {/* ══════════════════════════════
+          HEADER
+      ══════════════════════════════ */}
+      <div className="px-5 pt-6 pb-4">
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>{greeting}</p>
-            <h1 className="text-[22px] font-black tracking-tight mt-0.5" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{displayName} 👋</h1>
+            <p className="text-[11px] font-semibold" style={{ color: "var(--text-3)" }}>{greeting} 👋</p>
+            <h1 className="text-[24px] font-black tracking-tight leading-tight"
+                style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+              {displayName}
+            </h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>{tradeName}</span>
-              <span className="trust-badge">KS {user?.kaizy_score || 0}</span>
+              <span className="text-[11px] font-semibold capitalize" style={{ color: "var(--brand)" }}>{tradeName}</span>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                KS {kaizyScore}/1000
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={toggle} aria-label="Toggle theme" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
-                    style={{ background: "var(--bg-surface)" }}>
-              <span className="text-[14px]">{isDark ? "🌙" : "☀️"}</span>
-            </button>
-            <Link href="/settings" aria-label="Settings" className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+            <Link href="/notifications" aria-label="Notifications"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center relative active:scale-90 transition-transform"
                   style={{ background: "var(--bg-surface)" }}>
-              <span className="text-[14px]">⚙️</span>
+              <span className="text-[16px]">🔔</span>
+              {alerts.filter(a => !a.is_read).length > 0 && (
+                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+                     style={{ background: "var(--danger)", border: "2px solid var(--bg-app)" }} />
+              )}
             </Link>
+            <button onClick={toggle} aria-label="Toggle theme"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
+                    style={{ background: "var(--bg-surface)" }}>
+              <span className="text-[16px]">{isDark ? "🌙" : "☀️"}</span>
+            </button>
           </div>
         </div>
 
-        {/* Online/Offline Toggle — Tonal, no harsh border */}
+        {/* ══ ONLINE TOGGLE ══ */}
         <button onClick={handleToggle} disabled={toggling}
-                className="w-full rounded-[20px] p-4 flex items-center justify-between active:scale-[0.97] transition-all"
+                className="w-full rounded-[22px] p-5 active:scale-[0.97] transition-all"
                 style={{
-                  background: isOnline ? "var(--success)" : "var(--bg-card)",
+                  background: isOnline ? "linear-gradient(135deg, #10B981, #059669)" : "var(--bg-card)",
                   boxShadow: isOnline ? "0 12px 40px -4px rgba(52,211,153,0.35)" : "var(--shadow-card)",
                 }}>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-7 rounded-full relative transition-all"
-                 style={{ background: isOnline ? "rgba(255,255,255,0.25)" : "var(--bg-elevated)" }}>
-              <div className="absolute top-0.5 rounded-full w-6 h-6 transition-all"
-                   style={{
-                     background: isOnline ? "#fff" : "var(--text-3)",
-                     left: isOnline ? 22 : 2,
-                     boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                   }} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Pill toggle */}
+              <div className="w-14 h-8 rounded-full relative transition-all flex-shrink-0"
+                   style={{ background: isOnline ? "rgba(255,255,255,0.25)" : "var(--bg-elevated)" }}>
+                <div className="absolute top-1 rounded-full w-6 h-6 transition-all"
+                     style={{ background: isOnline ? "#fff" : "var(--text-3)", left: isOnline ? 28 : 4, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }} />
+              </div>
+              <div className="text-left">
+                <p className="text-[15px] font-black"
+                   style={{ color: isOnline ? "#fff" : "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+                  {toggling ? "Switching..." : isOnline ? "You're Online" : "You're Offline"}
+                </p>
+                <p className="text-[11px] font-medium"
+                   style={{ color: isOnline ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>
+                  {isOnline ? "Receiving job alerts" : "Tap to start earning"}
+                </p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="text-[14px] font-black tracking-tight" style={{ color: isOnline ? "#fff" : "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
-                {toggling ? "Switching..." : isOnline ? "● ONLINE" : "● OFFLINE"}
-              </p>
-              <p className="text-[10px] font-medium" style={{ color: isOnline ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>
-                {isOnline ? "Receiving job alerts" : "Tap to start receiving jobs"}
-              </p>
-            </div>
+            {isOnline && <div className="w-3 h-3 rounded-full online-dot" style={{ background: "#fff" }} />}
           </div>
-          {isOnline && <div className="w-3 h-3 rounded-full online-dot" style={{ background: "#fff" }} />}
+          {isOnline && alertFetchFailures >= 3 && (
+            <p className="text-[10px] font-bold mt-2 text-center" style={{ color: "rgba(255,255,255,0.8)" }}>
+              ⚠️ Connection issue — alerts may be delayed
+            </p>
+          )}
         </button>
       </div>
 
-      {/* Today's Stats — Editorial large numbers, tonal cards */}
-      <div className="grid grid-cols-3 gap-2.5 px-5 mb-5">
-        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
-          <p className="text-[22px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>₹{todayEarnings.toLocaleString("en-IN")}</p>
-          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Today</p>
-        </div>
-        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
-          <p className="text-[22px] font-black" style={{ color: "var(--brand)", fontFamily: "'Epilogue', sans-serif" }}>{todayJobs}</p>
-          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Jobs</p>
-        </div>
-        <div className="rounded-[16px] p-3.5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
-          <p className="text-[22px] font-black" style={{ color: "var(--warning)", fontFamily: "'Epilogue', sans-serif" }}>{avgRating > 0 ? avgRating.toFixed(1) : "—"}</p>
-          <p className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-3)" }}>Rating</p>
+      {/* ══════════════════════════════
+          TODAY'S STATS
+      ══════════════════════════════ */}
+      <div className="px-5 mb-5">
+        {/* Earnings hero */}
+        <div className="rounded-[20px] p-5 mb-3" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>Today&apos;s Earnings</p>
+          <div className="flex items-baseline gap-1 mb-3">
+            <span className="text-[40px] font-black leading-none" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
+              ₹{todayEarnings.toLocaleString("en-IN")}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-[18px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{todayJobs}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>Jobs done</p>
+            </div>
+            <div>
+              <p className="text-[18px] font-black" style={{ color: "var(--warning)", fontFamily: "'Epilogue', sans-serif" }}>
+                {avgRating > 0 ? avgRating.toFixed(1) + "★" : "—"}
+              </p>
+              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>Avg rating</p>
+            </div>
+            <div>
+              <p className="text-[18px] font-black" style={{ color: "var(--info)", fontFamily: "'JetBrains Mono', monospace" }}>{kaizyScore}</p>
+              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>KaizyScore</p>
+            </div>
+          </div>
+
+          {/* Score progress */}
+          {kaizyScore > 0 && (
+            <div className="mt-3">
+              <div className="flex justify-between mb-1">
+                <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>KaizyScore Progress</span>
+                <span className="text-[9px] font-bold" style={{ color: "var(--brand)" }}>{kaizyScore}/1000</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-elevated)" }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${scoreProgress}%`, background: "var(--gradient-cta)" }} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Quick Actions — Tonal grid, no borders */}
+      {/* ══════════════════════════════
+          QUICK ACTIONS
+      ══════════════════════════════ */}
       <div className="px-5 mb-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>Quick Actions</p>
+        <p className="text-[13px] font-black mb-3" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+          Quick Actions
+        </p>
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { icon: "📊", label: "Earnings", href: "/earnings" },
-            { icon: "📋", label: "My Jobs", href: "/my-bookings" },
-            { icon: "🏆", label: "Leaderboard", href: "/leaderboard" },
-            { icon: "🪪", label: "Verify ID", href: "/verify" },
-            { icon: "🤖", label: "KaizyBot", href: "/kaizybot" },
-            { icon: "⏰", label: "Schedule", href: "/schedule" },
+            { icon: "📊", label: "Earnings", href: "/earnings", color: "#10B981" },
+            { icon: "📋", label: "My Jobs", href: "/my-bookings", color: "#FF6B00" },
+            { icon: "🏆", label: "Leaderboard", href: "/leaderboard", color: "#F59E0B" },
+            { icon: "🪪", label: "KaizyPass", href: "/verify", color: "#3B82F6" },
+            { icon: "🤖", label: "KaizyBot", href: "/kaizybot", color: "#8B5CF6" },
+            { icon: "⚙️", label: "Settings", href: "/settings", color: "#78716C" },
           ].map(a => (
             <Link key={a.label} href={a.href}
-                  className="rounded-[14px] p-3.5 text-center active:scale-[0.95] transition-all"
-                  style={{ background: "var(--bg-surface)" }}>
-              <span className="text-[22px]">{a.icon}</span>
-              <p className="text-[9px] font-bold mt-1.5" style={{ color: "var(--text-2)" }}>{a.label}</p>
+                  className="flex flex-col items-center rounded-[18px] py-4 px-2 active:scale-[0.95] transition-all"
+                  style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
+              <div className="w-11 h-11 rounded-[14px] flex items-center justify-center text-[20px] mb-2"
+                   style={{ background: `${a.color}12` }}>
+                {a.icon}
+              </div>
+              <span className="text-[9px] font-bold text-center" style={{ color: "var(--text-2)" }}>{a.label}</span>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Job Alerts */}
+      {/* ══════════════════════════════
+          JOB ALERTS
+      ══════════════════════════════ */}
       <div className="px-5">
         <div className="flex justify-between items-center mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Recent Alerts</p>
-          <Link href="/notifications" className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>See All →</Link>
+          <p className="text-[13px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+            Recent Alerts
+          </p>
+          <Link href="/notifications" className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>
+            See All →
+          </Link>
         </div>
 
         {alerts.length === 0 ? (
-          <div className="rounded-[18px] p-6 text-center" style={{ background: "var(--bg-card)" }}>
-            <p className="text-[36px] mb-2">{isOnline ? "👀" : "😴"}</p>
-            <p className="text-[13px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
-              {isOnline ? "Waiting for job alerts..." : "Go online to receive jobs"}
+          <div className="rounded-[22px] p-7 text-center" style={{ background: "var(--bg-card)" }}>
+            <span className="text-[44px] block mb-3">{isOnline ? "👀" : "😴"}</span>
+            <p className="text-[15px] font-black mb-1" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
+              {isOnline ? "Watching for jobs..." : "You are offline"}
             </p>
-            <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>
-              {isOnline ? "We'll notify you" : "Toggle the switch above"}
+            <p className="text-[12px] font-medium" style={{ color: "var(--text-3)" }}>
+              {isOnline ? "New job alerts will appear here" : "Toggle the switch above to start earning"}
             </p>
           </div>
         ) : (
-          <div className="space-y-2 stagger">
-            {alerts.map(a => (
-              <div key={a.id} className="rounded-[14px] p-3.5 flex items-center gap-3"
-                   style={{ background: a.is_read ? "var(--bg-surface)" : "var(--bg-card)", boxShadow: !a.is_read ? "0 0 0 1px rgba(255,107,0,0.2)" : "none" }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                     style={{ background: a.is_read ? "var(--bg-elevated)" : "var(--brand-tint)" }}>
-                  <span className="text-[16px]">{a.type === 'JOB_ALERT' ? '🔔' : a.type === 'BOOKING_ACCEPTED' ? '✅' : a.type === 'PAYMENT_RECEIVED' ? '💰' : '📢'}</span>
+          <div className="space-y-2.5">
+            {alerts.map(a => {
+              const alertIcon = a.type === 'JOB_ALERT' ? '🔔' : a.type === 'BOOKING_ACCEPTED' ? '✅' : a.type === 'PAYMENT_RECEIVED' ? '💰' : '📢';
+              return (
+                <div key={a.id} className="rounded-[18px] p-4 flex items-center gap-3.5"
+                     style={{
+                       background: a.is_read ? "var(--bg-surface)" : "var(--bg-card)",
+                       boxShadow: !a.is_read ? "0 0 0 1.5px rgba(255,107,0,0.2), var(--shadow-card)" : "none",
+                     }}>
+                  <div className="w-10 h-10 rounded-[13px] flex items-center justify-center text-[18px] shrink-0"
+                       style={{ background: a.is_read ? "var(--bg-elevated)" : "var(--brand-tint)" }}>
+                    {alertIcon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>{a.title}</p>
+                    <p className="text-[10px] font-medium mt-0.5 line-clamp-1" style={{ color: "var(--text-3)" }}>{a.body}</p>
+                    <p className="text-[9px] mt-1" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {new Date(a.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  {!a.is_read && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--brand)" }} />}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold truncate" style={{ color: "var(--text-1)" }}>{a.title}</p>
-                  <p className="text-[9px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>{a.body}</p>
-                  <p className="text-[8px] mt-0.5 font-data" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
-                    {new Date(a.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                {!a.is_read && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--brand)" }} />}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

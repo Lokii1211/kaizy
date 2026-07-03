@@ -67,6 +67,17 @@ export default function HomePage() {
     }
   }, [userType, router]);
 
+  // ── FIRST-TIME VISITOR: Show onboarding carousel before the map experience ──
+  useEffect(() => {
+    if (authLoading || userType) return; // wait for auth check; skip if already logged in
+    try {
+      const onboarded = localStorage.getItem('kaizy_onboarded');
+      if (!onboarded) {
+        router.replace('/welcome');
+      }
+    } catch {}
+  }, [authLoading, userType, router]);
+
   // Get REAL GPS location
   useEffect(() => {
     if (!navigator.geolocation) {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/stores/AuthStore";
+import PullToRefresh from "@/components/PullToRefresh";
 
 // ============================================================
 // MY BOOKINGS v12.0 — Stitch "Digital Artisan" Design
@@ -47,32 +48,32 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const res = await fetch("/api/bookings?hirerId=me&limit=50");
-        const json = await res.json();
-        if (json.success && json.data) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setBookings(json.data.map((b: any) => ({
-            id: b.id,
-            status: b.status || "pending",
-            created_at: b.created_at,
-            hirer_price: b.hirer_price || b.total_amount || 0,
-            trade: b.jobs?.trade || b.trade || "",
-            description: b.jobs?.description || b.description || "",
-            worker_name: b.worker_profiles?.users?.name || "Worker",
-            worker_id: b.worker_id || "",
-            scheduled_for: b.scheduled_for,
-            booking_type: b.booking_type,
-            has_review: b.has_review || false,
-          })));
-        }
-      } catch (e) { console.error("[my-bookings]", e); }
-      finally { setLoading(false); }
-    };
-    fetchBookings();
+  const fetchBookings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bookings?hirerId=me&limit=50");
+      const json = await res.json();
+      if (json.success && json.data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setBookings(json.data.map((b: any) => ({
+          id: b.id,
+          status: b.status || "pending",
+          created_at: b.created_at,
+          hirer_price: b.hirer_price || b.total_amount || 0,
+          trade: b.jobs?.trade || b.trade || "",
+          description: b.jobs?.description || b.description || "",
+          worker_name: b.worker_profiles?.users?.name || "Worker",
+          worker_id: b.worker_id || "",
+          scheduled_for: b.scheduled_for,
+          booking_type: b.booking_type,
+          has_review: b.has_review || false,
+        })));
+      }
+    } catch (e) { console.error("[my-bookings]", e); }
   }, []);
+
+  useEffect(() => {
+    fetchBookings().finally(() => setLoading(false));
+  }, [fetchBookings]);
 
   const handleCancel = async (bookingId: string, status: string) => {
     let feeWarning = "";
@@ -118,6 +119,7 @@ export default function MyBookingsPage() {
   const activeCount = bookings.filter(b => ["pending", "accepted", "en_route", "in_progress"].includes(b.status)).length;
 
   return (
+    <PullToRefresh onRefresh={fetchBookings}>
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
       {/* Header */}
       <div className="px-5 pt-5 pb-3">
@@ -272,5 +274,6 @@ export default function MyBookingsPage() {
         ))}
       </div>
     </div>
+    </PullToRefresh>
   );
 }
