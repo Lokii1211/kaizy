@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Epilogue, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import MobileNav from "@/components/MobileNav";
+import DesktopSidebar from "@/components/DesktopSidebar";
 import I18nProvider from "@/components/I18nProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
@@ -94,11 +95,20 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <BookingProvider>
             <ToastProvider>
               <I18nProvider>
-                <main style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative" }}>
-                  {children}
-                </main>
-                <MobileNav />
+                {/* App shell: sidebar (desktop) + centered content */}
+                <div className="flex min-h-screen" style={{ background: "var(--bg-lowest)" }}>
+                  <DesktopSidebar />
+                  <div className="flex-1 flex flex-col items-center justify-start">
+                    <main
+                      className="w-full relative desktop-content-col"
+                      style={{ maxWidth: 480, minHeight: "100vh" }}
+                    >
+                      {children}
+                    </main>
+                  </div>
+                </div>
 
+                <MobileNav />
                 <PWAInstallPrompt />
                 <NetworkStatus />
                 <ServiceWorkerRegistration />

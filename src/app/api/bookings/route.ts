@@ -1,28 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // GET /api/bookings — Fetch user's bookings list
-// Like Uber "Your Trips" / Swiggy "My Orders"
-// Supports: status filter, user_id filter, pagination
+// Requires authentication — always filters by the calling user's ID
+// Supports: status filter, role filter, pagination
 // ═══════════════════════════════════════
 
 export async function GET(req: NextRequest) {
   try {
     const supabaseAdmin = getSupabase();
 
+    // Resolve current user from JWT cookie
+    const jwtPayload = await getUserFromRequest(req.cookies);
     const { searchParams } = new URL(req.url);
-    const limit = Number(searchParams.get('limit')) || 20;
+    const limit = Math.min(Number(searchParams.get('limit')) || 20, 100);
     const statusFilter = searchParams.get('status');
-    const userId = searchParams.get('user_id');
+    const roleOverride = searchParams.get('role'); // 'worker' to see jobs as worker
+
+    // If not authenticated, return empty
+    if (!jwtPayload) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    const userId = jwtPayload.sub;
+    const isWorker = roleOverride === 'worker' || jwtPayload.userType === 'worker';
 
     let query = supabaseAdmin
       .from('bookings')
-      .select('*')
+      .select(`
+        *,
+        jobs(trade, description),
+        worker_profiles(users(name))
+      `)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (userId) {
+    // Always scope to the authenticated user
+    if (isWorker) {
+      query = query.eq('worker_id', userId);
+    } else {
       query = query.eq('hirer_id', userId);
     }
 

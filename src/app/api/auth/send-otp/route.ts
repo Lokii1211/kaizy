@@ -158,11 +158,13 @@ export async function POST(req: NextRequest) {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // Store OTP in database
+    // Store OTP in database — always set used=false so verify query can find it
     await supabaseAdmin.from('otp_codes').insert({
       phone: cleanPhone,
       otp,
       expires_at: expiresAt,
+      used: false,
+      attempts: 0,
     });
 
     // ═══ Try sending OTP via multiple channels ═══
@@ -205,8 +207,8 @@ export async function POST(req: NextRequest) {
       data: {
         otp_sent: sent,
         channel,
-        // Show OTP on screen ONLY if delivery failed (safety net for launch)
-        fallback_otp: !sent ? otp : undefined,
+        // Show OTP on screen in dev mode always, in prod only if all delivery channels failed
+        fallback_otp: (process.env.NODE_ENV !== 'production' || !sent) ? otp : undefined,
       },
     });
   } catch (error) {

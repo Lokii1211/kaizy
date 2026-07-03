@@ -353,9 +353,24 @@ body, .theme-transition, .theme-transition * {
   animation: dot-pulse 2s ease-in-out infinite;
 }
 
-/* ─── RESPONSIVE ─── */
+/* ─── RESPONSIVE — Small phones ─── */
 @media (max-width: 380px) {
   body { font-size: 14px; }
+}
+
+/* ─── DESKTOP LAYOUT (lg: 1024px+) ─── */
+@media (min-width: 1024px) {
+  /* html/body fill with lowest surface — sidebar + content sit on top */
+  html, body { background: var(--bg-lowest); }
+
+  /* Mobile nav bottom padding is not needed on desktop — collapse it */
+  .pb-28 { padding-bottom: 1.5rem !important; }
+  .pb-24 { padding-bottom: 1.5rem !important; }
+
+  /* Content column gets a subtle elevation shadow on desktop */
+  .desktop-content-col {
+    box-shadow: 0 0 80px -8px rgba(0,0,0,0.6);
+  }
 }
 
 /* ─── HAPTIC ─── */

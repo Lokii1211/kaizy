@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
 import { supabase } from "@/lib/supabase";
 
 // ============================================================
@@ -21,11 +22,12 @@ const quickReplies = [
 
 export default function ChatPage() {
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const currentUserId = "current-user";
+  const currentUserId = user?.id || "";
   const [workerName, setWorkerName] = useState("Worker");
   const [workerInitials, setWorkerInitials] = useState("W");
   const [workerPhone, setWorkerPhone] = useState("");

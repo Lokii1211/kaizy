@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       .from('otp_codes')
       .select('*')
       .eq('phone', cleanPhone)
-      .eq('used', false)
+      .neq('used', true)  // matches false AND null (old rows before the used=false fix)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
