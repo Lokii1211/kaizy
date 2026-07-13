@@ -5,22 +5,17 @@
 -- ════════════════════════════════════════════════════════════════
 
 -- ── 1. Fix otp_codes — ensure columns exist with correct defaults ──
+-- NOTE: otp_codes intentionally has multiple rows per phone (one per request).
+-- No unique constraint on phone — send-otp invalidates old OTPs before inserting new ones.
 ALTER TABLE IF EXISTS otp_codes
-  ALTER COLUMN used SET DEFAULT false,
-  ALTER COLUMN used SET NOT NULL;
+  ALTER COLUMN used SET DEFAULT false;
 
+-- Add attempts column if missing
 ALTER TABLE IF EXISTS otp_codes
   ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
 
--- Allow upsert on phone conflict
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'otp_codes_phone_key'
-  ) THEN
-    ALTER TABLE otp_codes ADD CONSTRAINT otp_codes_phone_key UNIQUE (phone);
-  END IF;
-END $$;
+-- Index for fast lookup by phone (used in verify-otp)
+CREATE INDEX IF NOT EXISTS otp_codes_phone_idx ON otp_codes (phone, created_at DESC);
 
 -- ── 2. dispatch_sessions — tracks dispatch round state ──
 CREATE TABLE IF NOT EXISTS dispatch_sessions (

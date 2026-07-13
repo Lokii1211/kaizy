@@ -88,17 +88,22 @@ async function sendSMSFallback(phone: string, otp: string): Promise<boolean> {
 }
 
 // Save OTP to Supabase — awaited (required for serverless compatibility).
-// In serverless each Lambda invocation is a fresh process; in-memory won't
-// survive between send-otp and verify-otp invocations.
+// Marks any previous OTPs for this phone as used, then inserts a fresh row.
+// otp_codes can have multiple rows per phone (history); we query the latest unused one.
 async function saveToDb(phone: string, otp: string, expiresAt: string): Promise<boolean> {
   try {
     const { getSupabase } = await import('@/lib/supabase');
     const supabase = getSupabase();
-    // Upsert: if an OTP for this phone already exists, replace it
-    const { error } = await supabase.from('otp_codes').upsert(
-      { phone, otp, expires_at: expiresAt, used: false, attempts: 0 },
-      { onConflict: 'phone' }
-    );
+    // Invalidate any prior unused OTPs for this phone so only the latest works
+    await supabase
+      .from('otp_codes')
+      .update({ used: true })
+      .eq('phone', phone)
+      .neq('used', true);
+    // Insert new OTP
+    const { error } = await supabase.from('otp_codes').insert({
+      phone, otp, expires_at: expiresAt, used: false, attempts: 0,
+    });
     if (error) {
       console.error('[send-otp] DB save failed:', error.message);
       return false;
