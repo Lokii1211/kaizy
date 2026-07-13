@@ -22,9 +22,9 @@ const hirerLinks: NavItem[] = [
 
 const workerLinks: NavItem[] = [
   { emoji: "🏠", label: "Dashboard", href: "/dashboard/worker" },
-  { emoji: "🔍", label: "Find Jobs", href: "/marketplace" },
+  { emoji: "⚡", label: "Active Job", href: "/active-job" },
   { emoji: "💰", label: "Earnings", href: "/earnings" },
-  { emoji: "🪪", label: "KaizyPass", href: "/verify" },
+  { emoji: "🏆", label: "Leaderboard", href: "/leaderboard" },
   { emoji: "🔔", label: "Notifications", href: "/notifications" },
   { emoji: "⚙️", label: "Settings", href: "/settings" },
 ];

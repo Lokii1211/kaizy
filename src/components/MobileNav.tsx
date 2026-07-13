@@ -24,7 +24,7 @@ const hirerNav: NavItem[] = [
 
 const workerNav: NavItem[] = [
   { emoji: "🏠", label: "Home", href: "/dashboard/worker" },
-  { emoji: "🔍", label: "Jobs", href: "/marketplace" },
+  { emoji: "⚡", label: "Active Job", href: "/active-job" },
   { emoji: "💰", label: "Earnings", href: "/earnings" },
   { emoji: "👤", label: "Profile", href: "/settings" },
 ];

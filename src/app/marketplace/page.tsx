@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // MARKETPLACE v10.0 — Stitch "Digital Artisan" Design
@@ -36,6 +38,16 @@ interface Worker {
 
 export default function MarketplacePage() {
   const { isDark } = useTheme();
+  const { userType } = useAuth();
+  const router = useRouter();
+
+  // Workers don't browse other workers — redirect to their dashboard
+  useEffect(() => {
+    if (userType === "worker") {
+      router.replace("/dashboard/worker");
+    }
+  }, [userType, router]);
+
   const [activeCategory, setActiveCategory] = useState(0);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
