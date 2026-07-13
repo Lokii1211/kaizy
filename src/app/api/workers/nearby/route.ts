@@ -23,7 +23,6 @@ export async function GET(req: NextRequest) {
         workers: workers.map(w => ({
           id: w.id,
           name: w.users?.name || 'Worker',
-          phone: w.users?.phone,
           photo: w.users?.profile_photo,
           trade: w.trade_primary,
           rating: Number(w.avg_rating),

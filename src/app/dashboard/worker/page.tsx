@@ -547,11 +547,11 @@ export default function WorkerDashboardPage() {
         </p>
         <div className="grid grid-cols-3 gap-2.5">
           {[
-            { icon: "📊", label: "Earnings", href: "/earnings", color: "#10B981" },
-            { icon: "📋", label: "My Jobs", href: "/my-bookings", color: "#FF6B00" },
+            { icon: "💰", label: "Earnings", href: "/earnings", color: "#10B981" },
+            { icon: "📋", label: "My Jobs", href: "/active-job", color: "#FF6B00" },
             { icon: "🏆", label: "Leaderboard", href: "/leaderboard", color: "#F59E0B" },
             { icon: "🪪", label: "KaizyPass", href: "/verify", color: "#3B82F6" },
-            { icon: "🤖", label: "KaizyBot", href: "/kaizybot", color: "#8B5CF6" },
+            { icon: "💬", label: "KaizyBot", href: "/kaizybot", color: "#8B5CF6" },
             { icon: "⚙️", label: "Settings", href: "/settings", color: "#78716C" },
           ].map(a => (
             <Link key={a.label} href={a.href}

@@ -1,31 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 
-// ═══════════════════════════════════════
-// GET /api/notifications — Fetch notifications for user
-// PATCH /api/notifications — Mark user's notifications as read
-// ═══════════════════════════════════════
+// GET /api/notifications — Fetch notifications for authenticated user only
+// PATCH /api/notifications — Mark authenticated user's notifications as read
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const limit = Number(searchParams.get('limit')) || 50;
-    let userId = searchParams.get('userId');
-
-    if (!userId) {
-      const jwt = await getUserFromRequest(req.cookies);
-      userId = jwt?.sub || null;
-    }
-
-    if (!userId) {
+    const jwt = await getUserFromRequest(req.cookies);
+    if (!jwt?.sub) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { searchParams } = new URL(req.url);
+    const limit = Number(searchParams.get('limit')) || 50;
+
+    const supabase = getSupabase();
+    const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', jwt.sub)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -44,16 +38,15 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const jwt = await getUserFromRequest(req.cookies);
-    const userId = jwt?.sub;
-
-    if (!userId) {
+    if (!jwt?.sub) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
 
-    await supabaseAdmin
+    const supabase = getSupabase();
+    await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('user_id', userId)
+      .eq('user_id', jwt.sub)
       .eq('is_read', false);
 
     return NextResponse.json({ success: true });

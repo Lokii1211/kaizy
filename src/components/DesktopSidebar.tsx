@@ -24,7 +24,7 @@ const workerLinks: NavItem[] = [
   { emoji: "🏠", label: "Dashboard", href: "/dashboard/worker" },
   { emoji: "🔍", label: "Find Jobs", href: "/marketplace" },
   { emoji: "💰", label: "Earnings", href: "/earnings" },
-  { emoji: "🎯", label: "KaizyPass", href: "/kaizypass" },
+  { emoji: "🪪", label: "KaizyPass", href: "/verify" },
   { emoji: "🔔", label: "Notifications", href: "/notifications" },
   { emoji: "⚙️", label: "Settings", href: "/settings" },
 ];

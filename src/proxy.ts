@@ -16,7 +16,6 @@ const JWT_SECRET = new TextEncoder().encode(
 const PUBLIC_PATHS = [
   '/login',
   '/register',        // /register/worker and /register/hirer (post-OTP onboarding)
-  '/onboarding',      // /onboarding/hirer, /onboarding/bank, /onboarding/specialization
   '/welcome',
   '/terms',
   '/privacy',
@@ -24,7 +23,6 @@ const PUBLIC_PATHS = [
   '/worker-agreement',
   '/how-kaizy-earns',
   '/pricing',
-  '/commission',
   '/help',
   '/search',          // Discoverable without login (browse before sign-up)
   '/marketplace',     // Discoverable without login
@@ -48,6 +46,13 @@ const WORKER_PATHS = [
   '/leaderboard',
   '/kaizy-pro',
   '/incentives',
+  '/commission',
+  '/job-photos',
+  '/contractor',
+  '/kaizylearn',
+  '/onboarding/bank',
+  '/onboarding/specialization',
+  '/worker/profile',
 ];
 
 // Hirer-only routes
@@ -59,6 +64,8 @@ const HIRER_PATHS = [
   '/tracking',
   '/saved-workers',
   '/saved-addresses',
+  '/onboarding/hirer',
+  '/profile',
 ];
 
 export async function proxy(req: NextRequest) {

@@ -367,7 +367,7 @@ export default function HirerDashboard() {
               { icon: "❓", label: "Help & FAQ", href: "/help", color: "#3B82F6" },
               { icon: "📋", label: "My Bookings", href: "/my-bookings", color: "#FF6B00" },
               { icon: "⚙️", label: "Settings", href: "/settings", color: "#78716C" },
-              { icon: "🎁", label: "Rewards", href: "/incentives", color: "#F59E0B" },
+              { icon: "🎁", label: "Rewards", href: "/rewards", color: "#F59E0B" },
             ].map(a => (
               <Link key={a.label} href={a.href}
                     className="flex flex-col items-center rounded-[18px] p-3.5 active:scale-95 transition-transform"

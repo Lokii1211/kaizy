@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: json.data.id,
             name: json.data.name || json.data.phone?.replace('+91', '') || 'User',
             phone: json.data.phone || '',
-            user_type: json.data.user_type || json.data.userType || userType || 'hirer',
+            user_type: (json.data.user_type || json.data.userType || userType) as "worker" | "hirer",
             trade: json.data.trade,
             kaizy_score: json.data.kaizy_score,
             verified: json.data.verified,
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, userType, loading,
-      isAuthenticated: !!user || !!userType,
+      isAuthenticated: !!user,
       login, logout, setUserType,
     }}>
       {children}
