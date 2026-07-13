@@ -324,7 +324,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   
   if (!code) {
-    return NextResponse.json({ success: false, error: "Code required" });
+    return NextResponse.json({ success: false, error: "Code required" }, { status: 400 });
   }
 
   const { data } = await supabaseAdmin

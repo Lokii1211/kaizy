@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import crypto from 'crypto';
 
 // ═══════════════════════════════════════
@@ -9,6 +9,7 @@ import crypto from 'crypto';
 export async function POST(req: NextRequest) {
   try {
     const { bookingId } = await req.json();
+    const supabaseAdmin = getSupabase();
 
     const { data: booking } = await supabaseAdmin
       .from('bookings')

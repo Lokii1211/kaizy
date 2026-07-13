@@ -61,7 +61,7 @@ const HIRER_PATHS = [
   '/saved-addresses',
 ];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // ── 1. Skip public paths ──
