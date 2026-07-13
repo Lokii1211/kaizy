@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════════════════════
@@ -10,7 +10,6 @@ import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify JWT from cookie
     const jwtPayload = await getUserFromRequest(req.cookies);
 
     if (!jwtPayload) {
@@ -20,7 +19,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch full user from database
+    const supabaseAdmin = getSupabase();
+
     const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('*')
@@ -85,5 +85,62 @@ export async function GET(req: NextRequest) {
       { success: false, error: 'Failed to fetch user' },
       { status: 500 }
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// PATCH /api/auth/me
+// Update profile: name, email, company, language, city
+// Also updates worker_profile fields when relevant
+// ═══════════════════════════════════════════════════════
+export async function PATCH(req: NextRequest) {
+  try {
+    const jwtPayload = await getUserFromRequest(req.cookies);
+    if (!jwtPayload?.sub) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const {
+      name, email, company_name, language, city,
+      // Worker-specific
+      upi_id, phone_secondary,
+    } = body;
+
+    const supabaseAdmin = getSupabase();
+    const userId = jwtPayload.sub;
+
+    // Build users table update
+    const userUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (name !== undefined) userUpdate.name = name.trim() || null;
+    if (email !== undefined) userUpdate.email = email.trim() || null;
+    if (company_name !== undefined) userUpdate.company_name = company_name.trim() || null;
+    if (language !== undefined) userUpdate.language = language;
+    if (city !== undefined) userUpdate.city = city.trim() || null;
+    if (phone_secondary !== undefined) userUpdate.phone_secondary = phone_secondary.trim() || null;
+
+    if (Object.keys(userUpdate).length > 1) {
+      const { error: userErr } = await supabaseAdmin
+        .from('users')
+        .update(userUpdate)
+        .eq('id', userId);
+      if (userErr) {
+        console.error('[profile PATCH] users update error:', userErr);
+        return NextResponse.json({ success: false, error: 'Failed to update profile' }, { status: 500 });
+      }
+    }
+
+    // Worker-specific updates
+    if (jwtPayload.userType === 'worker' && upi_id !== undefined) {
+      await supabaseAdmin
+        .from('worker_profiles')
+        .update({ upi_id: upi_id.trim() || null, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+    }
+
+    return NextResponse.json({ success: true, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('[auth/me PATCH error]', error);
+    return NextResponse.json({ success: false, error: 'Failed to update profile' }, { status: 500 });
   }
 }
