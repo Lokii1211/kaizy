@@ -4,17 +4,16 @@ import { saveOtp } from '@/lib/otp-store';
 
 // ═══════════════════════════════════════════════════════
 // POST /api/auth/send-otp
-// OTP is always saved to in-memory store (primary) and
-// attempted in Supabase (secondary/persistent).
-// WhatsApp via AISensy (primary) + SMS fallback
-// Rate limited: 3 OTP requests per minute per IP
+// OTP is saved to Supabase DB (primary, awaited — serverless-safe)
+// AND in-memory store (secondary, helps local dev same-process flow).
+// WhatsApp via AISensy (primary) + SMS fallback.
+// Rate limited: 3 OTP requests per minute per IP.
 // ═══════════════════════════════════════════════════════
 
 const AISENSY_API_KEY = process.env.AISENSY_API_KEY || '';
 const AISENSY_TEMPLATE = process.env.AISENSY_TEMPLATE_NAME || 'kaizy_otp_auth';
 const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
 
-// ═══ Method 1: AISensy WhatsApp OTP (primary — most reliable) ═══
 async function sendWhatsAppOTP(phone: string, otp: string): Promise<boolean> {
   if (!AISENSY_API_KEY) return false;
   try {
@@ -45,7 +44,6 @@ async function sendWhatsAppOTP(phone: string, otp: string): Promise<boolean> {
   }
 }
 
-// ═══ Method 2: AISensy Direct WhatsApp API (alternate endpoint) ═══
 async function sendWhatsAppDirect(phone: string, otp: string): Promise<boolean> {
   if (!AISENSY_API_KEY) return false;
   try {
@@ -70,7 +68,6 @@ async function sendWhatsAppDirect(phone: string, otp: string): Promise<boolean> 
   }
 }
 
-// ═══ Method 3: Fast2SMS Quick route (SMS fallback) ═══
 async function sendSMSFallback(phone: string, otp: string): Promise<boolean> {
   if (!FAST2SMS_KEY) return false;
   try {
@@ -90,27 +87,31 @@ async function sendSMSFallback(phone: string, otp: string): Promise<boolean> {
   }
 }
 
-// ═══ Save OTP to Supabase (best-effort — non-blocking) ═══
-async function saveToDb(phone: string, otp: string, expiresAt: string) {
+// Save OTP to Supabase — awaited (required for serverless compatibility).
+// In serverless each Lambda invocation is a fresh process; in-memory won't
+// survive between send-otp and verify-otp invocations.
+async function saveToDb(phone: string, otp: string, expiresAt: string): Promise<boolean> {
   try {
     const { getSupabase } = await import('@/lib/supabase');
-    const supabaseAdmin = getSupabase();
-    const { error } = await supabaseAdmin.from('otp_codes').insert({
-      phone,
-      otp,
-      expires_at: expiresAt,
-      used: false,
-      attempts: 0,
-    });
-    if (error) console.warn('[send-otp] DB insert failed (non-fatal):', error.message);
+    const supabase = getSupabase();
+    // Upsert: if an OTP for this phone already exists, replace it
+    const { error } = await supabase.from('otp_codes').upsert(
+      { phone, otp, expires_at: expiresAt, used: false, attempts: 0 },
+      { onConflict: 'phone' }
+    );
+    if (error) {
+      console.error('[send-otp] DB save failed:', error.message);
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('[send-otp] DB unavailable (non-fatal):', e instanceof Error ? e.message : e);
+    console.error('[send-otp] DB unavailable:', e instanceof Error ? e.message : e);
+    return false;
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limit: 3 OTP requests per minute per IP
     const ip = getClientIP(req.headers);
     const rl = rateLimits.otp(ip);
     if (!rl.allowed) {
@@ -122,7 +123,6 @@ export async function POST(req: NextRequest) {
 
     const { phone } = await req.json();
 
-    // Validate Indian phone format
     const cleanPhone = phone?.replace(/\s/g, '');
     if (!cleanPhone || !/^\+91\d{10}$/.test(cleanPhone)) {
       return NextResponse.json({
@@ -131,17 +131,22 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate 6-digit OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // ── PRIMARY: save to in-memory store — always works ──
+    // PRIMARY: save to Supabase DB (awaited — serverless-safe across Lambda invocations)
+    const dbSaved = await saveToDb(cleanPhone, otp, expiresAt);
+
+    // SECONDARY: also save to in-memory for same-process dev flows (no-op in serverless)
     saveOtp(cleanPhone, otp);
 
-    // ── SECONDARY: persist to Supabase (best-effort, non-blocking) ──
-    saveToDb(cleanPhone, otp, expiresAt);
+    if (!dbSaved) {
+      // DB is required for OTP to survive across serverless invocations
+      console.error('[send-otp] DB save failed — cannot guarantee OTP delivery');
+      // Still proceed: in-memory works in single-process (dev/staging), and delivery
+      // channels still fire. Log the warning but don't block the user.
+    }
 
-    // ═══ Try sending OTP via multiple channels ═══
     let sent = false;
     let channel = 'none';
 
@@ -158,7 +163,7 @@ export async function POST(req: NextRequest) {
       if (sent) channel = 'sms';
     }
 
-    console.log(`[OTP] ${cleanPhone}: sent=${sent} channel=${channel}`);
+    console.log(`[OTP] ${cleanPhone}: sent=${sent} channel=${channel} dbSaved=${dbSaved}`);
 
     const getMessage = () => {
       if (channel === 'whatsapp' || channel === 'whatsapp-direct') return 'OTP sent to your WhatsApp ✓';
@@ -173,8 +178,8 @@ export async function POST(req: NextRequest) {
       data: {
         otp_sent: sent,
         channel,
-        // Always show in dev; in production show only when all delivery channels fail
-        fallback_otp: (process.env.NODE_ENV !== 'production' || !sent) ? otp : undefined,
+        // Only expose OTP in development — never in production regardless of delivery status
+        ...(process.env.NODE_ENV === 'development' ? { fallback_otp: otp } : {}),
       },
     });
   } catch (error) {

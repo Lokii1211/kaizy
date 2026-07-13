@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
@@ -9,6 +9,7 @@ import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabase();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
 // POST — Worker updates job status through lifecycle (requires auth)
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabase();
     const jwt = await getUserFromRequest(req.cookies);
     if (!jwt?.sub) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });

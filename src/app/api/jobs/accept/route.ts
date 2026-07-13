@@ -1,23 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 import { createNotification } from '@/lib/push-server';
 
 // ═══════════════════════════════════════
 // POST /api/jobs/accept
-// Worker accepts a job alert (atomic, race-safe)
-// Uses PostgreSQL function for atomicity
+// Worker accepts a job alert (atomic, race-safe).
+// JWT auth required — caller must be the worker they claim.
+// Uses PostgreSQL accept_job_atomic function for atomicity.
 // ═══════════════════════════════════════
 
 export async function POST(req: NextRequest) {
   try {
-    const { alertId, workerId } = await req.json();
-
-    if (!alertId || !workerId) {
-      return NextResponse.json({ success: false, error: 'alertId and workerId required' }, { status: 400 });
+    // Auth check — caller must be authenticated as a worker
+    const user = await getUserFromRequest(req.cookies);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (user.userType !== 'worker') {
+      return NextResponse.json({ success: false, error: 'Only workers can accept jobs' }, { status: 403 });
     }
 
+    const { alertId } = await req.json();
+
+    if (!alertId) {
+      return NextResponse.json({ success: false, error: 'alertId required' }, { status: 400 });
+    }
+
+    // workerId is always the authenticated user — never trust body param
+    const workerId = user.sub;
+
+    const supabase = getSupabase();
+
     // Call the atomic accept function (handles race conditions)
-    const { data, error } = await supabaseAdmin.rpc('accept_job_atomic', {
+    const { data, error } = await supabase.rpc('accept_job_atomic', {
       p_alert_id: alertId,
       p_worker_id: workerId,
     });
@@ -40,14 +56,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Get booking details for notification
-    const { data: booking } = await supabaseAdmin
+    const { data: booking } = await supabase
       .from('bookings')
       .select('*, jobs(*)')
       .eq('id', data.booking_id)
       .single();
 
     // Get worker name
-    const { data: worker } = await supabaseAdmin
+    const { data: worker } = await supabase
       .from('users')
       .select('name')
       .eq('id', workerId)

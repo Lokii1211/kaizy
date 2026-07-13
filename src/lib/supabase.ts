@@ -15,12 +15,25 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null as unknown as ReturnType<typeof createClient>;
 
+// Proxy that throws a clear error when DB is not configured.
+// This means all 20+ API routes that import supabaseAdmin get a clean
+// "Database not configured" error instead of "Cannot read properties of null".
+function createUnconfiguredProxy(): ReturnType<typeof createClient> {
+  return new Proxy({} as ReturnType<typeof createClient>, {
+    get(_, prop: string) {
+      throw new Error(
+        `Database not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY in .env.local (called .${prop}())`
+      );
+    },
+  });
+}
+
 // Admin client — server-side only, bypasses RLS
 export const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
   ? createClient(supabaseUrl, supabaseServiceKey)
   : (supabaseUrl && supabaseAnonKey)
     ? createClient(supabaseUrl, supabaseAnonKey)
-    : null as unknown as ReturnType<typeof createClient>;
+    : createUnconfiguredProxy();
 
 // ═══ SAFE ACCESSOR: throws clear error if DB is not configured ═══
 export function getSupabase() {

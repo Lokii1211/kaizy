@@ -4,15 +4,15 @@ import { generateJWT } from '@/lib/auth';
 import { rateLimits, getClientIP } from '@/lib/rateLimit';
 import { verifyOtp as memVerify, getAttemptsRemaining } from '@/lib/otp-store';
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
 // POST /api/auth/verify-otp
-// Check in-memory store FIRST (always works), then DB.
+// Checks Supabase DB first (serverless-safe primary), then in-memory
+// fallback (for same-process dev flows / instant checks).
 // Creates user if new, returns signed JWT.
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limit
     const ip = getClientIP(req.headers);
     const rl = rateLimits.auth(ip);
     if (!rl.allowed) {
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     const { phone, otp, userType } = await req.json();
 
-    // Validate input
     const cleanPhone = phone?.replace(/\s/g, '');
     if (!cleanPhone || !/^\+91\d{10}$/.test(cleanPhone)) {
       return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 });
@@ -33,41 +32,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid OTP. Must be 6 digits.' }, { status: 400 });
     }
 
-    // ── 1. Check in-memory store first (always works regardless of DB state) ──
-    const memResult = memVerify(cleanPhone, otp);
-    console.log(`[verify-otp] memory check: phone=${cleanPhone} result=${memResult}`);
+    // ── 1. Check Supabase DB first (primary — survives across Lambda invocations) ──
+    const dbResult = await tryDbVerify(cleanPhone, otp);
 
-    if (memResult === 'not_found') {
-      // Not in memory — try DB as fallback (for OTPs sent before server restart)
-      const dbVerified = await tryDbVerify(cleanPhone, otp);
-      if (!dbVerified) {
-        return NextResponse.json(
-          { success: false, error: 'OTP not found or expired. Request a new one.' },
-          { status: 400 }
-        );
+    if (dbResult === 'ok') {
+      // DB verified — proceed to user lookup
+    } else if (dbResult === 'not_found') {
+      // Not in DB — fall back to in-memory (same-process dev / race condition safety)
+      const memResult = memVerify(cleanPhone, otp);
+      console.log(`[verify-otp] DB=not_found, memory=${memResult} phone=${cleanPhone}`);
+
+      if (memResult !== 'ok') {
+        const msg = memResult === 'expired' ? 'OTP expired. Request a new one.'
+          : memResult === 'used' ? 'OTP already used. Request a new one.'
+          : memResult === 'too_many' ? 'Too many wrong attempts. Request a new OTP.'
+          : memResult === 'wrong'
+            ? `Wrong OTP. ${getAttemptsRemaining(cleanPhone)} attempts remaining.`
+            : 'OTP not found or expired. Request a new one.';
+        return NextResponse.json({ success: false, error: msg }, { status: 400 });
       }
-    } else if (memResult === 'expired') {
-      return NextResponse.json({ success: false, error: 'OTP expired. Request a new one.' }, { status: 400 });
-    } else if (memResult === 'used') {
-      return NextResponse.json({ success: false, error: 'OTP already used. Request a new one.' }, { status: 400 });
-    } else if (memResult === 'too_many') {
-      return NextResponse.json({ success: false, error: 'Too many wrong attempts. Request a new OTP.' }, { status: 400 });
-    } else if (memResult === 'wrong') {
-      const remaining = getAttemptsRemaining(cleanPhone);
-      return NextResponse.json(
-        { success: false, error: `Wrong OTP. ${remaining} attempts remaining.` },
-        { status: 400 }
-      );
+    } else {
+      // DB returned a specific error
+      const msg = dbResult === 'expired' ? 'OTP expired. Request a new one.'
+        : dbResult === 'used' ? 'OTP already used. Request a new one.'
+        : dbResult === 'too_many' ? 'Too many wrong attempts. Request a new OTP.'
+        : dbResult === 'wrong' ? 'Wrong OTP. Please try again.'
+        : 'OTP verification failed. Please try again.';
+      return NextResponse.json({ success: false, error: msg }, { status: 400 });
     }
-    // memResult === 'ok' → proceed to user creation
 
     // ── 2. Find or create user in DB ──
-    const supabaseAdmin = getSupabase();
+    const supabase = getSupabase();
 
     let isNewUser = false;
     let user;
 
-    const { data: existingUser } = await supabaseAdmin
+    const { data: existingUser } = await supabase
       .from('users')
       .select('*')
       .eq('phone', cleanPhone)
@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
     if (existingUser) {
       user = existingUser;
       if (!existingUser.user_type && userType) {
-        await supabaseAdmin.from('users').update({ user_type: userType }).eq('id', existingUser.id);
+        await supabase.from('users').update({ user_type: userType }).eq('id', existingUser.id);
         user.user_type = userType;
       }
     } else {
       isNewUser = true;
-      const { data: newUser, error: createError } = await supabaseAdmin
+      const { data: newUser, error: createError } = await supabase
         .from('users')
         .insert({ phone: cleanPhone, user_type: userType || null, name: null, language: 'en', is_active: true })
         .select()
@@ -135,29 +135,41 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DB fallback — used only when OTP isn't in memory (server restarted after send)
-async function tryDbVerify(phone: string, otp: string): Promise<boolean> {
-  try {
-    const { getSupabase } = await import('@/lib/supabase');
-    const supabaseAdmin = getSupabase();
+type DbVerifyResult = 'ok' | 'not_found' | 'expired' | 'used' | 'too_many' | 'wrong' | 'error';
 
-    const { data: record, error } = await supabaseAdmin
+async function tryDbVerify(phone: string, otp: string): Promise<DbVerifyResult> {
+  try {
+    const supabase = getSupabase();
+
+    // Get the most recent non-used OTP for this phone
+    const { data: record, error } = await supabase
       .from('otp_codes')
       .select('id, otp, used, expires_at, attempts')
       .eq('phone', phone)
-      .or('used.eq.false,used.is.null')
+      .neq('used', true)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (error || !record) return false;
-    if (new Date(record.expires_at) < new Date()) return false;
-    if (record.otp !== otp) return false;
+    if (error || !record) return 'not_found';
+    if (new Date(record.expires_at) < new Date()) {
+      await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
+      return 'expired';
+    }
+    if (record.attempts >= 5) {
+      await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
+      return 'too_many';
+    }
+    if (record.otp !== otp) {
+      await supabase.from('otp_codes').update({ attempts: (record.attempts || 0) + 1 }).eq('id', record.id);
+      return 'wrong';
+    }
 
-    // Mark as used in DB
-    await supabaseAdmin.from('otp_codes').update({ used: true }).eq('id', record.id);
-    return true;
-  } catch {
-    return false;
+    // Mark as used
+    await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
+    return 'ok';
+  } catch (e) {
+    console.error('[verify-otp] DB check error:', e);
+    return 'error';
   }
 }

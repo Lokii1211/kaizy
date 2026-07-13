@@ -1,22 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { getSupabase } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ============================================================
-// Kaizy — RAPIDO-STYLE REAL-TIME DISPATCH ENGINE
+// Kaizy — RAPIDO-STYLE DISPATCH ENGINE (Supabase-persisted)
 // 3-round dispatch · 45s countdown · expanding radius
-// Race-condition protection · Auto price bump · FCM + WhatsApp
+// State stored in dispatch_sessions + job_alerts tables.
+// Serverless-safe: no in-memory Maps.
 // ============================================================
-
-interface DispatchRequest {
-  jobId: string;
-  trade: string;
-  problemType?: string;
-  hirerLat: number;
-  hirerLng: number;
-  urgency: "normal" | "urgent" | "emergency";
-  estimatedPrice: number;
-  hirerName: string;
-  address: string;
-}
 
 interface WorkerMatch {
   id: string; name: string; initials: string; trade: string; tradeIcon: string;
@@ -25,25 +16,17 @@ interface WorkerMatch {
   lat: number; lng: number; matchScore: number;
 }
 
-import { supabaseAdmin } from '@/lib/supabase';
-
 const tradeIcons: Record<string, string> = {
-  electrician: "⚡", electrical: "⚡", plumber: "🔧", plumbing: "🔧",
-  mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", carpentry: "🪚",
-  painter: "🎨", painting: "🎨", mason: "⚒️", puncture: "🛞",
+  electrician: '⚡', electrical: '⚡', plumber: '🔧', plumbing: '🔧',
+  mechanic: '🚗', ac_repair: '❄️', carpenter: '🪚', carpentry: '🪚',
+  painter: '🎨', painting: '🎨', mason: '⚒️', puncture: '🛞',
 };
 
 const tradeColors: Record<string, string> = {
-  electrician: "#FF6B00", electrical: "#FF6B00", plumber: "#3B8BFF", plumbing: "#3B8BFF",
-  mechanic: "#8B5CF6", ac_repair: "#06B6D4", carpenter: "#10B981", carpentry: "#10B981",
-  painter: "#F59E0B", painting: "#F59E0B",
+  electrician: '#FF6B00', electrical: '#FF6B00', plumber: '#3B8BFF', plumbing: '#3B8BFF',
+  mechanic: '#8B5CF6', ac_repair: '#06B6D4', carpenter: '#10B981', carpentry: '#10B981',
+  painter: '#F59E0B', painting: '#F59E0B',
 };
-
-// In-memory dispatch state (production: Redis)
-const dispatchState = new Map<string, {
-  jobId: string; round: number; alerts: { workerId: string; status: string; sentAt: number; expiresAt: number }[];
-  acceptedBy: string | null; startedAt: number; priceBump: number;
-}>();
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -55,7 +38,8 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 
 async function findNearbyWorkers(trade: string, lat: number, lng: number, radiusKm: number, limit: number): Promise<WorkerMatch[]> {
   try {
-    let query = supabaseAdmin
+    const supabase = getSupabase();
+    let query = supabase
       .from('worker_profiles')
       .select('*, users(name, phone)')
       .eq('is_available', true);
@@ -64,7 +48,7 @@ async function findNearbyWorkers(trade: string, lat: number, lng: number, radius
       query = query.ilike('trade_primary', `%${trade}%`);
     }
 
-    const { data: dbWorkers } = await query.limit(20);
+    const { data: dbWorkers } = await query.limit(30);
 
     if (dbWorkers && dbWorkers.length > 0) {
       return dbWorkers.map((w: Record<string, unknown>) => {
@@ -78,12 +62,12 @@ async function findNearbyWorkers(trade: string, lat: number, lng: number, radius
         const rating = Number(w.avg_rating || 4.0);
         const jobs = Number(w.total_jobs || 0);
         const matchScore = Math.round(
-          (rating / 5) * 30 + (1 - distance / radiusKm) * 25 +
-          (ks / 800) * 20 + (w.aadhaar_verified ? 15 : 0) + (jobs / 500) * 10
+          (rating / 5) * 30 + (1 - Math.min(distance / radiusKm, 1)) * 25 +
+          (ks / 800) * 20 + (w.aadhaar_verified ? 15 : 0) + Math.min(jobs / 500, 1) * 10
         );
         return {
           id: String(w.id), name,
-          initials: name.split(' ').map(s => s[0]).join('').toUpperCase().slice(0, 2),
+          initials: name.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
           trade: tradeName, tradeIcon: tradeIcons[tradeName] || '🔧',
           rating, jobs, distance: Math.round(distance * 100) / 100, eta,
           kaizyScore: ks, verified: Boolean(w.aadhaar_verified),
@@ -103,238 +87,331 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
+    const supabase = getSupabase();
 
     // ── START DISPATCH ──
-    if (action === "start") {
-      const { jobId, trade, hirerLat = 11.0168, hirerLng = 76.9558, urgency = "normal", estimatedPrice = 500, address = "" } = body as DispatchRequest & { action: string };
+    if (action === 'start') {
+      const {
+        jobId, trade,
+        hirerLat = 11.0168, hirerLng = 76.9558,
+        urgency = 'normal', estimatedPrice = 500,
+        hirerName = '', address = '',
+      } = body;
+
+      if (!jobId) {
+        return NextResponse.json({ success: false, error: 'jobId required' }, { status: 400 });
+      }
+
       const round = 1;
-      const radius = urgency === "emergency" ? 10 : 5;
-      const workers = await findNearbyWorkers(trade, hirerLat, hirerLng, radius * round, round === 1 ? 5 : 10);
+      const radiusKm = (urgency === 'emergency' ? 10 : 5) * round;
+      const workers = await findNearbyWorkers(trade, hirerLat, hirerLng, radiusKm, 5);
+      const expiresAt = new Date(Date.now() + 45_000).toISOString();
+      const sessionExpiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
 
-      const alerts = workers.map(w => ({
-        workerId: w.id,
-        status: "sent",
-        sentAt: Date.now(),
-        expiresAt: Date.now() + 45000, // 45 seconds
-      }));
+      // Upsert dispatch session in DB (handles restart scenario)
+      await supabase.from('dispatch_sessions').upsert({
+        job_id: jobId,
+        trade,
+        urgency,
+        estimated_price: estimatedPrice,
+        hirer_lat: hirerLat,
+        hirer_lng: hirerLng,
+        hirer_name: hirerName,
+        address,
+        round,
+        price_bump: 0,
+        status: 'searching',
+        accepted_by: null,
+        created_at: new Date().toISOString(),
+        expires_at: sessionExpiresAt,
+      }, { onConflict: 'job_id' });
 
-      dispatchState.set(jobId, {
-        jobId, round, alerts, acceptedBy: null, startedAt: Date.now(), priceBump: 0,
-      });
+      // Insert job alerts for each worker
+      if (workers.length > 0) {
+        await supabase.from('job_alerts').insert(
+          workers.map(w => ({
+            job_id: jobId,
+            worker_id: w.id,
+            status: 'pending',
+            round,
+            expires_at: expiresAt,
+          }))
+        );
+      }
 
       return NextResponse.json({
         success: true,
         data: {
-          jobId,
-          round,
-          status: "dispatching",
+          jobId, round, status: 'dispatching',
           workersNotified: workers.length,
           workers: workers.map(w => ({
-            id: w.id, name: w.name, initials: w.initials, trade: w.trade, tradeIcon: w.tradeIcon,
+            id: w.id, name: w.name, initials: w.initials,
+            trade: w.trade, tradeIcon: w.tradeIcon,
             rating: w.rating, jobs: w.jobs, distance: w.distance, eta: w.eta,
-            kaizyScore: w.kaizyScore, verified: w.verified, color: w.color,
-            matchScore: w.matchScore,
+            kaizyScore: w.kaizyScore, verified: w.verified, color: w.color, matchScore: w.matchScore,
           })),
-          expiresAt: new Date(Date.now() + 45000).toISOString(),
-          radiusKm: radius * round,
+          expiresAt,
+          radiusKm,
           message: `Notifying ${workers.length} nearby workers...`,
         },
       });
     }
 
     // ── WORKER ACCEPTS ──
-    if (action === "accept") {
+    if (action === 'accept') {
       const { jobId, workerId } = body;
-      const state = dispatchState.get(jobId);
 
-      if (!state) {
-        return NextResponse.json({ success: false, error: "Dispatch not found" }, { status: 404 });
+      // Auth: if caller is authenticated as a worker, their ID must match
+      const caller = await getUserFromRequest(request.cookies);
+      const effectiveWorkerId = caller?.userType === 'worker' ? caller.sub : workerId;
+
+      // Check session
+      const { data: session } = await supabase
+        .from('dispatch_sessions')
+        .select('*')
+        .eq('job_id', jobId)
+        .single();
+
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Dispatch not found' }, { status: 404 });
+      }
+      if (session.accepted_by) {
+        return NextResponse.json({ success: false, error: 'already_taken', message: 'Another worker already accepted this job' }, { status: 409 });
       }
 
-      // Race condition check — first accepter wins
-      if (state.acceptedBy) {
-        return NextResponse.json({
-          success: false,
-          error: "already_taken",
-          message: "Another worker already accepted this job",
-        }, { status: 409 });
+      // Check this worker's alert
+      const { data: alert } = await supabase
+        .from('job_alerts')
+        .select('*')
+        .eq('job_id', jobId)
+        .eq('worker_id', effectiveWorkerId)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (!alert) {
+        return NextResponse.json({ success: false, error: 'alert_expired', message: 'This alert has expired' }, { status: 410 });
       }
 
-      // Check alert is still valid
-      const alert = state.alerts.find(a => a.workerId === workerId);
-      if (!alert || alert.expiresAt < Date.now()) {
-        return NextResponse.json({
-          success: false,
-          error: "alert_expired",
-          message: "This alert has expired",
-        }, { status: 410 });
+      // Race-safe accept: update session only if still not accepted
+      const { data: updated } = await supabase
+        .from('dispatch_sessions')
+        .update({ accepted_by: effectiveWorkerId, status: 'accepted' })
+        .eq('job_id', jobId)
+        .is('accepted_by', null)
+        .select()
+        .single();
+
+      if (!updated) {
+        return NextResponse.json({ success: false, error: 'already_taken', message: 'Another worker just accepted' }, { status: 409 });
       }
 
-      // Accept!
-      state.acceptedBy = workerId;
-      alert.status = "accepted";
+      // Mark this alert as accepted, expire others
+      await supabase.from('job_alerts').update({ status: 'accepted' }).eq('id', alert.id);
+      await supabase.from('job_alerts')
+        .update({ status: 'expired' })
+        .eq('job_id', jobId)
+        .neq('worker_id', effectiveWorkerId)
+        .eq('status', 'pending');
 
-      // Expire all other alerts
-      state.alerts.filter(a => a.workerId !== workerId).forEach(a => { a.status = "expired"; });
+      // Fetch worker profile
+      const { data: wp } = await supabase
+        .from('worker_profiles')
+        .select('*, users(name)')
+        .eq('id', effectiveWorkerId)
+        .single();
 
-      // Look up worker from Supabase
-      let workerName = 'Worker';
-      let workerRating = 4.5;
-      let workerTrade = 'technician';
-      let workerLat = 11.0168;
-      let workerLng = 76.9558;
-      try {
-        const { data: wp } = await supabaseAdmin.from('worker_profiles').select('*, users(name)').eq('id', workerId).single();
-        if (wp) {
-          workerName = String((wp.users as Record<string, unknown>)?.name || 'Worker');
-          workerRating = Number(wp.avg_rating || 4.5);
-          workerTrade = String(wp.trade_primary || 'technician');
-          workerLat = Number(wp.latitude || 11.0168);
-          workerLng = Number(wp.longitude || 76.9558);
-        }
-      } catch {}
-      const bookingId = `BKG-${Date.now()}`;
+      const workerName = String((wp?.users as Record<string, unknown>)?.name || 'Worker');
+      const workerRating = Number(wp?.avg_rating || 4.5);
+      const workerTrade = String(wp?.trade_primary || 'technician');
+      const workerLat = Number(wp?.latitude || session.hirer_lat);
+      const workerLng = Number(wp?.longitude || session.hirer_lng);
       const otp = String(Math.floor(1000 + Math.random() * 9000));
+      const bookingId = `BKG-${Date.now()}`;
 
       return NextResponse.json({
         success: true,
         data: {
-          bookingId,
-          jobId,
-          workerId,
-          workerName,
-          workerRating,
-          workerTrade,
-          otp,
-          eta: Math.round(haversine(11.0168, 76.9558, workerLat, workerLng) * 6 + 3),
-          status: "accepted",
+          bookingId, jobId, workerId: effectiveWorkerId,
+          workerName, workerRating, workerTrade, otp,
+          eta: Math.round(haversine(session.hirer_lat, session.hirer_lng, workerLat, workerLng) * 6 + 3),
+          status: 'accepted',
           message: `${workerName} has accepted your job!`,
         },
       });
     }
 
     // ── WORKER DECLINES ──
-    if (action === "decline") {
-      const { jobId, workerId, reason } = body;
-      const state = dispatchState.get(jobId);
-      if (state) {
-        const alert = state.alerts.find(a => a.workerId === workerId);
-        if (alert) alert.status = "declined";
-      }
-      return NextResponse.json({ success: true, message: "Declined" });
+    if (action === 'decline') {
+      const { jobId, workerId } = body;
+      const caller = await getUserFromRequest(request.cookies);
+      const effectiveWorkerId = caller?.userType === 'worker' ? caller.sub : workerId;
+
+      await supabase
+        .from('job_alerts')
+        .update({ status: 'declined' })
+        .eq('job_id', jobId)
+        .eq('worker_id', effectiveWorkerId);
+
+      return NextResponse.json({ success: true, message: 'Declined' });
     }
 
     // ── CHECK STATUS ──
-    if (action === "status") {
+    if (action === 'status') {
       const { jobId } = body;
-      const state = dispatchState.get(jobId);
-      if (!state) {
-        return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+
+      const { data: session } = await supabase
+        .from('dispatch_sessions')
+        .select('*')
+        .eq('job_id', jobId)
+        .single();
+
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
       }
 
-      const now = Date.now();
-      const pendingAlerts = state.alerts.filter(a => a.status === "sent" && a.expiresAt > now);
-      const declinedAlerts = state.alerts.filter(a => a.status === "declined");
-      const expiredAlerts = state.alerts.filter(a => a.status === "sent" && a.expiresAt <= now);
+      const { data: alerts } = await supabase
+        .from('job_alerts')
+        .select('status, round')
+        .eq('job_id', jobId);
 
-      // Auto-expire old alerts
-      expiredAlerts.forEach(a => { a.status = "expired"; });
+      const allAlerts = alerts || [];
+      const pending = allAlerts.filter(a => a.status === 'pending').length;
+      const declined = allAlerts.filter(a => a.status === 'declined').length;
+      const expired = allAlerts.filter(a => a.status === 'expired').length;
+      const started = new Date(session.created_at).getTime();
 
       return NextResponse.json({
         success: true,
         data: {
           jobId,
-          round: state.round,
-          acceptedBy: state.acceptedBy,
-          status: state.acceptedBy ? "accepted" : pendingAlerts.length > 0 ? "waiting" : "round_complete",
-          pending: pendingAlerts.length,
-          declined: declinedAlerts.length,
-          expired: expiredAlerts.length,
-          totalNotified: state.alerts.length,
-          priceBump: state.priceBump,
-          elapsedSeconds: Math.round((now - state.startedAt) / 1000),
+          round: session.round,
+          acceptedBy: session.accepted_by,
+          status: session.accepted_by ? 'accepted' : pending > 0 ? 'waiting' : 'round_complete',
+          pending, declined, expired,
+          totalNotified: allAlerts.length,
+          priceBump: session.price_bump,
+          elapsedSeconds: Math.round((Date.now() - started) / 1000),
         },
       });
     }
 
     // ── NEXT ROUND (expand radius + bump price) ──
-    if (action === "next_round") {
-      const { jobId, trade, hirerLat = 11.0168, hirerLng = 76.9558, urgency = "normal" } = body;
-      const state = dispatchState.get(jobId);
-      if (!state) {
-        return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
-      }
+    if (action === 'next_round') {
+      const { jobId, trade, hirerLat = 11.0168, hirerLng = 76.9558, urgency = 'normal' } = body;
 
-      if (state.round >= 3) {
+      const { data: session } = await supabase
+        .from('dispatch_sessions')
+        .select('*')
+        .eq('job_id', jobId)
+        .single();
+
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+      }
+      if (session.round >= 3) {
         return NextResponse.json({
           success: false,
-          error: "max_rounds_reached",
-          message: "No workers available. Try again later or change your requirements.",
+          error: 'max_rounds_reached',
+          message: 'No workers available. Try again later or change your requirements.',
         }, { status: 200 });
       }
 
-      state.round += 1;
-      state.priceBump += 10; // +10% each round
-      const radius = (urgency === "emergency" ? 10 : 5) * state.round;
-      const previousWorkerIds = state.alerts.map(a => a.workerId);
-      const newWorkers = (await findNearbyWorkers(trade, hirerLat, hirerLng, radius, 10))
-        .filter((w: WorkerMatch) => !previousWorkerIds.includes(w.id));
+      const newRound = session.round + 1;
+      const newPriceBump = session.price_bump + 10;
+      const radiusKm = (urgency === 'emergency' ? 10 : 5) * newRound;
 
-      const newAlerts = newWorkers.map(w => ({
-        workerId: w.id,
-        status: "sent",
-        sentAt: Date.now(),
-        expiresAt: Date.now() + 45000,
-      }));
-      state.alerts.push(...newAlerts);
+      // Get worker IDs already alerted
+      const { data: prevAlerts } = await supabase
+        .from('job_alerts')
+        .select('worker_id')
+        .eq('job_id', jobId);
+      const prevWorkerIds = (prevAlerts || []).map(a => a.worker_id);
+
+      const allWorkers = await findNearbyWorkers(trade || session.trade, hirerLat, hirerLng, radiusKm, 15);
+      const newWorkers = allWorkers.filter(w => !prevWorkerIds.includes(w.id));
+
+      const expiresAt = new Date(Date.now() + 45_000).toISOString();
+
+      // Update session round + price bump
+      await supabase
+        .from('dispatch_sessions')
+        .update({ round: newRound, price_bump: newPriceBump })
+        .eq('job_id', jobId);
+
+      // Insert new alerts
+      if (newWorkers.length > 0) {
+        await supabase.from('job_alerts').insert(
+          newWorkers.map(w => ({
+            job_id: jobId,
+            worker_id: w.id,
+            status: 'pending',
+            round: newRound,
+            expires_at: expiresAt,
+          }))
+        );
+      }
 
       return NextResponse.json({
         success: true,
         data: {
-          jobId,
-          round: state.round,
-          status: "dispatching",
+          jobId, round: newRound, status: 'dispatching',
           newWorkersNotified: newWorkers.length,
-          radiusKm: radius,
-          priceBump: `+${state.priceBump}%`,
+          radiusKm,
+          priceBump: `+${newPriceBump}%`,
           workers: newWorkers,
-          expiresAt: new Date(Date.now() + 45000).toISOString(),
-          message: `Round ${state.round}: Searching ${radius}km radius, +${state.priceBump}% price bump`,
+          expiresAt,
+          message: `Round ${newRound}: Searching ${radiusKm}km radius, +${newPriceBump}% price bump`,
         },
       });
     }
 
-    return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
-  } catch {
-    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
+  } catch (e) {
+    console.error('[dispatch error]', e);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
 
-// GET: Check dispatch status
+// GET: Check dispatch status for a jobId
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const jobId = searchParams.get("jobId");
+  const jobId = searchParams.get('jobId');
 
   if (!jobId) {
+    return NextResponse.json({ success: false, error: 'jobId required' }, { status: 400 });
+  }
+
+  try {
+    const supabase = getSupabase();
+    const { data: session } = await supabase
+      .from('dispatch_sessions')
+      .select('*')
+      .eq('job_id', jobId)
+      .single();
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
+
+    const { data: alerts } = await supabase
+      .from('job_alerts')
+      .select('worker_id, status, round')
+      .eq('job_id', jobId);
+
     return NextResponse.json({
       success: true,
-      data: { activeDispatches: dispatchState.size },
+      data: {
+        jobId: session.job_id,
+        round: session.round,
+        acceptedBy: session.accepted_by,
+        status: session.status,
+        totalAlerts: (alerts || []).length,
+        priceBump: session.price_bump,
+      },
     });
+  } catch (e) {
+    console.error('[dispatch/GET error]', e);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
-
-  const state = dispatchState.get(jobId);
-  if (!state) {
-    return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      jobId: state.jobId,
-      round: state.round,
-      acceptedBy: state.acceptedBy,
-      totalAlerts: state.alerts.length,
-      priceBump: state.priceBump,
-    },
-  });
 }

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // ADMIN STATS API — Revenue, users, bookings overview
 // ═══════════════════════════════════════
 
-const ADMIN_PHONES = (process.env.ADMIN_PHONES || '+919876543210').split(',');
+const ADMIN_PHONES = process.env.ADMIN_PHONES
+  ? process.env.ADMIN_PHONES.split(',').map(p => p.trim()).filter(Boolean)
+  : [];
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,10 +16,11 @@ export async function GET(req: NextRequest) {
     if (!jwt?.sub) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
-    if (!ADMIN_PHONES.includes(jwt.phone)) {
+    if (ADMIN_PHONES.length === 0 || !ADMIN_PHONES.includes(jwt.phone)) {
       return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
     }
 
+    const supabaseAdmin = getSupabase();
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const weekStart = new Date(now.getTime() - 7 * 86400000).toISOString();

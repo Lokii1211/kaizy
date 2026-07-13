@@ -1,30 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { getSupabase } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
-// ============================================================
-// Kaizy — UBER-QUALITY LIVE GPS TRACKING v2
-// Worker movement · ETA · Direction · Booking lifecycle
-// ============================================================
-
-interface TrackingSession {
-  bookingId: string;
-  workerId: string;
-  workerName: string;
-  status: "created" | "en_route" | "arrived" | "working" | "completed";
-  workerLat: number;
-  workerLng: number;
-  destLat: number;
-  destLng: number;
-  heading: number;
-  speed: number;
-  eta: number;
-  otp: string;
-  startedAt: string;
-  arrivedAt: string | null;
-  completedAt: string | null;
-  locationHistory: { lat: number; lng: number; heading: number; speed: number; ts: string }[];
-}
-
-const sessions = new Map<string, TrackingSession>();
+// ═══════════════════════════════════════════════════════
+// Kaizy — GPS TRACKING API (Supabase-persisted)
+// All tracking state lives in tracking_sessions table.
+// Workers POST location updates; hirers GET via this API
+// or subscribe directly via Supabase Realtime.
+// ═══════════════════════════════════════════════════════
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -44,183 +27,255 @@ function calculateHeading(fromLat: number, fromLng: number, toLat: number, toLng
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUserFromRequest(request.cookies);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { action } = body;
+    const supabase = getSupabase();
 
-    // ── START TRACKING ──
-    if (action === "start") {
-      const { bookingId, workerId = "W003", workerName = "Worker",
-              workerLat = 11.022, workerLng = 76.960,
-              destLat = 11.0168, destLng = 76.9558 } = body;
+    // ── START TRACKING SESSION ──
+    if (action === 'start') {
+      const {
+        bookingId,
+        workerLat = 11.022, workerLng = 76.960,
+        destLat = 11.0168, destLng = 76.9558,
+      } = body;
+
+      if (!bookingId) {
+        return NextResponse.json({ success: false, error: 'bookingId required' }, { status: 400 });
+      }
+
+      // Worker must be authenticated — use their actual ID
+      const workerId = user.userType === 'worker' ? user.sub : body.workerId;
 
       const dist = haversine(workerLat, workerLng, destLat, destLng);
       const eta = Math.round(dist * 6 + 3);
+      const heading = calculateHeading(workerLat, workerLng, destLat, destLng);
       const otp = String(Math.floor(1000 + Math.random() * 9000));
 
-      const session: TrackingSession = {
-        bookingId, workerId, workerName,
-        status: "en_route",
-        workerLat, workerLng, destLat, destLng,
-        heading: calculateHeading(workerLat, workerLng, destLat, destLng),
-        speed: 25 + Math.random() * 15,
-        eta, otp,
-        startedAt: new Date().toISOString(),
-        arrivedAt: null, completedAt: null,
-        locationHistory: [{ lat: workerLat, lng: workerLng, heading: 0, speed: 0, ts: new Date().toISOString() }],
-      };
+      const { data, error } = await supabase
+        .from('tracking_sessions')
+        .upsert({
+          booking_id: bookingId,
+          worker_id: workerId,
+          status: 'en_route',
+          worker_lat: workerLat,
+          worker_lng: workerLng,
+          dest_lat: destLat,
+          dest_lng: destLng,
+          heading,
+          speed_kmh: 0,
+          eta_minutes: eta,
+          otp,
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'booking_id' })
+        .select()
+        .single();
 
-      sessions.set(bookingId, session);
+      if (error) {
+        console.error('[tracking/start]', error);
+        return NextResponse.json({ success: false, error: 'Failed to start tracking' }, { status: 500 });
+      }
+
+      // Also store OTP on the booking for verify_otp step
+      await supabase.from('bookings').update({ otp }).eq('id', bookingId);
 
       return NextResponse.json({
         success: true,
         data: {
-          bookingId, status: "en_route",
-          worker: { id: workerId, name: workerName, lat: workerLat, lng: workerLng },
+          bookingId, status: 'en_route',
+          worker: { id: workerId, lat: workerLat, lng: workerLng },
           destination: { lat: destLat, lng: destLng },
-          heading: session.heading, speed: session.speed,
-          eta, otp,
+          heading, speed: 0, eta, otp,
           distanceKm: Math.round(dist * 100) / 100,
-          startedAt: session.startedAt,
+          startedAt: data.started_at,
         },
       });
     }
 
-    // ── UPDATE LOCATION (simulate movement) ──
-    if (action === "update") {
-      const { bookingId } = body;
-      const session = sessions.get(bookingId);
-      if (!session) return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
-
-      if (session.status !== "en_route") {
-        return NextResponse.json({ success: true, data: { status: session.status, message: "Not en route" } });
+    // ── UPDATE WORKER GPS LOCATION ──
+    if (action === 'update') {
+      const { bookingId, lat, lng, speed = 0 } = body;
+      if (!bookingId || lat == null || lng == null) {
+        return NextResponse.json({ success: false, error: 'bookingId, lat, lng required' }, { status: 400 });
       }
 
-      // Simulate realistic GPS movement toward destination
-      const progress = 0.12 + Math.random() * 0.08; // 12-20% closer each update
-      const jitter = (Math.random() - 0.5) * 0.0003; // Slight GPS jitter
+      const { data: session, error: fetchErr } = await supabase
+        .from('tracking_sessions')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .single();
 
-      const newLat = session.workerLat + (session.destLat - session.workerLat) * progress + jitter;
-      const newLng = session.workerLng + (session.destLng - session.workerLng) * progress + jitter;
-      const newHeading = calculateHeading(session.workerLat, session.workerLng, newLat, newLng);
-      const speed = 20 + Math.random() * 20; // 20-40 km/h city traffic
-
-      session.workerLat = newLat;
-      session.workerLng = newLng;
-      session.heading = newHeading;
-      session.speed = speed;
-
-      const dist = haversine(newLat, newLng, session.destLat, session.destLng);
-      session.eta = Math.max(1, Math.round(dist * 6 + 1));
-
-      session.locationHistory.push({
-        lat: newLat, lng: newLng, heading: newHeading, speed, ts: new Date().toISOString(),
-      });
-
-      // Auto-arrive if very close
-      if (dist < 0.05) { // < 50 meters
-        session.status = "arrived";
-        session.arrivedAt = new Date().toISOString();
-        session.eta = 0;
+      if (fetchErr || !session) {
+        return NextResponse.json({ success: false, error: 'Tracking session not found' }, { status: 404 });
       }
+      if (session.status !== 'en_route') {
+        return NextResponse.json({ success: true, data: { status: session.status, message: 'Not en route' } });
+      }
+
+      const dist = haversine(lat, lng, session.dest_lat, session.dest_lng);
+      const eta = Math.max(1, Math.round(dist * 6 + 1));
+      const heading = calculateHeading(session.worker_lat, session.worker_lng, lat, lng);
+      const arrived = dist < 0.05; // < 50 metres
+
+      const { error: updateErr } = await supabase
+        .from('tracking_sessions')
+        .update({
+          worker_lat: lat,
+          worker_lng: lng,
+          heading,
+          speed_kmh: speed,
+          eta_minutes: arrived ? 0 : eta,
+          status: arrived ? 'arrived' : 'en_route',
+          arrived_at: arrived ? new Date().toISOString() : session.arrived_at,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('booking_id', bookingId);
+
+      if (updateErr) console.error('[tracking/update]', updateErr);
 
       return NextResponse.json({
         success: true,
         data: {
-          bookingId, status: session.status,
-          worker: { lat: newLat, lng: newLng, heading: newHeading, speed: Math.round(speed) },
-          eta: session.eta,
+          bookingId, status: arrived ? 'arrived' : 'en_route',
+          worker: { lat, lng, heading, speed: Math.round(speed) },
+          eta: arrived ? 0 : eta,
           distanceKm: Math.round(dist * 100) / 100,
-          totalUpdates: session.locationHistory.length,
-          arrived: session.status === "arrived",
+          arrived,
         },
       });
     }
 
-    // ── VERIFY OTP (start job) ──
-    if (action === "verify_otp") {
+    // ── VERIFY JOB-START OTP ──
+    if (action === 'verify_otp') {
       const { bookingId, otp } = body;
-      const session = sessions.get(bookingId);
-      if (!session) return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
 
-      if (session.otp !== otp) {
-        return NextResponse.json({ success: false, error: "Invalid OTP" }, { status: 400 });
+      const { data: session } = await supabase
+        .from('tracking_sessions')
+        .select('otp, status')
+        .eq('booking_id', bookingId)
+        .single();
+
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+      }
+      if (session.otp !== String(otp)) {
+        return NextResponse.json({ success: false, error: 'Invalid OTP' }, { status: 400 });
       }
 
-      session.status = "working";
+      await supabase
+        .from('tracking_sessions')
+        .update({ status: 'working', updated_at: new Date().toISOString() })
+        .eq('booking_id', bookingId);
+
       return NextResponse.json({
         success: true,
-        data: { bookingId, status: "working", message: "OTP verified. Job started!", startedAt: new Date().toISOString() },
+        data: { bookingId, status: 'working', message: 'OTP verified. Job started!' },
       });
     }
 
-    // ── COMPLETE JOB ──
-    if (action === "complete") {
+    // ── MARK JOB COMPLETE ──
+    if (action === 'complete') {
       const { bookingId } = body;
-      const session = sessions.get(bookingId);
-      if (!session) return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
 
-      session.status = "completed";
-      session.completedAt = new Date().toISOString();
+      await supabase
+        .from('tracking_sessions')
+        .update({ status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('booking_id', bookingId);
 
-      return NextResponse.json({
-        success: true,
-        data: {
-          bookingId, status: "completed",
-          completedAt: session.completedAt,
-          totalLocations: session.locationHistory.length,
-          message: "Job complete! Please review and release payment.",
-        },
-      });
-    }
-
-    // ── GET ROUTE (for rendering on map) ──
-    if (action === "route") {
-      const { bookingId } = body;
-      const session = sessions.get(bookingId);
-      if (!session) return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      // Update booking status
+      await supabase
+        .from('bookings')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', bookingId);
 
       return NextResponse.json({
         success: true,
-        data: {
-          route: session.locationHistory.map(l => [l.lng, l.lat]),
-          worker: { lat: session.workerLat, lng: session.workerLng },
-          destination: { lat: session.destLat, lng: session.destLng },
-        },
+        data: { bookingId, status: 'completed', message: 'Job complete! Please review and release payment.' },
       });
     }
 
-    return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
-  } catch {
-    return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
+    // ── CHANGE STATUS (en_route → arrived → working, etc.) ──
+    if (action === 'status') {
+      const { bookingId, status } = body;
+      const validStatuses = ['en_route', 'arrived', 'working', 'completed'];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
+      }
+
+      await supabase
+        .from('tracking_sessions')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('booking_id', bookingId);
+
+      // Sync to bookings table too
+      await supabase
+        .from('bookings')
+        .update({ status: status === 'working' ? 'in_progress' : status })
+        .eq('id', bookingId);
+
+      return NextResponse.json({ success: true, data: { bookingId, status } });
+    }
+
+    return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
+  } catch (e) {
+    console.error('[tracking error]', e);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
 
-// GET: Fetch current tracking status
+// GET: Fetch current tracking state for a booking
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const bookingId = searchParams.get("bookingId");
+  const bookingId = searchParams.get('bookingId');
 
   if (!bookingId) {
-    return NextResponse.json({ success: true, data: { activeSessions: sessions.size } });
+    return NextResponse.json({ success: false, error: 'bookingId required' }, { status: 400 });
   }
 
-  const session = sessions.get(bookingId);
-  if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+  try {
+    const supabase = getSupabase();
+    const { data: session, error } = await supabase
+      .from('tracking_sessions')
+      .select('*, users!worker_id(name)')
+      .eq('booking_id', bookingId)
+      .single();
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      bookingId: session.bookingId,
-      status: session.status,
-      worker: { id: session.workerId, name: session.workerName, lat: session.workerLat, lng: session.workerLng, heading: session.heading, speed: session.speed },
-      destination: { lat: session.destLat, lng: session.destLng },
-      eta: session.eta,
-      otp: session.otp,
-      distanceKm: Math.round(haversine(session.workerLat, session.workerLng, session.destLat, session.destLng) * 100) / 100,
-      startedAt: session.startedAt,
-      arrivedAt: session.arrivedAt,
-      completedAt: session.completedAt,
-      locationUpdates: session.locationHistory.length,
-    },
-  });
+    if (error || !session) {
+      return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
+    }
+
+    const dist = haversine(session.worker_lat, session.worker_lng, session.dest_lat, session.dest_lng);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        bookingId: session.booking_id,
+        status: session.status,
+        worker: {
+          id: session.worker_id,
+          name: session.users?.name || 'Worker',
+          lat: session.worker_lat,
+          lng: session.worker_lng,
+          heading: session.heading,
+          speed: session.speed_kmh,
+        },
+        destination: { lat: session.dest_lat, lng: session.dest_lng },
+        eta: session.eta_minutes,
+        otp: session.otp,
+        distanceKm: Math.round(dist * 100) / 100,
+        startedAt: session.started_at,
+        arrivedAt: session.arrived_at,
+        completedAt: session.completed_at,
+        updatedAt: session.updated_at,
+      },
+    });
+  } catch (e) {
+    console.error('[tracking/GET error]', e);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
+  }
 }
