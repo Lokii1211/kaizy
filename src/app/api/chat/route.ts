@@ -1,33 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // Real-time Chat API — Booking-scoped messaging
-// GET: Poll messages for a booking
-// POST: Send a new message
+// GET: Fetch messages for a booking (requires auth or booking_id)
+// POST: Send a message (sender_id from JWT)
 // ═══════════════════════════════════════
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const bookingId = searchParams.get('booking_id');
-    const limit = Number(searchParams.get('limit')) || 100;
+    const limit = Math.min(Number(searchParams.get('limit')) || 100, 200);
 
-    let query = supabaseAdmin
+    if (!bookingId) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('messages')
-      .select('*')
+      .select('id, booking_id, sender_id, sender_type, content, created_at, is_read')
+      .eq('booking_id', bookingId)
       .order('created_at', { ascending: true })
       .limit(limit);
 
-    if (bookingId) {
-      query = query.eq('booking_id', bookingId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[chat fetch error]', error);
-    }
+    if (error) console.error('[chat fetch]', error);
 
     return NextResponse.json({ success: true, data: data || [] });
   } catch {
@@ -38,42 +36,44 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { content, senderType, bookingId, senderName } = body;
+    const { content, senderType, bookingId } = body;
 
-    if (!content || !content.trim()) {
+    if (!content?.trim()) {
       return NextResponse.json({ success: false, error: 'Empty message' });
     }
+    if (!bookingId) {
+      return NextResponse.json({ success: false, error: 'bookingId required' });
+    }
 
-    const messageData: Record<string, unknown> = {
-      sender_id: senderType || 'user',
-      content: content.trim(),
-      message_type: 'text',
-      sender_name: senderName || (senderType === 'worker' ? 'Worker' : 'You'),
-    };
+    // Resolve sender from JWT (preferred) or fall back to senderType hint
+    const jwtUser = await getUserFromRequest(req.cookies);
+    const senderId = jwtUser?.sub || null;
+    const resolvedType = jwtUser?.userType || senderType || 'hirer';
 
-    // Add booking_id if provided
-    if (bookingId) {
-      messageData.booking_id = bookingId;
+    // Fetch sender name
+    let senderName = resolvedType === 'worker' ? 'Worker' : 'Customer';
+    if (senderId) {
+      const { data: u } = await supabaseAdmin.from('users').select('name').eq('id', senderId).single();
+      if (u?.name) senderName = u.name;
     }
 
     const { data, error } = await supabaseAdmin
       .from('messages')
-      .insert(messageData)
+      .insert({
+        booking_id: bookingId,
+        sender_id: senderId,
+        sender_type: resolvedType,
+        sender_name: senderName,
+        content: content.trim(),
+        message_type: 'text',
+        is_read: false,
+      })
       .select()
       .single();
 
     if (error) {
-      console.error('[chat send error]', error);
-      // Try without booking_id if column doesn't exist
-      const { error: err2 } = await supabaseAdmin
-        .from('messages')
-        .insert({
-          sender_id: senderType || 'user',
-          content: content.trim(),
-          message_type: 'text',
-        });
-      if (err2) return NextResponse.json({ success: false, error: err2.message });
-      return NextResponse.json({ success: true });
+      console.error('[chat send]', error);
+      return NextResponse.json({ success: false, error: error.message });
     }
 
     return NextResponse.json({ success: true, data });

@@ -249,10 +249,10 @@ export default function MyBookingsPage() {
                       <div className="mt-3 pt-3 flex gap-2" style={{ borderTop: "1px solid var(--border-1)" }}
                            onClick={(e) => e.stopPropagation()}>
                         {isTrackable && (
-                          <Link href={`/tracking/${b.id}`}
+                          <Link href={`/tracking?bookingId=${b.id}`}
                                 className="flex-1 text-center text-[10px] font-bold py-2 rounded-[12px] text-white"
                                 style={{ background: "var(--info)" }}>
-                            Track Live
+                            🗺️ Track Live
                           </Link>
                         )}
                         <button onClick={() => handleCancel(b.id, b.status)} disabled={cancellingId === b.id}

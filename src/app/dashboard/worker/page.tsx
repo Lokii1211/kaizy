@@ -165,105 +165,70 @@ export default function WorkerDashboardPage() {
     await performToggle(false);
   };
 
-  // Poll for job alerts — show full-screen overlay for unread JOB_ALERT
+  // Poll /api/workers/alerts every 8s — primary job alert delivery path
   useEffect(() => {
     if (!user || !isOnline) return;
 
     const checkForAlerts = async () => {
       try {
-        const res = await fetch(`/api/notifications?userId=${user.id}&limit=10`);
+        const res = await fetch("/api/workers/alerts");
+        if (!res.ok) throw new Error("bad response");
         const json = await res.json();
-        if (!res.ok) throw new Error('bad response');
         setAlertFetchFailures(0);
 
-        if (json.success && json.data?.length) {
-          setAlerts(json.data);
-
-          // Find the most recent unread JOB_ALERT
-          const unreadJobAlert = json.data.find(
-            (n: AlertNotification) => n.type === 'JOB_ALERT' && !n.is_read
-          );
-
-          if (unreadJobAlert && !activeJobAlert && !acceptedJob) {
-            const data = unreadJobAlert.data || {};
-            const tradeIcons: Record<string, string> = { electrician: "⚡", plumber: "🔧", mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨" };
-            const tradeStr = String(data.trade || 'technician');
-            setActiveJobAlert({
-              id: unreadJobAlert.id,
-              trade: tradeStr,
-              tradeIcon: tradeIcons[tradeStr] || "🔧",
-              problem: String(data.problemType || 'Service request'),
-              distance: Number(data.distance || 2),
-              eta: Number(data.eta || 10),
-              earnings: Number(data.earnings || 500),
-              hirerRating: Number(data.hirerRating || 4.5),
-              hirerName: String(data.hirerName || 'Customer'),
-              duration: String(data.duration || '1-2 hours'),
-              isEmergency: Boolean(data.isEmergency),
-              address: String(data.address || 'Nearby location'),
-            });
-          }
+        if (json.success && json.data && !activeJobAlert && !acceptedJob) {
+          const d = json.data;
+          setActiveJobAlert({
+            id: d.id,
+            trade: d.trade,
+            tradeIcon: d.tradeIcon,
+            problem: d.problem,
+            distance: d.distance,
+            eta: d.eta,
+            earnings: d.earnings,
+            hirerRating: d.hirerRating,
+            hirerName: d.hirerName,
+            duration: d.duration,
+            isEmergency: d.isEmergency,
+            address: d.address,
+          });
         }
       } catch {
-        // Intentionally silent — don't spam a toast every poll on a network blip.
-        // Track consecutive failures so we can surface a non-blocking indicator
-        // if alerts might be getting missed.
         setAlertFetchFailures(prev => prev + 1);
       }
     };
 
     checkForAlerts();
-    // Fallback poll — slowed down now that Realtime (below) is the primary path.
-    // Still required in case the user's Supabase project doesn't have Realtime
-    // replication enabled for the `notifications` table.
-    const intervalId = setInterval(checkForAlerts, 60000); // Poll every 60s (fallback)
+    const intervalId = setInterval(checkForAlerts, 8000);
     return () => clearInterval(intervalId);
   }, [user, isOnline, activeJobAlert, acceptedJob]);
 
-  // Realtime: subscribe to new notifications for this worker — primary fast-path
-  // for job alerts. Falls back to the polling effect above if Realtime isn't
-  // enabled on the user's Supabase project (Database → Replication).
+  // Realtime: subscribe to job_alerts INSERT for this worker (instant delivery)
   useEffect(() => {
-    if (!user || !isOnline) return;
-    if (!supabase) return;
+    if (!user || !isOnline || !supabase) return;
 
     const channel = supabase
-      .channel(`notifications-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const row = payload.new as AlertNotification;
-          if (!row) return;
-
-          setAlerts(prev => [row, ...prev.filter(a => a.id !== row.id)].slice(0, 10));
-
-          if (row.type === 'JOB_ALERT' && !row.is_read && !activeJobAlert && !acceptedJob) {
-            const data = row.data || {};
-            const tradeIcons: Record<string, string> = { electrician: "⚡", plumber: "🔧", mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨" };
-            const tradeStr = String(data.trade || 'technician');
+      .channel(`job-alerts-${user.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "job_alerts",
+        filter: `worker_id=eq.${user.id}`,
+      }, () => {
+        // Trigger an immediate poll to get the full alert details
+        fetch("/api/workers/alerts").then(r => r.json()).then(json => {
+          if (json.success && json.data && !activeJobAlert && !acceptedJob) {
+            const d = json.data;
             setActiveJobAlert({
-              id: row.id,
-              trade: tradeStr,
-              tradeIcon: tradeIcons[tradeStr] || "🔧",
-              problem: String(data.problemType || 'Service request'),
-              distance: Number(data.distance || 2),
-              eta: Number(data.eta || 10),
-              earnings: Number(data.earnings || 500),
-              hirerRating: Number(data.hirerRating || 4.5),
-              hirerName: String(data.hirerName || 'Customer'),
-              duration: String(data.duration || '1-2 hours'),
-              isEmergency: Boolean(data.isEmergency),
-              address: String(data.address || 'Nearby location'),
+              id: d.id, trade: d.trade, tradeIcon: d.tradeIcon, problem: d.problem,
+              distance: d.distance, eta: d.eta, earnings: d.earnings,
+              hirerRating: d.hirerRating, hirerName: d.hirerName, duration: d.duration,
+              isEmergency: d.isEmergency, address: d.address,
             });
           }
-        }
-      )
+        }).catch(() => {});
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user, isOnline, activeJobAlert, acceptedJob]);
 
   // Update GPS every 30 seconds while online
@@ -292,45 +257,57 @@ export default function WorkerDashboardPage() {
     return () => clearInterval(gpsInterval);
   }, [user, isOnline]);
 
-  // Handle job accept
+  // Handle job accept — calls /api/jobs/accept which runs accept_job_atomic
   const handleAcceptJob = useCallback(async (alertId: string) => {
     if (!user || !activeJobAlert) return;
     try {
       const res = await fetch("/api/jobs/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          alertId: alertId,
-          workerId: user.id,
-        }),
+        body: JSON.stringify({ alertId }),
       });
       const json = await res.json();
 
-      if (json.success) {
-        setAcceptedJob({
-          bookingId: json.data?.bookingId || '',
-          otp: json.data?.otp || '',
-          message: json.data?.message || 'Job accepted!',
-        });
+      if (json.success && json.data?.bookingId) {
+        const { bookingId, otp } = json.data;
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+        // Store job context for active-job page
+        try {
+          sessionStorage.setItem("kaizy_active_job", JSON.stringify({
+            jobId: activeJobAlert.id,
+            bookingId,
+            trade: activeJobAlert.trade,
+            problem: activeJobAlert.problem,
+            pricing: { total: activeJobAlert.earnings },
+          }));
+          sessionStorage.setItem("kaizy_booking_location", JSON.stringify({
+            address: activeJobAlert.address,
+            lat: activeJobAlert.distance ? 11.0168 : undefined,
+            lng: activeJobAlert.distance ? 76.9558 : undefined,
+          }));
+        } catch {}
+
+        setAcceptedJob({ bookingId, otp, message: "Job accepted! Head to the customer." });
+        setActiveJobAlert(null);
+
+        // Navigate to active-job page after brief delay
+        setTimeout(() => router.push("/active-job"), 1500);
       } else {
-        // Job already taken or expired
         setAcceptedJob({
-          bookingId: '',
-          otp: '',
-          message: json.error === 'already_taken' ? 'This job was taken by another worker.' : 'Job expired. Wait for the next one!',
+          bookingId: "",
+          otp: "",
+          message: json.error === "already_taken"
+            ? "This job was just taken by another worker."
+            : "Job expired. A new one will come soon!",
         });
+        setActiveJobAlert(null);
       }
     } catch {
-      setAcceptedJob({ bookingId: '', otp: '', message: 'Failed to accept. Check your connection.' });
+      setAcceptedJob({ bookingId: "", otp: "", message: "Failed to accept. Check your connection." });
+      setActiveJobAlert(null);
     }
-    setActiveJobAlert(null);
-
-    // Mark notification as read
-    try {
-      await fetch(`/api/notifications`, { method: 'PATCH' });
-    } catch {}
-  }, [user, activeJobAlert]);
+  }, [user, activeJobAlert, router]);
 
   // Handle job decline
   const handleDeclineJob = useCallback(async (alertId: string) => {

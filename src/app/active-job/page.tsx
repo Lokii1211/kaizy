@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafetyCheckIn from "@/components/SafetyCheckIn";
@@ -65,6 +65,39 @@ export default function ActiveJobPage() {
   const [job, setJob] = useState<JobData | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
+
+  // GPS tracking refs
+  const gpsIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
+
+  // GPS loop — sends worker position to tracking API every 15s when en_route
+  useEffect(() => {
+    if (status !== "en_route" || !job?.bookingId) {
+      clearInterval(gpsIntervalRef.current);
+      return;
+    }
+    const sendGPS = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(pos => {
+        fetch("/api/tracking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "update",
+            bookingId: job.bookingId,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            speed: pos.coords.speed || 0,
+          }),
+        }).catch(() => {});
+      }, () => {}, { enableHighAccuracy: true, timeout: 8000 });
+    };
+    sendGPS();
+    gpsIntervalRef.current = setInterval(sendGPS, 15000);
+    return () => clearInterval(gpsIntervalRef.current);
+  }, [status, job?.bookingId]);
 
   // Diagnosis/quote state
   const [showDiagnosis, setShowDiagnosis] = useState(false);
@@ -191,24 +224,57 @@ export default function ActiveJobPage() {
     if (idx < flow.length - 1) {
       const next = flow[idx + 1];
 
-      // If completing, show confirmation first
-      if (next === "completed" && !showComplete) {
-        setShowComplete(true);
-        return;
+      if (next === "completed" && !showComplete) { setShowComplete(true); return; }
+
+      // OTP verification: arrived → in_progress requires hirer's OTP
+      if (next === "in_progress" && job.bookingId) {
+        if (!otpInput.trim()) { setOtpError("Enter the OTP from the customer"); return; }
+        setOtpVerifying(true);
+        try {
+          const res = await fetch("/api/tracking", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "verify_otp", bookingId: job.bookingId, otp: otpInput.trim() }),
+          });
+          const json = await res.json();
+          if (!json.success) { setOtpError("Incorrect OTP. Ask customer to check theirs."); setOtpVerifying(false); return; }
+          setOtpError(""); setOtpInput("");
+        } catch { setOtpError("Could not verify. Try again."); setOtpVerifying(false); return; }
+        setOtpVerifying(false);
       }
 
       setStatusUpdating(true);
 
-      // POST to real API
       try {
+        // Start tracking session when going en_route
+        if (next === "en_route" && job.bookingId) {
+          navigator.geolocation?.getCurrentPosition(pos => {
+            fetch("/api/tracking", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "start",
+                bookingId: job.bookingId,
+                workerLat: pos.coords.latitude,
+                workerLng: pos.coords.longitude,
+              }),
+            }).catch(() => {});
+          }, () => {}, { enableHighAccuracy: true, timeout: 8000 });
+        }
+
+        // Mark complete in tracking API
+        if (next === "completed" && job.bookingId) {
+          await fetch("/api/tracking", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "complete", bookingId: job.bookingId }),
+          });
+        }
+
         await fetch("/api/bookings/status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            booking_id: job.bookingId,
-            job_id: job.id,
-            status: next,
-          }),
+          body: JSON.stringify({ booking_id: job.bookingId, job_id: job.id, status: next }),
         });
       } catch (err) {
         console.error("[active-job] Status update error:", err);
@@ -445,16 +511,26 @@ export default function ActiveJobPage() {
         </div>
       </div>
 
-      {/* OTP display (if available) */}
-      {job.otp && status === "arrived" && (
-        <div className="mx-5 mb-4 rounded-[16px] p-4 text-center" style={{ background: "var(--brand-tint)" }}>
-          <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>
-            Verify OTP from Customer
+      {/* OTP input — worker enters OTP received verbally from hirer */}
+      {status === "arrived" && (
+        <div className="mx-5 mb-4 rounded-[16px] p-4" style={{ background: "var(--brand-tint)", border: "1px solid rgba(255,107,0,0.25)" }}>
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>
+            Enter OTP from Customer to Start
           </p>
-          <p className="text-[28px] font-black tracking-[0.3em]"
-             style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>
-            {job.otp}
-          </p>
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={4}
+              value={otpInput}
+              onChange={e => { setOtpInput(e.target.value.replace(/\D/g, "")); setOtpError(""); }}
+              placeholder="_ _ _ _"
+              className="flex-1 rounded-[12px] px-4 py-3 text-[20px] font-black text-center tracking-[0.4em] outline-none"
+              style={{ background: "var(--bg-card)", color: "var(--brand)", fontFamily: "'JetBrains Mono',monospace", border: otpError ? "1px solid var(--danger)" : "none" }}
+            />
+          </div>
+          {otpError && <p className="text-[10px] font-bold mt-1.5" style={{ color: "var(--danger)" }}>{otpError}</p>}
+          <p className="text-[9px] mt-2" style={{ color: "var(--text-3)" }}>Ask the customer for the 4-digit OTP shown on their screen</p>
         </div>
       )}
 
@@ -521,11 +597,11 @@ export default function ActiveJobPage() {
               <p className="text-[9px] font-bold mt-1" style={{ color: "var(--brand)" }}>{job.distance} away</p>
             )}
           </div>
-          <a href={`https://maps.google.com/maps?daddr=${encodeURIComponent(job.address)}`}
+          <a href={`https://maps.google.com/maps?daddr=${encodeURIComponent(job.address)}&travelmode=driving`}
              target="_blank" rel="noopener noreferrer"
-             className="px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition-transform"
-             style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
-            Navigate
+             className="px-3 py-1.5 rounded-lg text-[10px] font-bold active:scale-95 transition-transform flex items-center gap-1"
+             style={{ background: "var(--brand)", color: "white" }}>
+            🗺️ Go
           </a>
         </div>
       </div>
@@ -771,18 +847,20 @@ export default function ActiveJobPage() {
       <div className="fixed bottom-0 left-0 right-0 p-5 z-40"
            style={{ background: "var(--bg-app)" }}>
         <button onClick={advanceStatus}
-                disabled={statusUpdating}
-                className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                disabled={statusUpdating || otpVerifying || (status === "arrived" && !otpInput.trim())}
+                className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{
                   background: statusFlow[currentStep]?.color === "var(--success)" ? "var(--success)" : "var(--gradient-cta)",
                   color: "#fff",
                   boxShadow: "var(--shadow-brand)",
                 }}>
-          {statusUpdating ? (
+          {(statusUpdating || otpVerifying) ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
-              Updating...
+              {otpVerifying ? "Verifying OTP…" : "Updating…"}
             </span>
+          ) : status === "arrived" ? (
+            <>🔓 Verify OTP &amp; Start Job</>
           ) : (
             <>{statusFlow[currentStep]?.icon} {nextAction}</>
           )}

@@ -1,553 +1,515 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
+import { supabase } from "@/lib/supabase";
+import dynamic from "next/dynamic";
+
+const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false });
 
 // ============================================================
-// LIVE TRACKING v10.0 — Stitch "Digital Artisan" Design
-// Glassmorphism overlays · JetBrains Mono · Gradient CTAs
+// LIVE TRACKING v13.0 — Kaizy Digital Artisan
+// Leaflet maps (free, no token) · Supabase Realtime location
+// Worker GPS → tracking_sessions → Realtime → Hirer map
+// Full flow: en_route → arrived → OTP → working → done → pay
 // ============================================================
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+interface TrackingData {
+  status: "en_route" | "arrived" | "working" | "completed";
+  worker: { id: string; name: string; lat: number; lng: number; heading?: number; speed?: number };
+  destination: { lat: number; lng: number };
+  eta: number;
+  otp: string;
+  distanceKm: number;
+}
+
+interface ChatMessage {
+  id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender_type?: string;
+}
 
 interface WorkerInfo {
-  name: string; trade: string; rating: number;
-  initials: string; kaizyScore: number; phone: string;
+  name: string;
+  trade: string;
+  rating: number;
+  initials: string;
+  kaizyScore: number;
+  tradeIcon: string;
 }
 
 const tradeIcons: Record<string, string> = {
-  electrician: "⚡", electrical: "⚡", plumber: "🔧", plumbing: "🔧",
-  mechanic: "🚗", ac_repair: "❄️", carpenter: "🪚", painter: "🎨", technician: "🔧",
+  electrician: "⚡", plumber: "🔧", mechanic: "🚗",
+  ac_repair: "❄️", carpenter: "🪚", painter: "🎨", mason: "⚒️",
 };
 
-export default function TrackingPage() {
-  const { isDark } = useTheme();
+const statusConfig = {
+  en_route: { label: "Worker on the way", color: "var(--info)", icon: "🚗" },
+  arrived:  { label: "Worker has arrived!", color: "var(--warning)", icon: "📍" },
+  working:  { label: "Job in progress", color: "var(--brand)", icon: "🔧" },
+  completed:{ label: "Job completed!", color: "var(--success)", icon: "✅" },
+};
+
+function TrackingContent() {
+  const searchParams = useSearchParams();
+  const bookingId = searchParams.get("bookingId") || searchParams.get("id");
   const router = useRouter();
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<unknown>(null);
-  const workerMarkerRef = useRef<unknown>(null);
-  const routeDataRef = useRef<[number, number][]>([]);
-  const routeStepRef = useRef(0);
-  const animationRef = useRef<NodeJS.Timeout | null>(null);
+  const { isDark } = useTheme();
+  const { user } = useAuth();
 
-  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [workerPos, setWorkerPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [tracking, setTracking] = useState<TrackingData | null>(null);
   const [worker, setWorker] = useState<WorkerInfo | null>(null);
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [showChat, setShowChat] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [eta, setEta] = useState(0);
-  const [status, setStatus] = useState<"en_route" | "arrived" | "working" | "completed">("en_route");
-  const [otp] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [distanceKm, setDistanceKm] = useState("");
-  const [gpsReady, setGpsReady] = useState(false);
-  const [hasBooking, setHasBooking] = useState(false);
-  const initialEtaRef = useRef(0);
+  const [status, setStatus] = useState<TrackingData["status"]>("en_route");
+  const [loading, setLoading] = useState(true);
+  const [bookingAmount, setBookingAmount] = useState(0);
+  const [paymentDone, setPaymentDone] = useState(false);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
-  // 1. Load REAL booking data — redirect if none
+  // Load from sessionStorage fallback
   useEffect(() => {
-    let foundBooking = false;
-    let gotLocation = false;
-
-    // Load worker data from sessionStorage (set during booking)
     try {
-      const stored = sessionStorage.getItem("kaizy_booked_worker");
-      if (stored) {
-        const w = JSON.parse(stored);
-        if (w.name && w.name !== "Worker") {
-          setWorker({
-            name: w.name,
-            trade: w.trade || "Technician",
-            rating: w.rating || 4.5,
-            initials: w.name.split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
-            kaizyScore: w.kaizyScore || 500,
-            phone: w.phone || "",
-          });
-          if (w.lat && w.lng) {
-            setWorkerPos({ lat: Number(w.lat), lng: Number(w.lng) });
-          }
-          foundBooking = true;
-        }
+      const loc = sessionStorage.getItem("kaizy_booking_location") || sessionStorage.getItem("kaizy_verified_location");
+      if (loc) {
+        const p = JSON.parse(loc);
+        if (p.lat && p.lng) setUserPos({ lat: Number(p.lat), lng: Number(p.lng) });
       }
-    } catch {}
-
-    // Check kaizy_active_job (set by BookingStore v8.0)
-    try {
-      const activeJob = sessionStorage.getItem("kaizy_active_job");
-      if (activeJob) {
-        const job = JSON.parse(activeJob);
-        if (job.jobId) {
-          foundBooking = true;
-        }
+      const job = sessionStorage.getItem("kaizy_active_job");
+      if (job) {
+        const j = JSON.parse(job);
+        if (j.pricing?.grandTotal) setBookingAmount(j.pricing.grandTotal);
       }
-    } catch {}
-
-    // Load verified booking location (multiple storage keys for compatibility)
-    const locationKeys = ["kaizy_booking_location", "kaizy_verified_location"];
-    for (const key of locationKeys) {
-      if (gotLocation) break;
-      try {
-        const storedLoc = sessionStorage.getItem(key);
-        if (storedLoc) {
-          const loc = JSON.parse(storedLoc);
-          if (loc.lat && loc.lng) {
-            setUserPos({ lat: Number(loc.lat), lng: Number(loc.lng) });
-            setGpsReady(true);
-            gotLocation = true;
-            foundBooking = true;
-          }
-        }
-      } catch {}
-    }
-
-    // If no booking data, show notice
-    if (!foundBooking) {
-      setWorker({
-        name: "No Active Booking",
-        trade: "—",
-        rating: 0,
-        initials: "?",
-        kaizyScore: 0,
-        phone: "",
-      });
-    }
-
-    setHasBooking(foundBooking);
-
-    // Fallback: Get GPS if no booking location was loaded
-    if (!gotLocation) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setGpsReady(true);
-          },
-          () => {
-            setUserPos({ lat: 11.0168, lng: 76.9558 });
-            setGpsReady(true);
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
-        );
-      } else {
-        setUserPos({ lat: 11.0168, lng: 76.9558 });
-        setGpsReady(true);
+      const w = sessionStorage.getItem("kaizy_booked_worker");
+      if (w) {
+        const wk = JSON.parse(w);
+        setWorker({
+          name: wk.name || "Worker",
+          trade: wk.trade || "technician",
+          rating: Number(wk.rating) || 4.5,
+          initials: (wk.name || "W").split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+          kaizyScore: Number(wk.kaizyScore) || 500,
+          tradeIcon: tradeIcons[wk.trade] || "🔧",
+        });
       }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch { /* sessionStorage may be unavailable in SSR */ }
   }, []);
 
-  // Fetch real route from Mapbox Directions API
-  const fetchRoute = useCallback(async (wLng: number, wLat: number, uLng: number, uLat: number) => {
-    if (!MAPBOX_TOKEN) return null;
+  // Fetch initial tracking state
+  const fetchTracking = useCallback(async () => {
+    if (!bookingId) return;
     try {
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${wLng},${wLat};${uLng},${uLat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/tracking?bookingId=${bookingId}`);
       const json = await res.json();
-      if (json.routes?.[0]) {
-        const route = json.routes[0];
-        const coords = route.geometry.coordinates as [number, number][];
-        const durationMin = Math.round(route.duration / 60);
-        const distKm = (route.distance / 1000).toFixed(1);
-        setEta(durationMin);
-        initialEtaRef.current = durationMin;
-        setDistanceKm(`${distKm} km`);
-        return { coords, duration: durationMin };
-      }
-    } catch (e) { console.error('[directions]', e); }
-    return null;
-  }, []);
-
-  // 2. Initialize Mapbox ONLY AFTER GPS is ready
-  useEffect(() => {
-    if (!gpsReady || !userPos || !mapContainer.current || !MAPBOX_TOKEN || mapRef.current) return;
-    let cancelled = false;
-
-    const initMap = async () => {
-      try {
-        const mapboxgl = (await import("mapbox-gl")).default;
-        if (!document.getElementById('mapbox-css')) {
-          const link = document.createElement('link');
-          link.id = 'mapbox-css';
-          link.rel = 'stylesheet';
-          link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css';
-          document.head.appendChild(link);
+      if (json.success && json.data) {
+        const d = json.data;
+        setTracking(d);
+        setStatus(d.status);
+        setEta(d.eta || 0);
+        if (d.destination?.lat && d.destination?.lng) {
+          setUserPos({ lat: d.destination.lat, lng: d.destination.lng });
         }
-        if (cancelled || !mapContainer.current) return;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (mapboxgl as any).accessToken = MAPBOX_TOKEN;
-
-        // Use worker position if available, otherwise just show user location
-        const wPos = workerPos || { lat: userPos.lat + 0.01, lng: userPos.lng + 0.01 };
-        const centerLng = (userPos.lng + wPos.lng) / 2;
-        const centerLat = (userPos.lat + wPos.lat) / 2;
-
-        const map = new mapboxgl.Map({
-          container: mapContainer.current,
-          style: isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12",
-          center: [centerLng, centerLat],
-          zoom: 14,
-          attributionControl: false,
-          pitch: 45,
-          bearing: -10,
-        });
-
-        map.on("load", async () => {
-          if (cancelled) return;
-
-          // User marker
-          const userEl = document.createElement("div");
-          userEl.innerHTML = `<div style="position:relative;width:44px;height:56px;display:flex;flex-direction:column;align-items:center">
-            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#2563EB);border:3px solid white;box-shadow:0 4px 12px rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-            </div>
-            <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #2563EB;margin-top:-2px"></div>
-            <div style="position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(59,130,246,0.2);animation:track-pulse 2s ease-out infinite"></div>
-            <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#2563EB;color:white;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap">You</div>
-          </div>`;
-          new mapboxgl.Marker({ element: userEl, anchor: 'bottom' })
-            .setLngLat([userPos.lng, userPos.lat])
-            .addTo(map);
-
-          // Worker marker — only if we have real worker data
-          if (workerPos && worker && hasBooking) {
-            const tradeIcon = tradeIcons[worker.trade.toLowerCase()] || "🔧";
-            const workerEl = document.createElement("div");
-            workerEl.id = "worker-tracker";
-            workerEl.innerHTML = `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-              <div style="position:absolute;inset:-10px;border-radius:50%;background:rgba(255,107,0,0.1);animation:track-pulse 2s ease-out infinite"></div>
-              <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#FF6B00,#E85D00);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(255,107,0,0.5);border:3px solid white;position:relative;z-index:2">${tradeIcon}</div>
-              <div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid #FF6B00;margin-top:-3px;position:relative;z-index:1"></div>
-              <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#FF6B00;color:white;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15)">${worker.name}</div>
-            </div>`;
-            const workerMarker = new mapboxgl.Marker({ element: workerEl, anchor: 'bottom' })
-              .setLngLat([workerPos.lng, workerPos.lat])
-              .addTo(map);
-            workerMarkerRef.current = workerMarker;
-
-            // Fetch route
-            const routeResult = await fetchRoute(workerPos.lng, workerPos.lat, userPos.lng, userPos.lat);
-            if (routeResult) {
-              routeDataRef.current = routeResult.coords;
-              routeStepRef.current = 0;
-              map.addSource("route", {
-                type: "geojson",
-                data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeResult.coords } },
-              });
-              map.addLayer({ id: "route-shadow", type: "line", source: "route",
-                layout: { "line-join": "round", "line-cap": "round" },
-                paint: { "line-color": "#000", "line-width": 7, "line-opacity": 0.08, "line-blur": 3 },
-              });
-              map.addLayer({ id: "route", type: "line", source: "route",
-                layout: { "line-join": "round", "line-cap": "round" },
-                paint: { "line-color": "#FF6B00", "line-width": 5, "line-opacity": 0.9 },
-              });
-            }
-
-            // Fit bounds
-            try {
-              const bounds = new mapboxgl.LngLatBounds()
-                .extend([userPos.lng, userPos.lat])
-                .extend([workerPos.lng, workerPos.lat]);
-              map.fitBounds(bounds, { padding: { top: 100, bottom: 300, left: 50, right: 50 } });
-            } catch {}
-          }
-
-          map.addControl(new mapboxgl.NavigationControl(), "top-right");
-          mapRef.current = map;
-          setMapLoaded(true);
-        });
-      } catch (e) {
-        console.error("[mapbox tracking]", e);
-        setMapLoaded(true);
-      }
-    };
-
-    initMap();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gpsReady, isDark]);
-
-  // Animate worker along route
-  const animateWorkerAlongRoute = useCallback(() => {
-    if (!userPos || !workerPos) return;
-    const coords = routeDataRef.current;
-    if (coords.length === 0) return;
-
-    const step = routeStepRef.current;
-    const totalSteps = coords.length;
-    if (step >= totalSteps - 1) {
-      setStatus("arrived");
-      setEta(0);
-      return;
-    }
-
-    const skipSize = Math.max(1, Math.floor(totalSteps / 80));
-    const nextStep = Math.min(step + skipSize, totalSteps - 1);
-    routeStepRef.current = nextStep;
-    const [lng, lat] = coords[nextStep];
-
-    setWorkerPos({ lat, lng });
-    if (workerMarkerRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (workerMarkerRef.current as any).setLngLat([lng, lat]);
-    }
-
-    const progress = nextStep / totalSteps;
-    const remaining = Math.max(1, Math.round(initialEtaRef.current * (1 - progress)));
-    setEta(remaining);
-
-    if (mapRef.current) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const map = mapRef.current as any;
-        const source = map.getSource("route");
-        if (source) {
-          source.setData({
-            type: "Feature", properties: {},
-            geometry: { type: "LineString", coordinates: coords.slice(nextStep) },
-          });
+        if (d.worker?.name) {
+          setWorker(prev => ({
+            name: d.worker.name,
+            trade: prev?.trade || "technician",
+            rating: prev?.rating || 4.5,
+            initials: d.worker.name.split(" ").map((s: string) => s[0]).join("").toUpperCase().slice(0, 2),
+            kaizyScore: prev?.kaizyScore || 500,
+            tradeIcon: prev?.tradeIcon || "🔧",
+          }));
         }
-      } catch {}
-    }
-  }, [userPos, workerPos]);
+      }
+    } catch {}
+    setLoading(false);
+  }, [bookingId]);
 
-  // Movement timer — only if real booking
+  useEffect(() => { fetchTracking(); }, [fetchTracking]);
+
+  // Supabase Realtime: live worker location from tracking_sessions
   useEffect(() => {
-    if (status !== "en_route" || !hasBooking) return;
-    animationRef.current = setInterval(animateWorkerAlongRoute, 3000);
-    return () => { if (animationRef.current) clearInterval(animationRef.current); };
-  }, [status, hasBooking, animateWorkerAlongRoute]);
+    if (!bookingId || !supabase) return;
 
-  const statusInfo = {
-    en_route: { label: "Worker is on the way", icon: "🏍️", color: "var(--brand)", bgColor: "rgba(255,107,0,0.1)" },
-    arrived: { label: "Worker has arrived!", icon: "📍", color: "var(--success)", bgColor: "rgba(34,197,94,0.1)" },
-    working: { label: "Work in progress", icon: "🔧", color: "var(--info)", bgColor: "rgba(59,130,246,0.1)" },
-    completed: { label: "Job completed!", icon: "✅", color: "var(--success)", bgColor: "rgba(34,197,94,0.1)" },
+    const channel = supabase
+      .channel(`tracking-${bookingId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "tracking_sessions",
+        filter: `booking_id=eq.${bookingId}`,
+      }, (payload) => {
+        const row = payload.new as {
+          worker_lat: number; worker_lng: number; eta_minutes: number;
+          status: string; dest_lat: number; dest_lng: number;
+        };
+        setTracking(prev => prev ? {
+          ...prev,
+          worker: { ...prev.worker, lat: row.worker_lat, lng: row.worker_lng },
+          eta: row.eta_minutes,
+          status: row.status as TrackingData["status"],
+        } : null);
+        setEta(row.eta_minutes);
+        setStatus(row.status as TrackingData["status"]);
+        if (row.dest_lat && row.dest_lng) setUserPos({ lat: row.dest_lat, lng: row.dest_lng });
+        if (row.status === "completed") setShowPayment(true);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [bookingId]);
+
+  // ETA countdown
+  useEffect(() => {
+    if (status !== "en_route") return;
+    const t = setInterval(() => setEta(e => Math.max(0, e - 1)), 60000);
+    return () => clearInterval(t);
+  }, [status]);
+
+  // Fallback poll every 15s
+  useEffect(() => {
+    if (!bookingId) return;
+    pollRef.current = setInterval(fetchTracking, 15000);
+    return () => clearInterval(pollRef.current);
+  }, [bookingId, fetchTracking]);
+
+  // Fetch chat messages
+  const fetchMessages = useCallback(async () => {
+    if (!bookingId) return;
+    try {
+      const res = await fetch(`/api/chat?booking_id=${bookingId}&limit=50`);
+      const json = await res.json();
+      if (json.success && json.data) setMessages(json.data);
+    } catch {}
+  }, [bookingId]);
+
+  useEffect(() => { if (showChat) fetchMessages(); }, [showChat, fetchMessages]);
+
+  // Realtime chat messages
+  useEffect(() => {
+    if (!bookingId || !supabase) return;
+    const ch = supabase.channel(`chat-${bookingId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `booking_id=eq.${bookingId}` },
+        (p) => setMessages(prev => [...prev, p.new as ChatMessage])
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [bookingId]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (text: string) => {
+    const content = (text || chatInput).trim();
+    if (!content) return;
+    setChatInput("");
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, bookingId, senderType: "hirer" }),
+      });
+      fetchMessages();
+    } catch {}
   };
-  const info = statusInfo[status];
 
-  // NO BOOKING — show message
-  if (!hasBooking && gpsReady) {
+  const handlePayment = async (method: "cash" | "upi") => {
+    if (!bookingId) return;
+    try {
+      await fetch("/api/bookings/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, status: "paid", paymentMethod: method, paymentAmount: bookingAmount }),
+      });
+    } catch {}
+    setPaymentDone(true);
+  };
+
+  if (!bookingId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
-             style={{ background: "var(--brand-tint)" }}>
-          <span className="text-[36px]">📍</span>
-        </div>
-        <h1 className="text-[20px] font-black tracking-tight mb-2" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No Active Booking</h1>
-        <p className="text-[12px] text-center mb-6 font-medium" style={{ color: "var(--text-3)" }}>
-          Book a worker first to see live tracking with real-time map, ETA, and route navigation.
-        </p>
-        <Link href="/booking"
-              className="rounded-[16px] px-8 py-4 text-[14px] font-black text-white active:scale-[0.97] transition-transform"
-              style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
-          📋 Book a Worker
-        </Link>
-        <Link href="/" className="mt-3 text-[11px] font-bold" style={{ color: "var(--text-3)" }}>
-          ← Back to Home
-        </Link>
+        <span className="text-[48px] mb-4">📍</span>
+        <h1 className="text-[20px] font-black mb-2" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>No Active Booking</h1>
+        <p className="text-[12px] text-center mb-6" style={{ color: "var(--text-3)" }}>Start a booking to track your worker in real time.</p>
+        <Link href="/booking" className="rounded-[16px] px-8 py-3.5 text-[13px] font-black text-white" style={{ background: "var(--gradient-cta)" }}>Book Now</Link>
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col min-h-screen" style={{ background: "var(--bg-app)" }}>
-      {/* MAP */}
-      <div className="relative flex-1" style={{ minHeight: "55vh" }}>
-        <div ref={mapContainer} className="absolute inset-0" />
+  if (paymentDone) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-app)" }}>
+        <div className="text-center mb-6">
+          <div className="text-[64px] mb-3">🎉</div>
+          <h1 className="text-[24px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>Payment Done!</h1>
+          <p className="text-[13px] mt-2 font-medium" style={{ color: "var(--text-3)" }}>How was {worker?.name || "the worker"}?</p>
+        </div>
+        <Link href={`/booking/review?bookingId=${bookingId}`}
+          className="w-full max-w-xs rounded-[16px] py-4 text-center text-[14px] font-black text-white block mb-3"
+          style={{ background: "var(--gradient-cta)" }}>
+          Leave a Review ⭐
+        </Link>
+        <Link href="/my-bookings" className="text-[12px] font-bold" style={{ color: "var(--text-3)" }}>View My Bookings</Link>
+      </div>
+    );
+  }
 
-        {!mapLoaded && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center"
-               style={{ background: isDark ? "#1a1a2e" : "#e8f4f8" }}>
-            <div className="w-8 h-8 border-3 rounded-full animate-spin mb-3"
-                 style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-            <p className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>
-              {gpsReady ? "Loading map..." : "Getting your location..."}
+  const cfg = statusConfig[status] || statusConfig.en_route;
+  const workerPos = tracking?.worker ? { lat: tracking.worker.lat, lng: tracking.worker.lng } : null;
+  const mapCenter = userPos || workerPos || { lat: 11.0168, lng: 76.9558 };
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-app)" }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-5 pb-3 shrink-0">
+        <button onClick={() => router.back()}
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: "var(--bg-surface)" }}>
+          <span className="text-[14px]">←</span>
+        </button>
+        <div className="flex-1">
+          <p className="text-[15px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>
+            Live Tracking
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: cfg.color }} />
+            <p className="text-[10px] font-bold" style={{ color: cfg.color }}>{cfg.label}</p>
+          </div>
+        </div>
+        <button onClick={() => setShowChat(c => !c)}
+          className="relative w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: showChat ? "var(--brand)" : "var(--bg-surface)" }}>
+          <span className="text-[16px]">💬</span>
+        </button>
+      </div>
+
+      {/* Map — fills remaining space */}
+      <div className="flex-1 relative min-h-[260px] mx-4 rounded-[20px] overflow-hidden" style={{ background: "var(--bg-surface)" }}>
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2" style={{ borderColor: "var(--brand)" }} />
+              <p className="text-[11px]" style={{ color: "var(--text-3)" }}>Loading map…</p>
+            </div>
+          </div>
+        ) : (
+          <LiveMap
+            center={mapCenter}
+            workerPos={workerPos}
+            userPos={userPos}
+            workerIcon={worker?.tradeIcon || "🔧"}
+            isDark={isDark}
+            className="w-full h-full"
+            zoom={14}
+          />
+        )}
+
+        {/* ETA pill overlay */}
+        {status === "en_route" && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 flex items-center gap-2"
+            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}>
+            <span className="text-[14px]">🚗</span>
+            <span className="text-[13px] font-black text-white" style={{ fontFamily: "'JetBrains Mono',monospace" }}>
+              {eta} min
+            </span>
+            <span className="text-[10px] text-white opacity-60">away</span>
+          </div>
+        )}
+
+        {/* Arrived badge */}
+        {(status === "arrived" || status === "working") && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 flex items-center gap-2"
+            style={{ background: status === "arrived" ? "rgba(245,158,11,0.9)" : "rgba(255,107,0,0.9)" }}>
+            <span className="text-[14px]">{cfg.icon}</span>
+            <span className="text-[12px] font-black text-white">{cfg.label}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Worker card */}
+      <div className="mx-4 mt-3 rounded-[20px] p-4 shrink-0" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-black text-white shrink-0"
+            style={{ background: "var(--gradient-cta)" }}>
+            {worker?.initials || "W"}
+          </div>
+          <div className="flex-1">
+            <p className="text-[15px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>
+              {worker?.name || "Worker"}
+            </p>
+            <p className="text-[10px] font-bold mt-0.5" style={{ color: "var(--brand-soft)" }}>
+              {worker?.tradeIcon} {worker?.trade} · ⭐ {worker?.rating?.toFixed(1) || "4.5"}
             </p>
           </div>
-        )}
-
-        {/* Top bar */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-5 pt-4">
-          <Link href="/" aria-label="Go back" className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 shadow-lg"
-                style={{ background: "var(--bg-card)" }}>
-            <span className="text-[15px]">←</span>
-          </Link>
-          <div className="rounded-full px-4 py-2 shadow-lg flex items-center gap-2"
-               style={{ background: "var(--bg-card)", backdropFilter: "blur(12px)" }}>
-            <div className="w-2 h-2 rounded-full online-dot" style={{ background: info.color }} />
-            <span className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{info.label}</span>
+          <div className="text-right">
+            <p className="text-[11px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono',monospace" }}>
+              KS {worker?.kaizyScore || 500}
+            </p>
           </div>
-          <button onClick={async () => {
-            const url = window.location.href;
-            if (navigator.share && worker) {
-              await navigator.share({
-                title: `Track ${worker.name} on Kaizy`,
-                text: `${worker.name} (${worker.trade}) is on the way! ETA: ${eta} min`,
-                url,
-              });
-            } else {
-              await navigator.clipboard.writeText(url);
-              alert("Tracking link copied!");
-            }
-          }} aria-label="Share" className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 shadow-lg"
-                  style={{ background: "var(--bg-card)" }}>
-            <span className="text-[15px]">📤</span>
-          </button>
         </div>
 
-        {/* ETA badge — only with real data */}
-        {status === "en_route" && eta > 0 && eta < 500 && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 rounded-[16px] px-5 py-3 shadow-xl text-center"
-               style={{ background: "var(--brand)" }}>
-            <p className="text-[28px] font-black text-white leading-none" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{eta}</p>
-            <p className="text-[8px] font-bold text-white mt-0.5 uppercase tracking-wider" style={{ opacity: 0.8 }}>min away</p>
-            {distanceKm && <p className="text-[8px] text-white mt-0.5" style={{ opacity: 0.6, fontFamily: "'JetBrains Mono', monospace" }}>{distanceKm}</p>}
+        {/* OTP — always visible so hirer can share with worker */}
+        {tracking?.otp && status !== "completed" && (
+          <div className="mt-3 rounded-[14px] p-3 flex items-center justify-between"
+            style={{ background: status === "arrived" ? "rgba(245,158,11,0.12)" : "var(--bg-surface)", border: status === "arrived" ? "1px solid rgba(245,158,11,0.3)" : "none" }}>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Job Start OTP</p>
+              <p className="text-[22px] font-black tracking-[0.2em] mt-0.5"
+                style={{ color: status === "arrived" ? "var(--warning)" : "var(--text-1)", fontFamily: "'JetBrains Mono',monospace" }}>
+                {tracking.otp}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-medium text-right" style={{ color: "var(--text-3)" }}>
+                {status === "arrived" ? "Share this with worker\nto start the job" : "Share when worker\narrives"}
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Re-center button */}
-        {mapLoaded && userPos && (
-          <button onClick={() => {
-            if (mapRef.current && userPos) {
-              const wP = workerPos || userPos;
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (mapRef.current as any).flyTo({ center: [(userPos.lng + wP.lng) / 2, (userPos.lat + wP.lat) / 2], zoom: 14, duration: 1000 });
-            }
-          }} aria-label="Re-center map" className="absolute bottom-4 right-4 z-10 w-11 h-11 rounded-full shadow-lg flex items-center justify-center active:scale-90"
-                  style={{ background: "var(--bg-card)" }}>
-            <span className="text-[18px]">📍</span>
-          </button>
+        {/* Distance */}
+        {tracking?.distanceKm != null && status === "en_route" && (
+          <p className="text-[10px] font-bold mt-2" style={{ color: "var(--text-3)" }}>
+            {tracking.distanceKm} km away · arriving in {eta} min
+          </p>
         )}
       </div>
 
-      {/* BOTTOM SHEET */}
-      <div className="shrink-0 rounded-t-[24px] -mt-4 relative z-10 px-5 pt-5 pb-6"
-           style={{ background: "var(--bg-app)", boxShadow: "0 -4px 24px rgba(0,0,0,0.06)" }}>
-        <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: "var(--bg-elevated)" }} />
+      {/* Payment card — when completed */}
+      {status === "completed" && !showPayment && (
+        <div className="mx-4 mt-3 rounded-[20px] p-4 shrink-0" style={{ background: "var(--bg-card)" }}>
+          <p className="text-[13px] font-black mb-3" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>Job Complete — Pay Worker</p>
+          <p className="text-[24px] font-black mb-4" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono',monospace" }}>
+            ₹{bookingAmount || "—"}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => handlePayment("cash")}
+              className="rounded-[14px] py-3 text-[13px] font-black active:scale-95 transition-transform"
+              style={{ background: "var(--success)", color: "white" }}>
+              💵 Cash
+            </button>
+            <button onClick={() => handlePayment("upi")}
+              className="rounded-[14px] py-3 text-[13px] font-black active:scale-95 transition-transform"
+              style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}>
+              📱 UPI
+            </button>
+          </div>
+        </div>
+      )}
 
-        {/* Worker info */}
-        {worker && (
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold text-white"
-                 style={{ background: "var(--gradient-cta)" }}>{worker.initials}</div>
-            <div className="flex-1">
-              <p className="text-[14px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>{worker.name}</p>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold" style={{ color: "var(--text-3)" }}>{tradeIcons[worker.trade.toLowerCase()] || "🔧"} {worker.trade}</span>
-                {worker.rating > 0 && <span className="text-[10px] font-bold" style={{ color: "var(--warning)" }}>★ {worker.rating.toFixed(1)}</span>}
-                {worker.kaizyScore > 0 && <span className="trust-badge">KS {worker.kaizyScore}</span>}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {worker.phone && (
-                <a href={`tel:${worker.phone}`}
-                   aria-label="Call"
-                   className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
-                   style={{ background: "var(--success)" }}>
-                  <span className="text-white text-[16px]">📞</span>
-                </a>
-              )}
-              <Link href="/chat"
-                    aria-label="Chat"
-                    className="w-10 h-10 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
-                    style={{ background: "var(--brand)" }}>
-                <span className="text-white text-[16px]">💬</span>
-              </Link>
+      {/* Quick actions row */}
+      <div className="mx-4 mt-3 mb-6 grid grid-cols-3 gap-2.5 shrink-0">
+        <button onClick={() => setShowChat(c => !c)}
+          className="rounded-[14px] py-3 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+          style={{ background: "var(--bg-card)" }}>
+          <span className="text-[18px]">💬</span>
+          <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>Chat</span>
+        </button>
+        <a href={`tel:${tracking?.worker?.id}`}
+          className="rounded-[14px] py-3 flex flex-col items-center gap-1"
+          style={{ background: "var(--bg-card)" }}>
+          <span className="text-[18px]">📞</span>
+          <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>Call</span>
+        </a>
+        <Link href="/my-bookings"
+          className="rounded-[14px] py-3 flex flex-col items-center gap-1"
+          style={{ background: "var(--bg-card)" }}>
+          <span className="text-[18px]">📋</span>
+          <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>Bookings</span>
+        </Link>
+      </div>
+
+      {/* Chat panel — slides up */}
+      {showChat && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "var(--bg-app)" }}>
+          {/* Chat header */}
+          <div className="flex items-center gap-3 px-4 pt-5 pb-3" style={{ borderBottom: "1px solid var(--border-1)" }}>
+            <button onClick={() => setShowChat(false)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--bg-surface)" }}>
+              <span className="text-[14px]">←</span>
+            </button>
+            <div>
+              <p className="text-[14px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>
+                Chat with {worker?.name || "Worker"}
+              </p>
+              <p className="text-[10px]" style={{ color: "var(--brand)" }}>● Online</p>
             </div>
           </div>
-        )}
 
-        {/* OTP Card */}
-        {status === "arrived" && (
-          <div className="rounded-[16px] p-4 mb-4 text-center anim-pop"
-               style={{ background: "var(--brand-tint)" }}>
-            <p className="text-[10px] font-bold" style={{ color: "var(--brand)" }}>Share this OTP to start the job</p>
-            <p className="text-[32px] font-black tracking-[0.3em] mt-1"
-               style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{otp}</p>
+          {/* Quick replies */}
+          <div className="flex gap-2 px-4 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--border-1)" }}>
+            {["I'm ready", "Which floor?", "Gate closed?", "5 more min", "Payment done"].map(q => (
+              <button key={q} onClick={() => sendMessage(q)}
+                className="shrink-0 rounded-full px-3 py-1.5 text-[10px] font-bold active:scale-95 transition-transform"
+                style={{ background: "var(--bg-surface)", color: "var(--text-2)", border: "1px solid var(--border-1)" }}>
+                {q}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Status timeline */}
-        <div className="flex items-center gap-1 mb-4 px-1">
-          {(["en_route", "arrived", "working", "completed"] as const).map((s, i) => {
-            const labels = ["En Route", "Arrived", "Working", "Done"];
-            const icons = ["🏍️", "📍", "🔧", "✅"];
-            const isActive = ["en_route", "arrived", "working", "completed"].indexOf(status) >= i;
-            const isCurrent = status === s;
-            return (
-              <div key={s} className="flex-1 flex items-center gap-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] ${isCurrent ? 'shadow-lg' : ''}`}
-                       style={{
-                         background: isActive ? "var(--brand)" : "var(--bg-elevated)",
-                         color: isActive ? "#fff" : "var(--text-3)",
-                         transform: isCurrent ? "scale(1.15)" : "scale(1)",
-                         transition: "all 0.3s ease",
-                       }}>
-                    {icons[i]}
+          {/* Messages */}
+          <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            {messages.length === 0 && (
+              <p className="text-center text-[11px] py-8" style={{ color: "var(--text-3)" }}>No messages yet. Say hi!</p>
+            )}
+            {messages.map(m => {
+              const isMe = m.sender_type === "hirer" || m.sender_id === user?.id;
+              return (
+                <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                  <div className="max-w-[75%] rounded-[14px] px-3.5 py-2.5"
+                    style={{ background: isMe ? "var(--brand)" : "var(--bg-card)" }}>
+                    <p className="text-[12px] font-medium" style={{ color: isMe ? "white" : "var(--text-1)" }}>{m.content}</p>
+                    <p className="text-[9px] mt-0.5" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "var(--text-3)" }}>
+                      {new Date(m.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
-                  <span className="text-[8px] font-semibold mt-1" style={{ color: isActive ? "var(--brand)" : "var(--text-3)" }}>
-                    {labels[i]}
-                  </span>
                 </div>
-                {i < 3 && (
-                  <div className="h-0.5 flex-1 rounded-full -mt-3"
-                       style={{ background: ["en_route", "arrived", "working", "completed"].indexOf(status) > i ? "var(--brand)" : "var(--bg-elevated)" }} />
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-2">
-          {status === "en_route" && (
-            <>
-              <button onClick={() => {
-                if (userPos) {
-                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${userPos.lat},${userPos.lng}&travelmode=driving`, '_blank');
-                }
-              }} className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
-                      style={{ background: "var(--info)" }}>
-                🗺️ Navigate
-              </button>
-              <button onClick={() => { setStatus("arrived"); setEta(0); }}
-                      className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
-                      style={{ background: "var(--success)" }}>
-                📍 Arrived
-              </button>
-            </>
-          )}
-          {status === "arrived" && (
-            <button onClick={() => setStatus("working")}
-                    className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
-                    style={{ background: "var(--gradient-cta)" }}>
-              ▶ Start Job
+          {/* Input */}
+          <div className="px-4 pb-8 pt-3 flex gap-2" style={{ borderTop: "1px solid var(--border-1)" }}>
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendMessage("")}
+              placeholder="Type a message…"
+              className="flex-1 rounded-[14px] px-4 py-3 text-[13px] outline-none"
+              style={{ background: "var(--bg-surface)", color: "var(--text-1)", border: "1px solid var(--border-1)" }}
+            />
+            <button onClick={() => sendMessage("")}
+              disabled={!chatInput.trim()}
+              className="w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+              style={{ background: chatInput.trim() ? "var(--brand)" : "var(--bg-surface)" }}>
+              <span className="text-[18px]">↑</span>
             </button>
-          )}
-          {status === "working" && (
-            <button onClick={() => setStatus("completed")}
-                    className="flex-1 rounded-[14px] py-3.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
-                    style={{ background: "var(--success)" }}>
-              ✓ Job Complete
-            </button>
-          )}
-          {status === "completed" && (
-            <Link href={`/review?worker=${encodeURIComponent(worker?.name || "Worker")}&trade=${encodeURIComponent(worker?.trade || "worker")}&amount=500`}
-                  className="flex-1 rounded-[14px] py-3.5 text-center text-[12px] font-bold text-white active:scale-95 transition-transform"
-                  style={{ background: "var(--gradient-cta)" }}>
-              ⭐ Rate & Review →
-            </Link>
-          )}
-          <Link href="/"
-                aria-label="Close"
-                className="rounded-[14px] py-3.5 px-5 text-[12px] font-bold active:scale-95 transition-transform"
-                style={{ background: "var(--bg-surface)", color: "var(--text-2)" }}>
-            ✕
-          </Link>
+          </div>
         </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+export default function TrackingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--brand)" }} />
+      </div>
+    }>
+      <TrackingContent />
+    </Suspense>
   );
 }

@@ -321,6 +321,22 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           }));
         } catch {}
 
+        // Trigger dispatch — notifies nearby workers via job_alerts table
+        fetch('/api/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'start',
+            jobId: realJobId,
+            trade,
+            hirerLat: jobLat,
+            hirerLng: jobLng,
+            urgency: state.selectedProblem.includes('SOS') ? 'emergency' : 'normal',
+            estimatedPrice: state.pricing?.grandTotal || 500,
+            address: verifiedAddress,
+          }),
+        }).catch(() => {});
+
         // ── Shared "worker accepted" handler — called by either the realtime
         // INSERT event (fast path) or the polling fallback (safety net) ──
         let acceptanceHandled = false;
@@ -348,7 +364,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             ],
           }));
 
-          // Store booking ID
+          // Store booking ID for tracking page
           try {
             const existing = sessionStorage.getItem('kaizy_active_job');
             if (existing) {
@@ -358,8 +374,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             }
           } catch {}
 
-          // Move to en_route after 1 second
-          setTimeout(() => { setState(prev => ({ ...prev, status: "en_route" })); }, 1000);
+          // Redirect hirer to live tracking page after brief delay
+          setTimeout(() => {
+            if (realBookingId && typeof window !== 'undefined') {
+              window.location.href = `/tracking?bookingId=${realBookingId}`;
+            } else {
+              setState(prev => ({ ...prev, status: "en_route" }));
+            }
+          }, 1200);
         };
 
         // Realtime: primary fast-path — listen for the booking row being
