@@ -21,7 +21,7 @@ const workerMenuSections = [
   { title: "Worker", items: [
     { icon: "💰", label: "Earnings & Payments", href: "/earnings" },
     { icon: "📊", label: "Performance Dashboard", href: "/dashboard/performance" },
-    { icon: "📋", label: "My Jobs", href: "/my-bookings" },
+    { icon: "📋", label: "My Jobs", href: "/active-job" },
     { icon: "💲", label: "My Pricing", href: "/onboarding/specialization" },
     { icon: "🧾", label: "Commission", href: "/commission" },
     { icon: "📄", label: "KaizyPass", href: "/worker/profile" },
@@ -73,16 +73,20 @@ const hirerMenuSections = [
 
 export default function SettingsPage() {
   const { toggle, isDark } = useTheme();
-  const { logout: authLogout } = useAuth();
+  const { user: authUser, logout: authLogout } = useAuth();
   const router = useRouter();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(j => {
-      if (j.success && j.data) setUser(j.data);
+      if (j.success && j.data) setProfile(j.data);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
+
+  const user = profile || (authUser ? {
+    id: authUser.id, name: authUser.name, phone: authUser.phone, user_type: authUser.user_type,
+  } as UserProfile : null);
 
   const handleLogout = () => {
     if (!confirm("Sign out of this device only?")) return;

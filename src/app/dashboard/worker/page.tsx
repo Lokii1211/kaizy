@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { useAuth } from "@/stores/AuthStore";
 import { supabase } from "@/lib/supabase";
 import JobAlertOverlay from "@/components/JobAlertOverlay";
 import LivenessCheck from "@/components/LivenessCheck";
@@ -49,6 +51,12 @@ interface ActiveJobAlert {
 
 export default function WorkerDashboardPage() {
   const { isDark, toggle } = useTheme();
+  const { user: authUser } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authUser !== null && authUser.user_type !== "worker") router.replace("/dashboard/hirer");
+  }, [authUser, router]);
   const [isOnline, setIsOnline] = useState(false);
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [todayJobs, setTodayJobs] = useState(0);

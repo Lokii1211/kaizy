@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useBooking, type NearbyWorker } from "@/stores/BookingStore";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // Kaizy v10.0 — BOOKING FLOW (Stitch Digital Artisan)
@@ -25,7 +27,13 @@ const tradeProblems: Record<string, string[]> = {
 
 export default function BookingPage() {
   const {} = useTheme();
+  const { userType } = useAuth();
+  const router = useRouter();
   const { state, startSearch, selectWorker, confirmBooking, sendMessage, cancelBooking, workerArrived, jobStarted, jobCompleted, confirmPayment, submitReview, resetBooking, calculatePricing } = useBooking();
+
+  useEffect(() => {
+    if (userType === "worker") router.replace("/dashboard/worker");
+  }, [userType, router]);
   const [selectedTrade, setSelectedTrade] = useState("Electrician");
   const [selectedProblem, setSelectedProblem] = useState("");
   const [chatInput, setChatInput] = useState("");

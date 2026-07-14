@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +23,12 @@ const quickReplies = [
 
 export default function ChatPage() {
   const { isDark } = useTheme();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/login");
+  }, [user, authLoading, router]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -72,11 +78,9 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
+    if (!bookingId) return;
     fetchMessages();
-    // Fallback poll — slowed down now that Realtime (below) is the primary path.
-    // Still required in case the user's Supabase project doesn't have Realtime
-    // replication enabled for the `messages` table.
-    const id = setInterval(fetchMessages, 15000); // Poll every 15s (fallback)
+    const id = setInterval(fetchMessages, 15000);
     return () => clearInterval(id);
   }, [bookingId]);
 

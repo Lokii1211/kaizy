@@ -1,6 +1,8 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // WORKER VERIFICATION — Selfie + Aadhaar Upload
@@ -18,7 +20,13 @@ const stepLabels: Record<Step, string> = {
 };
 
 export default function VerifyPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("selfie");
+
+  useEffect(() => {
+    if (user !== null && user.user_type !== "worker") router.replace("/dashboard/hirer");
+  }, [user, router]);
   const [selfieImg, setSelfieImg] = useState<string | null>(null);
   const [aadhaarFront, setAadhaarFront] = useState<string | null>(null);
   const [aadhaarBack, setAadhaarBack] = useState<string | null>(null);

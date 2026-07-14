@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafetyCheckIn from "@/components/SafetyCheckIn";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // WORKER ACTIVE JOB v12.0 — Real Data Integration
@@ -53,6 +54,7 @@ const quickMessages = [
 
 export default function ActiveJobPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [status, setStatus] = useState<JobStatus>("accepted");
   const [elapsed, setElapsed] = useState(0);
   const [showChat, setShowChat] = useState(false);
@@ -71,6 +73,13 @@ export default function ActiveJobPage() {
   const [quotedAmount, setQuotedAmount] = useState(300);
   const [quoteSent, setQuoteSent] = useState(false);
   const [quoteApproved] = useState(false);
+
+  // Guard: workers only
+  useEffect(() => {
+    if (user !== null && user.user_type !== "worker") {
+      router.replace("/dashboard/hirer");
+    }
+  }, [user, router]);
 
   // Load job data from sessionStorage + API
   useEffect(() => {
@@ -542,7 +551,7 @@ export default function ActiveJobPage() {
       {/* Safety Check-In */}
       <SafetyCheckIn
         bookingId={job.bookingId}
-        workerId="current-worker"
+        workerId={user?.id || ""}
         isWorkerArrived={status === "arrived" || status === "in_progress"}
         isNightJob={new Date().getHours() >= 21 || new Date().getHours() < 6}
         onSOS={() => router.push("/emergency")}
@@ -627,7 +636,7 @@ export default function ActiveJobPage() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         bookingId: job.bookingId,
-                        workerId: "current-worker",
+                        workerId: user?.id || "",
                         diagnosis: diagnosisText,
                         complexityLevel: complexity,
                         suggestedAmount: quotedAmount,

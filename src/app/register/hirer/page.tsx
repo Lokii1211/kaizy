@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // HIRER REGISTRATION v10.0 — Stitch "Digital Artisan" Design
@@ -11,31 +13,40 @@ import Link from "next/link";
 export default function HirerRegisterPage() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     businessName: "", ownerName: "", phone: "", city: "",
     businessType: "", gst: "", teamSize: "",
   });
+  const { login } = useAuth();
+  const router = useRouter();
 
   const handleCompleteRegistration = async () => {
     setSubmitting(true);
+    setError("");
     try {
-      await fetch("/api/auth/profile", {
-        method: "POST",
+      // Save name + company_name + city via PATCH /api/auth/me (fields it actually handles)
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.ownerName,
-          business_name: formData.businessName,
-          business_type: formData.businessType,
+          company_name: formData.businessName,
           city: formData.city,
-          gst_number: formData.gst || null,
-          hiring_frequency: formData.teamSize,
         }),
       });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setError(json.error || "Failed to save profile. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+      // Update auth store name and redirect
+      try { localStorage.setItem("kaizy_user_name", formData.ownerName); } catch {}
+      setStep(3);
     } catch {
-      // If the POST fails, don't block the user — onboarding data can be saved later
+      setError("Network error. Please check your connection and try again.");
     }
-    localStorage.setItem("kaizy_user_name", formData.ownerName);
-    setStep(3);
     setSubmitting(false);
   };
 
@@ -191,6 +202,12 @@ export default function HirerRegisterPage() {
                 Browse Workers Now
               </Link>
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 px-4 py-3 rounded-[12px] text-[11px] font-semibold" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
+            {error}
           </div>
         )}
 

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
 
 // ============================================================
 // EARNINGS v12.0 — Stitch "Digital Artisan" Design
@@ -25,7 +27,13 @@ const tradeIcons: Record<string, string> = {
 };
 
 export default function EarningsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [period, setPeriod] = useState<"today" | "week" | "month">("month");
+
+  useEffect(() => {
+    if (user !== null && user.user_type !== "worker") router.replace("/dashboard/hirer");
+  }, [user, router]);
   const [earnings, setEarnings] = useState<EarningEntry[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalJobs, setTotalJobs] = useState(0);
