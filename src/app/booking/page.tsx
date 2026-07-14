@@ -54,37 +54,42 @@ export default function BookingPage() {
   const [bookingMode, setBookingMode] = useState<"instant" | "scheduled">("instant");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  // GPS reverse geocode for location label
+  // GPS reverse geocode for location label (Nominatim — no token needed)
   useEffect(() => {
     if (!navigator.geolocation) { setLocationLabel("Your location"); return; }
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setLocationCoords(coords);
       setLocationVerified(true);
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (token) {
-        try {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${token}&limit=1&types=locality,place,neighborhood`);
-          const d = await res.json();
-          if (d.features?.[0]) setLocationLabel(d.features[0].place_name?.split(',').slice(0, 2).join(',') || d.features[0].text);
-        } catch { setLocationLabel("Your area"); }
-      }
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&zoom=14`,
+          { headers: { "Accept-Language": "en", "User-Agent": "Kaizy-App/1.0" } }
+        );
+        const d = await res.json();
+        const label = [d.address?.suburb || d.address?.neighbourhood, d.address?.city || d.address?.town]
+          .filter(Boolean).join(", ") || d.display_name?.split(",").slice(0, 2).join(",") || "Your area";
+        setLocationLabel(label);
+      } catch { setLocationLabel("Your area"); }
     }, () => setLocationLabel("Location off — enter manually"));
   }, []);
 
-  // Mapbox geocoding search for manual address
+  // Address search via Nominatim (no token needed, India-biased)
   const searchAddress = async (query: string) => {
     if (!query.trim() || query.length < 3) { setAddressResults([]); return; }
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token) return;
     setAddressSearching(true);
     try {
-      const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=IN&limit=5&types=address,poi,locality,place,neighborhood`);
-      const d = await res.json();
-      setAddressResults(d.features?.map((f: { place_name: string; center: [number, number] }) => ({
-        place_name: f.place_name,
-        center: f.center,
-      })) || []);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5&addressdetails=1`,
+        { headers: { "Accept-Language": "en", "User-Agent": "Kaizy-App/1.0" } }
+      );
+      const data = await res.json();
+      setAddressResults(
+        data.map((f: { display_name: string; lon: string; lat: string }) => ({
+          place_name: f.display_name,
+          center: [parseFloat(f.lon), parseFloat(f.lat)] as [number, number],
+        }))
+      );
     } catch { setAddressResults([]); }
     setAddressSearching(false);
   };
@@ -304,20 +309,23 @@ export default function BookingPage() {
                       setLocationCoords(coords);
                       setLocationVerified(true);
                       setShowAddressSearch(false);
-                      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-                      if (token) {
-                        try {
-                          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${token}&limit=1`);
-                          const d = await res.json();
-                          if (d.features?.[0]) setLocationLabel(d.features[0].place_name?.split(',').slice(0, 2).join(','));
-                        } catch {}
-                      }
+                      try {
+                        const res = await fetch(
+                          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&zoom=14`,
+                          { headers: { "Accept-Language": "en", "User-Agent": "Kaizy-App/1.0" } }
+                        );
+                        const d = await res.json();
+                        const label = [d.address?.suburb || d.address?.neighbourhood, d.address?.city || d.address?.town]
+                          .filter(Boolean).join(", ") || d.display_name?.split(",").slice(0, 2).join(",") || "Your location";
+                        setLocationLabel(label);
+                      } catch {}
                     });
                   }
                 }} className="w-full rounded-lg py-2 text-[11px] font-bold active:scale-[0.98]"
                         style={{ background: "var(--brand-tint)", color: "var(--brand)", border: "1px solid var(--brand)" }}>
                   📡 Use Current GPS Location
                 </button>
+
               </div>
             )}
           </div>

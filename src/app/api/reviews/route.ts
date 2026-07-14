@@ -127,17 +127,45 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (booking?.worker_id) {
+          // Recalculate avg_rating from all reviews for this worker
           const { data: allReviews } = await supabase
             .from("reviews")
             .select("rating")
             .eq("worker_id", booking.worker_id);
 
-          if (allReviews && allReviews.length > 0) {
-            const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+          // Also get reviews by job_ids for this worker (legacy reviews stored by job_id)
+          const { data: jobReviews } = await supabase
+            .from("reviews")
+            .select("rating")
+            .in("job_id", (await supabase.from("bookings").select("job_id").eq("worker_id", booking.worker_id).then(r => r.data?.map(b => b.job_id).filter(Boolean) || [])));
+
+          const combined = [...(allReviews || []), ...(jobReviews || [])];
+          if (combined.length > 0) {
+            const avgRating = combined.reduce((sum, r) => sum + r.rating, 0) / combined.length;
             await supabase
               .from("worker_profiles")
-              .update({ avg_rating: Math.round(avgRating * 10) / 10, total_reviews: allReviews.length })
-              .eq("user_id", booking.worker_id);
+              .update({ avg_rating: Math.round(avgRating * 100) / 100 })
+              .eq("id", booking.worker_id);
+          }
+
+          // KaizyScore adjustment based on rating
+          const { data: wp } = await supabase
+            .from("worker_profiles")
+            .select("kaizy_score")
+            .eq("id", booking.worker_id)
+            .single();
+
+          if (wp) {
+            let scoreDelta = 0;
+            if (rating === 5) scoreDelta = 5;
+            else if (rating === 4) scoreDelta = 2;
+            else if (rating <= 3) scoreDelta = -5;
+
+            if (scoreDelta !== 0) {
+              await supabase.from("worker_profiles").update({
+                kaizy_score: Math.max(0, Math.min(1000, (wp.kaizy_score || 300) + scoreDelta)),
+              }).eq("id", booking.worker_id);
+            }
           }
         }
       } catch (e) {

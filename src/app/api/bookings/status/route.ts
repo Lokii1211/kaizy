@@ -91,34 +91,64 @@ export async function POST(req: NextRequest) {
     if (status === "completed") {
       updateData.completed_at = new Date().toISOString();
 
-      // Calculate commission: ₹5 flat or 2% whichever higher, free under ₹250
       try {
         const { data: booking } = await supabaseAdmin
           .from("bookings")
-          .select("worker_id, hirer_price, worker_price")
+          .select("worker_id, hirer_price, worker_price, total_amount")
           .eq("id", id)
           .single();
 
-        if (booking) {
-          const jobAmount = booking.worker_price || booking.hirer_price || 0;
-          let commission = 0;
-          if (jobAmount >= 250) {
-            commission = Math.max(5, Math.round(jobAmount * 0.02));
+        if (booking?.worker_id) {
+          // KaizyScore +10 and total_jobs +1 on every completed job
+          const { data: wp } = await supabaseAdmin
+            .from("worker_profiles")
+            .select("kaizy_score, total_jobs")
+            .eq("id", booking.worker_id)
+            .single();
+          if (wp) {
+            await supabaseAdmin.from("worker_profiles").update({
+              kaizy_score: Math.min(1000, (wp.kaizy_score || 300) + 10),
+              total_jobs: (wp.total_jobs || 0) + 1,
+            }).eq("id", booking.worker_id);
           }
 
-          if (commission > 0 && booking.worker_id) {
-            await supabaseAdmin.from("commission_ledger").insert({
+          // Commission ledger (table may not exist yet — ignore error)
+          const jobAmount = booking.total_amount || booking.worker_price || booking.hirer_price || 0;
+          if (jobAmount >= 250) {
+            const commission = Math.max(5, Math.round(jobAmount * 0.02));
+            supabaseAdmin.from("commission_ledger").insert({
               worker_id: booking.worker_id,
               booking_id: id,
               job_amount: jobAmount,
               commission_amount: commission,
               paid: false,
               created_at: new Date().toISOString(),
-            });
+            }).then(undefined, () => {/* table may not exist */});
           }
         }
       } catch (e) {
-        console.error("[commission calc]", e);
+        console.error("[completion handler]", e);
+      }
+    }
+
+    if (status === "cancelled") {
+      // KaizyScore -20 for cancel after accept (only penalise worker cancellations)
+      if (jwt?.userType === "worker") {
+        try {
+          const { data: booking } = await supabaseAdmin
+            .from("bookings").select("worker_id, status").eq("id", id).single();
+          if (booking?.worker_id && ["accepted", "en_route", "arrived"].includes(booking.status)) {
+            const { data: wp } = await supabaseAdmin
+              .from("worker_profiles").select("kaizy_score").eq("id", booking.worker_id).single();
+            if (wp) {
+              await supabaseAdmin.from("worker_profiles").update({
+                kaizy_score: Math.max(0, (wp.kaizy_score || 300) - 20),
+              }).eq("id", booking.worker_id);
+            }
+          }
+        } catch (e) {
+          console.error("[cancel score]", e);
+        }
       }
     }
 
