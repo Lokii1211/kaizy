@@ -109,17 +109,14 @@ export default function WorkerRegisterPage() {
         const lo = pos.coords.longitude;
         setLat(la);
         setLng(lo);
-        // Reverse geocode with Mapbox
+        // Reverse geocode with Nominatim (OpenStreetMap — free, no token needed)
         try {
-          const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-          if (token) {
-            const res = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${lo},${la}.json?access_token=${token}&limit=1`
-            );
-            const geo = await res.json();
-            const place = geo.features?.[0]?.place_name;
-            if (place) setLocationName(place.split(",").slice(0, 2).join(","));
-          }
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${la}&lon=${lo}`,
+            { headers: { 'Accept-Language': 'en', 'User-Agent': 'Kaizy-App/1.0' } }
+          );
+          const geo = await res.json();
+          if (geo.display_name) setLocationName(geo.display_name.split(",").slice(0, 2).join(",").trim());
         } catch { /* ignore */ }
       },
       () => setError("Please enable GPS to continue"),

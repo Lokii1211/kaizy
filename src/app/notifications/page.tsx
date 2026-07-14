@@ -131,7 +131,8 @@ export default function NotificationsPage() {
             otp: json.data?.otp,
           }));
         } catch {}
-        setTimeout(() => router.push("/tracking"), 1500);
+        // Workers go to active-job; hirerTracking would use /tracking?bookingId=xxx
+        setTimeout(() => router.push("/active-job"), 1500);
       } else {
         setDeclined(prev => [...prev, notif.id]);
       }

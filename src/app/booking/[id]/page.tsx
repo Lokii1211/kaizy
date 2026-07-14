@@ -348,6 +348,13 @@ export default function BookingDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-2 mt-2">
+          {["accepted", "en_route", "in_progress"].includes(booking.status) && (
+            <Link href={`/tracking?bookingId=${booking.id}`}
+                  className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold text-white active:scale-95"
+                  style={{ background: "var(--brand)", boxShadow: "var(--shadow-brand)" }}>
+              🗺️ Track Live
+            </Link>
+          )}
           {booking.status === "completed" && (
             <Link href={`/booking?rebook=${booking.worker_id}&trade=${booking.trade}`}
                   className="flex-1 rounded-xl py-3.5 text-center text-[13px] font-bold text-white active:scale-95"

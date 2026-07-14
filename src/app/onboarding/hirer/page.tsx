@@ -63,13 +63,13 @@ export default function HirerOnboardingPage() {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 });
       });
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (token) {
-        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=address,poi`);
-        const data = await res.json();
-        if (data.features?.[0]) {
-          setAddress(data.features[0].place_name || data.features[0].text);
-        }
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
+        { headers: { 'Accept-Language': 'en', 'User-Agent': 'Kaizy-App/1.0' } }
+      );
+      const data = await res.json();
+      if (data.display_name) {
+        setAddress(data.display_name);
       }
     } catch {
       setAddress("Location detection failed — enter manually");

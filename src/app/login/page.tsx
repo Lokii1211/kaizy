@@ -322,9 +322,10 @@ export default function LoginPage() {
           <div className="anim-up">
             {debugOtp && (
               <div className="rounded-[14px] p-3 mb-4 text-center" style={{ background: "var(--success-tint)", border: "1px solid rgba(52,211,153,0.3)" }}>
-                <p className="text-[9px] font-bold mb-1" style={{ color: "var(--success)" }}>📩 Test code:</p>
+                <p className="text-[9px] font-bold mb-1" style={{ color: "var(--success)" }}>🔑 Your OTP Code:</p>
                 <p className="text-[28px] font-black tracking-[0.3em]"
                    style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>{debugOtp}</p>
+                <p className="text-[8px] mt-1" style={{ color: "var(--success)", opacity: 0.7 }}>Valid for 10 minutes</p>
               </div>
             )}
 

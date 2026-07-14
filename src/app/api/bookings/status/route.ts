@@ -12,8 +12,23 @@ export async function GET(req: NextRequest) {
     const supabaseAdmin = getSupabase();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const jobId = searchParams.get('jobId');
 
-    // Specific booking by ID
+    // Lookup by job_id (used by BookingStore polling)
+    if (jobId) {
+      const { data } = await supabaseAdmin
+        .from('bookings')
+        .select('id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at')
+        .eq('job_id', jobId)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      return NextResponse.json({ success: true, data: data || { status: 'searching' } });
+    }
+
+    // Specific booking by booking ID
     if (id && id !== 'latest') {
       const { data } = await supabaseAdmin
         .from('bookings')

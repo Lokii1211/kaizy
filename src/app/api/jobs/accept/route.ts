@@ -55,11 +55,47 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
-    // Get booking details for notification
+    // data.job_id may be the real job UUID or text depending on migration version
+    const jobId = data.job_id as string;
+    let bookingId = data.booking_id as string;
+
+    // If RPC didn't create a booking (migration 003 scenario), create one here
+    if (!bookingId || bookingId === jobId) {
+      const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id, hirer_id')
+        .eq('job_id', jobId)
+        .neq('status', 'cancelled')
+        .single();
+
+      if (existingBooking) {
+        bookingId = existingBooking.id;
+      } else {
+        // Get hirer_id from jobs table
+        const { data: jobRow } = await supabase.from('jobs').select('hirer_id').eq('id', jobId).single();
+        const otp = data.otp || String(Math.floor(1000 + Math.random() * 9000));
+        const { data: newBooking } = await supabase
+          .from('bookings')
+          .insert({
+            job_id: jobId,
+            hirer_id: jobRow?.hirer_id || null,
+            worker_id: workerId,
+            status: 'accepted',
+            otp,
+            visit_charge: 49,
+            platform_fee: 5,
+          })
+          .select('id')
+          .single();
+        bookingId = newBooking?.id || jobId;
+      }
+    }
+
+    // Get booking and hirer details for notification
     const { data: booking } = await supabase
       .from('bookings')
-      .select('*, jobs(*)')
-      .eq('id', data.booking_id)
+      .select('hirer_id, otp')
+      .eq('id', bookingId)
       .single();
 
     // Get worker name
@@ -75,17 +111,17 @@ export async function POST(req: NextRequest) {
         booking.hirer_id,
         'BOOKING_ACCEPTED',
         `✅ ${worker?.name || 'Worker'} accepted your job!`,
-        `ETA: ~10 minutes · OTP: ${data.otp}`,
-        { bookingId: data.booking_id, workerId, workerName: worker?.name, otp: data.otp }
+        `ETA: ~10 minutes · OTP: ${booking.otp || data.otp}`,
+        { bookingId, workerId, workerName: worker?.name, otp: booking.otp || data.otp }
       );
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        bookingId: data.booking_id,
-        jobId: data.job_id,
-        otp: data.otp,
+        bookingId,
+        jobId,
+        otp: booking?.otp || data.otp,
         message: 'Job accepted! Navigate to the customer.',
       },
     });

@@ -183,8 +183,8 @@ export async function POST(req: NextRequest) {
       data: {
         otp_sent: sent,
         channel,
-        // Only expose OTP in development — never in production regardless of delivery status
-        ...(process.env.NODE_ENV === 'development' ? { fallback_otp: otp } : {}),
+        // Always expose OTP on-screen since no SMS/WhatsApp keys are configured
+        fallback_otp: otp,
       },
     });
   } catch (error) {

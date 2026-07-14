@@ -13,14 +13,16 @@ export async function GET(request: NextRequest) {
   const available = searchParams.get("available");
   const minRating = searchParams.get("minRating");
   const query = searchParams.get("q");
+  const sort = searchParams.get("sort");
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
 
   try {
+    const sortColumn = sort === 'kaizy_score' ? 'kaizy_score' : sort === 'total_jobs' ? 'total_jobs' : 'avg_rating';
     let dbQuery = supabaseAdmin
       .from('worker_profiles')
       .select('*, users(name, phone, city)')
-      .order('avg_rating', { ascending: false });
+      .order(sortColumn, { ascending: false });
 
     if (skill) dbQuery = dbQuery.ilike('trade_primary', skill);
     if (available === "true") dbQuery = dbQuery.eq('is_available', true);
