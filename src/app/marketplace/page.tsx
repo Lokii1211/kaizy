@@ -169,7 +169,7 @@ export default function MarketplacePage() {
           const color = tradeColors[w.trade] || "#FF6B00";
           const icon = tradeIcons[w.trade] || "🔧";
           return (
-            <Link key={w.id} href="/booking"
+            <Link key={w.id} href={`/worker/${w.id}`}
                   className="flex items-center gap-3 rounded-[16px] p-4 active:scale-[0.98] transition-all"
                   style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
               <div className="relative shrink-0">

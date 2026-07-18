@@ -96,15 +96,20 @@ export default function ReferralPage() {
   };
 
   const handleShare = async () => {
+    const text = `Use my referral code *${referralCode}* to get ₹500 off your first booking on Kaizy! India's fastest home service platform 🔧⚡\n\nDownload: https://kaizy.com?ref=${referralCode}`;
     if (navigator.share) {
-      await navigator.share({
-        title: "Join Kaizy — Get ₹500 Free!",
-        text: `Use my referral code ${referralCode} to get ₹500 off your first booking on Kaizy!`,
-        url: `https://kaizy.com/invite?ref=${referralCode}`,
-      });
-    } else {
-      handleCopy();
+      try {
+        await navigator.share({ title: "Join Kaizy — Get ₹500 Free!", text, url: `https://kaizy.com?ref=${referralCode}` });
+        return;
+      } catch { /* fall through to WhatsApp */ }
     }
+    // WhatsApp deep link fallback
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = `Use my referral code *${referralCode}* to get ₹500 off your first booking on Kaizy!\n\nDownload: https://kaizy.com?ref=${referralCode}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
@@ -150,10 +155,15 @@ export default function ReferralPage() {
                     style={{ background: "var(--bg-surface)", color: "var(--text-1)" }}>
               {copied ? "✅ Copied!" : "📋 Copy Code"}
             </button>
-            <button onClick={handleShare} disabled={loading}
+            <button onClick={handleShareWhatsApp} disabled={loading}
                     className="flex-1 rounded-[14px] py-3 text-[11px] font-bold text-white active:scale-95 transition-all disabled:opacity-40"
+                    style={{ background: "#25D366" }}>
+              💬 WhatsApp
+            </button>
+            <button onClick={handleShare} disabled={loading}
+                    className="rounded-[14px] py-3 px-4 text-[11px] font-bold text-white active:scale-95 transition-all disabled:opacity-40"
                     style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
-              📤 Share Now
+              📤
             </button>
           </div>
         </div>

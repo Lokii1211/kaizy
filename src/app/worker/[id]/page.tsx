@@ -207,6 +207,14 @@ export default function WorkerProfilePage() {
             <span className="text-[8px] font-bold px-2 py-0.5 rounded-full"
                   style={{ background: "var(--trust-tint)", color: "var(--trust)" }}>✓ Verified</span>
           )}
+          {(() => {
+            const ks = worker.kaizy_score || 0;
+            const j = worker.jobs_done || 0;
+            if (ks >= 800 && j >= 100) return <span className="text-[8px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#FF6B00" }}>⚡ KaizyPro</span>;
+            if (ks >= 600 && j >= 50)  return <span className="text-[8px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#8B5CF6" }}>👑 Elite</span>;
+            if (ks >= 400 && j >= 10)  return <span className="text-[8px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "#3B82F6" }}>✓ Trusted</span>;
+            return null;
+          })()}
         </div>
 
         {/* Availability indicator */}
