@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     if (id && id !== 'latest') {
       const { data } = await supabaseAdmin
         .from('bookings')
-        .select('id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at')
+        .select('id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at, worker_diagnosis, quoted_amount, parts_cost, complexity_level, total_quoted')
         .eq('id', id)
         .single();
 

@@ -25,6 +25,13 @@ interface TrackingData {
   distanceKm: number;
 }
 
+interface QuoteData {
+  diagnosis: string;
+  amount: number;
+  partsCost: number;
+  complexity: string;
+}
+
 interface ChatMessage {
   id: string;
   sender_id: string;
@@ -73,6 +80,9 @@ function TrackingContent() {
   const [loading, setLoading] = useState(true);
   const [bookingAmount, setBookingAmount] = useState(0);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
+  const [bookingStatusExt, setBookingStatusExt] = useState<string>("");
+  const [quoteProcessing, setQuoteProcessing] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
@@ -104,14 +114,18 @@ function TrackingContent() {
     } catch { /* sessionStorage may be unavailable in SSR */ }
   }, []);
 
-  // Fetch initial tracking state
+  // Fetch initial tracking state + booking quote status
   const fetchTracking = useCallback(async () => {
     if (!bookingId) return;
     try {
-      const res = await fetch(`/api/tracking?bookingId=${bookingId}`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        const d = json.data;
+      const [trackRes, bookingRes] = await Promise.all([
+        fetch(`/api/tracking?bookingId=${bookingId}`),
+        fetch(`/api/bookings/status?id=${bookingId}`),
+      ]);
+      const [trackJson, bookingJson] = await Promise.all([trackRes.json(), bookingRes.json()]);
+
+      if (trackJson.success && trackJson.data) {
+        const d = trackJson.data;
         setTracking(d);
         setStatus(d.status);
         setEta(d.eta || 0);
@@ -127,6 +141,25 @@ function TrackingContent() {
             kaizyScore: prev?.kaizyScore || 500,
             tradeIcon: prev?.tradeIcon || "🔧",
           }));
+        }
+        if (d.status === "completed") setShowPayment(true);
+      }
+
+      // Check booking for quote status
+      if (bookingJson.success && bookingJson.data) {
+        const bk = bookingJson.data;
+        setBookingStatusExt(bk.status || "");
+        if (bk.status === "quote_sent" && bk.worker_diagnosis) {
+          setQuoteData({
+            diagnosis: bk.worker_diagnosis,
+            amount: bk.total_quoted || bk.quoted_amount || 0,
+            partsCost: bk.parts_cost || 0,
+            complexity: bk.complexity_level || "medium",
+          });
+        }
+        // Clear quote when approved/rejected
+        if (bk.status === "in_progress" || bk.status === "quote_rejected") {
+          setQuoteData(null);
         }
       }
     } catch {}
@@ -204,6 +237,30 @@ function TrackingContent() {
     return () => { supabase.removeChannel(ch); };
   }, [bookingId]);
 
+  // Realtime booking status — catch quote_sent from worker
+  useEffect(() => {
+    if (!bookingId || !supabase) return;
+    const ch = supabase.channel(`booking-status-${bookingId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bookings", filter: `id=eq.${bookingId}` },
+        (p) => {
+          const row = p.new as { status: string; worker_diagnosis?: string; total_quoted?: number; quoted_amount?: number; parts_cost?: number; complexity_level?: string };
+          setBookingStatusExt(row.status);
+          if (row.status === "quote_sent" && row.worker_diagnosis) {
+            setQuoteData({
+              diagnosis: row.worker_diagnosis,
+              amount: row.total_quoted || row.quoted_amount || 0,
+              partsCost: row.parts_cost || 0,
+              complexity: row.complexity_level || "medium",
+            });
+          }
+          if (row.status === "in_progress" || row.status === "quote_rejected") setQuoteData(null);
+          if (row.status === "completed") setShowPayment(true);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [bookingId]);
+
   // Auto-scroll chat
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
@@ -221,6 +278,23 @@ function TrackingContent() {
       });
       fetchMessages();
     } catch {}
+  };
+
+  const handleQuoteAction = async (action: "approve" | "reject") => {
+    if (!bookingId || quoteProcessing) return;
+    setQuoteProcessing(true);
+    try {
+      await fetch("/api/bookings/quote", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, action }),
+      });
+      setQuoteData(null);
+      setBookingStatusExt(action === "approve" ? "in_progress" : "quote_rejected");
+    } catch (e) {
+      console.error("[quote action]", e);
+    }
+    setQuoteProcessing(false);
   };
 
   const handlePayment = async (method: "cash" | "upi") => {
@@ -384,6 +458,91 @@ function TrackingContent() {
           </p>
         )}
       </div>
+
+      {/* Quote approval card — worker sent a diagnosis + price */}
+      {quoteData && bookingStatusExt === "quote_sent" && (
+        <div className="mx-4 mt-3 rounded-[20px] p-4 shrink-0 anim-up"
+          style={{ background: "var(--bg-card)", border: "2px solid rgba(255,184,0,0.4)", boxShadow: "0 0 24px rgba(255,184,0,0.12)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[18px]">🔍</span>
+            <div>
+              <p className="text-[13px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>
+                Worker sent a quote
+              </p>
+              <p className="text-[10px] font-medium" style={{ color: "var(--warning, #FFB800)" }}>
+                Approve to start work
+              </p>
+            </div>
+          </div>
+
+          {/* Diagnosis */}
+          <div className="rounded-[14px] p-3 mb-3" style={{ background: "var(--bg-surface)" }}>
+            <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-3)" }}>
+              Diagnosis
+            </p>
+            <p className="text-[12px] font-medium leading-relaxed" style={{ color: "var(--text-1)" }}>
+              {quoteData.diagnosis}
+            </p>
+            {quoteData.complexity && (
+              <span className="mt-2 inline-block rounded-full px-2.5 py-0.5 text-[9px] font-bold"
+                style={{ background: "var(--bg-elevated)", color: "var(--text-2)" }}>
+                {quoteData.complexity} job
+              </span>
+            )}
+          </div>
+
+          {/* Price breakdown */}
+          <div className="rounded-[14px] p-3 mb-4" style={{ background: "var(--brand-tint)" }}>
+            <div className="flex justify-between mb-1">
+              <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Labour</span>
+              <span className="text-[11px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono',monospace" }}>
+                ₹{(quoteData.amount - quoteData.partsCost).toFixed(0)}
+              </span>
+            </div>
+            {quoteData.partsCost > 0 && (
+              <div className="flex justify-between mb-1">
+                <span className="text-[11px]" style={{ color: "var(--text-2)" }}>Parts / Materials</span>
+                <span className="text-[11px] font-bold" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono',monospace" }}>
+                  ₹{quoteData.partsCost.toFixed(0)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between border-t pt-2 mt-1" style={{ borderColor: "var(--border-1)" }}>
+              <span className="text-[13px] font-black" style={{ color: "var(--text-1)" }}>Total</span>
+              <span className="text-[18px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono',monospace" }}>
+                ₹{quoteData.amount}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleQuoteAction("reject")}
+              disabled={quoteProcessing}
+              className="rounded-[14px] py-3 text-[13px] font-black active:scale-95 transition-transform disabled:opacity-50"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-2)" }}>
+              ✕ Reject
+            </button>
+            <button
+              onClick={() => handleQuoteAction("approve")}
+              disabled={quoteProcessing}
+              className="rounded-[14px] py-3 text-[13px] font-black text-white active:scale-95 transition-transform disabled:opacity-50"
+              style={{ background: quoteProcessing ? "var(--bg-elevated)" : "var(--gradient-cta)" }}>
+              {quoteProcessing ? "..." : "✓ Approve"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quote rejected — only visit fee */}
+      {bookingStatusExt === "quote_rejected" && (
+        <div className="mx-4 mt-3 rounded-[16px] p-4 shrink-0 text-center"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <p className="text-[13px] font-bold" style={{ color: "#EF4444" }}>Quote rejected</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>Worker will charge only the visit fee.</p>
+        </div>
+      )}
 
       {/* Payment card — when completed */}
       {status === "completed" && !showPayment && (

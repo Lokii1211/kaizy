@@ -50,6 +50,7 @@ export default function BookingPage() {
   const [addressResults, setAddressResults] = useState<Array<{ place_name: string; center: [number, number] }>>([]);
   const [addressSearching, setAddressSearching] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+  const [surgeMultiplier, setSurgeMultiplier] = useState<number | null>(null);
 
   const [bookingMode, setBookingMode] = useState<"instant" | "scheduled">("instant");
   const [scheduledTime, setScheduledTime] = useState("");
@@ -93,6 +94,19 @@ export default function BookingPage() {
     } catch { setAddressResults([]); }
     setAddressSearching(false);
   };
+
+  // Fetch surge multiplier when trade changes
+  useEffect(() => {
+    const tradeKeyMap: Record<string, string> = {
+      "Electrician": "electrician", "Plumber": "plumber", "Mechanic": "mechanic",
+      "AC Repair": "ac_repair", "Carpenter": "carpenter", "Painter": "painter", "Mason": "mason",
+    };
+    const tradeKey = tradeKeyMap[selectedTrade] || selectedTrade.toLowerCase();
+    fetch(`/api/pricing/surge?trade=${tradeKey}`)
+      .then(r => r.json())
+      .then(d => setSurgeMultiplier(d.multiplier > 1.05 ? d.multiplier : null))
+      .catch(() => setSurgeMultiplier(null));
+  }, [selectedTrade]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -460,7 +474,15 @@ export default function BookingPage() {
           {/* Pricing breakdown */}
           {state.pricing && (
             <div className="rounded-[12px] p-3 mb-3 animate-scale-in" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "var(--text-3)" }}>PRICE ESTIMATE (starts from)</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold" style={{ color: "var(--text-3)" }}>PRICE ESTIMATE (starts from)</p>
+                {surgeMultiplier && (
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-black"
+                    style={{ background: "rgba(255,107,0,0.15)", color: "#FF6B00", border: "1px solid rgba(255,107,0,0.3)" }}>
+                    ⚡ {surgeMultiplier.toFixed(1)}× surge
+                  </span>
+                )}
+              </div>
               <div className="space-y-1 text-[11px]">
                 <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Base inspection fee</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
                 {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Visit charge ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>}

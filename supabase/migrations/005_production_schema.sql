@@ -73,17 +73,20 @@ CREATE TABLE IF NOT EXISTS market_pricing (
   trade                 TEXT NOT NULL,
   problem_type          TEXT NOT NULL,
   display_name          TEXT NOT NULL,
-  display_name_ta       TEXT,
-  display_name_hi       TEXT,
   price_min             DECIMAL(8,2) NOT NULL,
   price_max             DECIMAL(8,2) NOT NULL,
   duration_min          INTEGER DEFAULT 60,
-  emergency_eligible    BOOLEAN DEFAULT TRUE,
-  emergency_multiplier  DECIMAL(3,2) DEFAULT 1.80,
-  night_multiplier      DECIMAL(3,2) DEFAULT 1.50,
-  sort_order            INTEGER DEFAULT 0,
   UNIQUE(trade, problem_type)
 );
+
+-- Add optional columns if the table already existed without them
+ALTER TABLE market_pricing
+  ADD COLUMN IF NOT EXISTS display_name_ta       TEXT,
+  ADD COLUMN IF NOT EXISTS display_name_hi       TEXT,
+  ADD COLUMN IF NOT EXISTS emergency_eligible    BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS emergency_multiplier  DECIMAL(3,2) DEFAULT 1.80,
+  ADD COLUMN IF NOT EXISTS night_multiplier      DECIMAL(3,2) DEFAULT 1.50,
+  ADD COLUMN IF NOT EXISTS sort_order            INTEGER DEFAULT 0;
 
 -- Seed market_pricing with comprehensive data
 INSERT INTO market_pricing (trade, problem_type, display_name, display_name_ta, price_min, price_max, duration_min) VALUES
@@ -157,12 +160,13 @@ ALTER TABLE reviews
   ADD COLUMN IF NOT EXISTS voice_url TEXT,
   ADD COLUMN IF NOT EXISTS is_visible BOOLEAN DEFAULT TRUE;
 
--- Back-fill worker_id from bookings where possible
+-- Back-fill worker_id from bookings via booking_id (reviews links to bookings, not jobs)
 UPDATE reviews r
 SET worker_id = b.worker_id
 FROM bookings b
-WHERE b.job_id = r.job_id
-  AND r.worker_id IS NULL;
+WHERE b.id = r.booking_id
+  AND r.worker_id IS NULL
+  AND r.booking_id IS NOT NULL;
 
 -- ── Realtime: enable on critical tables ─────────────────
 -- Run this in Supabase dashboard:
@@ -206,6 +210,8 @@ CREATE TRIGGER t_booking_auto_release
   FOR EACH ROW EXECUTE FUNCTION set_auto_release();
 
 -- ── find_nearby_workers RPC ──────────────────────────────
+-- Uses a subquery to compute distance first, then filters + sorts in outer query
+-- Avoids the HAVING + non-aggregate column error in plain SQL functions
 CREATE OR REPLACE FUNCTION find_nearby_workers(
   p_lat DECIMAL,
   p_lng DECIMAL,
@@ -224,40 +230,53 @@ RETURNS TABLE (
   distance_km DECIMAL,
   fcm_token TEXT,
   phone VARCHAR
-) AS $$
+)
+LANGUAGE plpgsql STABLE AS $$
+BEGIN
+  RETURN QUERY
   SELECT
-    wp.id,
-    u.name,
-    wp.avg_rating,
-    wp.kaizy_score,
-    wp.total_jobs,
-    wp.latitude,
-    wp.longitude,
-    ROUND((6371 * acos(
-      LEAST(1.0, cos(radians(p_lat)) * cos(radians(wp.latitude)) *
-      cos(radians(wp.longitude) - radians(p_lng)) +
-      sin(radians(p_lat)) * sin(radians(wp.latitude)))
-    ))::numeric, 2) AS distance_km,
-    u.fcm_token,
-    u.phone
-  FROM worker_profiles wp
-  JOIN users u ON wp.id = u.id
-  WHERE wp.is_online = TRUE
-    AND wp.is_available = TRUE
-    AND wp.trade_primary = p_trade
-    AND wp.latitude IS NOT NULL
-    AND wp.longitude IS NOT NULL
-  HAVING (6371 * acos(
-    LEAST(1.0, cos(radians(p_lat)) * cos(radians(wp.latitude)) *
-    cos(radians(wp.longitude) - radians(p_lng)) +
-    sin(radians(p_lat)) * sin(radians(wp.latitude)))
-  )) <= p_radius_km
+    sub.id,
+    sub.name,
+    sub.avg_rating,
+    sub.kaizy_score,
+    sub.total_jobs,
+    sub.latitude,
+    sub.longitude,
+    sub.distance_km,
+    sub.fcm_token,
+    sub.phone
+  FROM (
+    SELECT
+      wp.id,
+      u.name,
+      wp.avg_rating,
+      wp.kaizy_score,
+      wp.total_jobs,
+      wp.latitude,
+      wp.longitude,
+      u.fcm_token,
+      u.phone,
+      COALESCE(wp.completion_rate, 100.0) AS completion_rate,
+      COALESCE(wp.response_rate,   100.0) AS response_rate,
+      ROUND((6371.0 * acos(
+        LEAST(1.0, cos(radians(p_lat)) * cos(radians(wp.latitude))
+          * cos(radians(wp.longitude) - radians(p_lng))
+          + sin(radians(p_lat)) * sin(radians(wp.latitude)))
+      ))::numeric, 2) AS distance_km
+    FROM worker_profiles wp
+    JOIN users u ON wp.id = u.id
+    WHERE wp.is_online    = TRUE
+      AND wp.is_available = TRUE
+      AND wp.trade_primary = p_trade
+      AND wp.latitude  IS NOT NULL
+      AND wp.longitude IS NOT NULL
+  ) sub
+  WHERE sub.distance_km <= p_radius_km
   ORDER BY
-    (6371 * acos(LEAST(1.0, cos(radians(p_lat)) * cos(radians(wp.latitude)) *
-    cos(radians(wp.longitude) - radians(p_lng)) +
-    sin(radians(p_lat)) * sin(radians(wp.latitude))))) * 0.40 +
-    ((5.0 - LEAST(COALESCE(wp.avg_rating, 3.0), 5.0)) * 0.25) +
-    ((100.0 - LEAST(COALESCE(wp.completion_rate, 100.0), 100.0)) / 100.0 * 0.20) +
-    ((100.0 - LEAST(COALESCE(wp.response_rate, 100.0), 100.0)) / 100.0 * 0.15)
+    sub.distance_km                                          * 0.40
+    + (5.0 - LEAST(COALESCE(sub.avg_rating, 3.0), 5.0))   * 0.25
+    + (100.0 - sub.completion_rate) / 100.0                * 0.20
+    + (100.0 - sub.response_rate)   / 100.0                * 0.15
   LIMIT p_limit;
-$$ LANGUAGE SQL STABLE;
+END;
+$$;

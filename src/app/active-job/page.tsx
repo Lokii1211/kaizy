@@ -286,9 +286,26 @@ export default function ActiveJobPage() {
     }
   };
 
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const handlePhotoUpload = () => {
-    // In production: open camera for before/after photos
-    setPhotos(prev => [...prev, `Photo ${prev.length + 1}`]);
+    photoInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPhotos(prev => [...prev, url]);
+    // Upload to booking
+    if (job?.bookingId) {
+      const formData = new FormData();
+      formData.append("photo", file);
+      formData.append("bookingId", job.bookingId);
+      formData.append("phase", status === "in_progress" ? "before" : "after");
+      fetch("/api/bookings/photos", { method: "POST", body: formData }).catch(() => {});
+    }
+    e.target.value = "";
   };
 
   // Loading skeleton
@@ -756,9 +773,9 @@ export default function ActiveJobPage() {
           </p>
           <div className="flex gap-2 flex-wrap">
             {photos.map((p, i) => (
-              <div key={i} className="w-16 h-16 rounded-xl flex items-center justify-center text-[10px] font-bold"
-                   style={{ background: "var(--bg-card)", color: "var(--text-3)" }}>
-                📸 {p}
+              <div key={i} className="w-16 h-16 rounded-xl overflow-hidden"
+                   style={{ background: "var(--bg-card)" }}>
+                <img src={p} alt={`Job photo ${i + 1}`} className="w-full h-full object-cover" />
               </div>
             ))}
             <button onClick={handlePhotoUpload}
@@ -768,6 +785,14 @@ export default function ActiveJobPage() {
               <span className="text-[7px] font-bold" style={{ color: "var(--brand)" }}>Add</span>
             </button>
           </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelected}
+            style={{ display: "none" }}
+          />
         </div>
       )}
 
