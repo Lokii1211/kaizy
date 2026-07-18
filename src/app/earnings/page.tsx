@@ -43,27 +43,38 @@ export default function EarningsPage() {
   const [commissionPending, setCommissionPending] = useState(0);
   const [isBlocked, setIsBlocked] = useState(false);
 
+  const [kaizyScore, setKaizyScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [tier, setTier] = useState("Active");
+  const [tierColor, setTierColor] = useState("#22C55E");
+  const [weeklyChart, setWeeklyChart] = useState<{ day: string; amount: number }[]>([]);
+
   useEffect(() => {
     const fetchEarnings = async () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/earnings?period=${period}`);
         const json = await res.json();
-        if (json.success && json.data) {
+        if (json.success) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const mapped = json.data.map((e: any) => ({
+          const mapped = (json.data || []).map((e: any) => ({
             id: e.id,
             amount: e.amount,
-            type: e.type,
-            status: e.status,
+            type: e.type || "job_payment",
+            status: e.status || "credited",
             created_at: e.created_at,
-            booking_id: e.booking_id,
-            hirer_name: e.hirer_name || e.bookings?.hirer_profiles?.users?.name || "",
-            trade: e.trade || e.bookings?.jobs?.trade || "",
+            booking_id: e.booking_id || e.id,
+            hirer_name: e.hirer_name || "Customer",
+            trade: e.trade || "",
           }));
           setEarnings(mapped);
-          setTotalEarnings(mapped.reduce((sum: number, e: EarningEntry) => sum + Number(e.amount), 0));
-          setTotalJobs(mapped.filter((e: EarningEntry) => e.type === "job_payment").length);
+          setTotalEarnings(json.totalEarnings || mapped.reduce((sum: number, e: EarningEntry) => sum + Number(e.amount), 0));
+          setTotalJobs(json.totalJobs || mapped.length);
+          setKaizyScore(json.kaizyScore || 0);
+          setStreak(json.streak || 0);
+          setTier(json.tier || "Active");
+          setTierColor(json.tierColor || "#22C55E");
+          if (json.weeklyChart?.length) setWeeklyChart(json.weeklyChart);
         }
       } catch (e) {
         console.error("[earnings]", e);
@@ -147,23 +158,79 @@ export default function EarningsPage() {
         </div>
       </div>
 
+      {/* 7-Day Chart */}
+      {weeklyChart.length > 0 && (
+        <div className="px-5 mb-4">
+          <div className="rounded-[16px] p-4" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Last 7 Days</p>
+              <div className="flex items-center gap-3">
+                {streak >= 2 && (
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full"
+                    style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                    🔥 {streak}-day streak
+                  </span>
+                )}
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: `${tierColor}20`, color: tierColor }}>
+                  {tier}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-end gap-2 h-[56px]">
+              {(() => {
+                const maxAmt = Math.max(...weeklyChart.map(d => d.amount), 1);
+                return weeklyChart.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full rounded-t-[4px] transition-all relative"
+                      style={{
+                        height: `${Math.max(3, (d.amount / maxAmt) * 48)}px`,
+                        background: d.amount > 0
+                          ? (i === weeklyChart.length - 1 ? "var(--gradient-cta)" : "var(--brand)")
+                          : "var(--bg-elevated)",
+                        opacity: i === weeklyChart.length - 1 ? 1 : 0.55,
+                      }}>
+                      {d.amount > 0 && i === weeklyChart.length - 1 && (
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] font-black"
+                          style={{ color: "var(--brand)" }}>
+                          ₹{d.amount}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[8px] font-bold" style={{ color: i === weeklyChart.length - 1 ? "var(--brand)" : "var(--text-3)" }}>
+                      {d.day}
+                    </span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-2.5 px-5 mt-4 mb-5">
+      <div className="grid grid-cols-4 gap-2 px-5 mt-4 mb-5">
         <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
-          <p className="text-[18px] font-black" style={{ color: "var(--brand)", fontFamily: "'Epilogue', sans-serif" }}>{totalJobs}</p>
-          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Jobs</p>
+          <p className="text-[16px] font-black" style={{ color: "var(--brand)", fontFamily: "'Epilogue', sans-serif" }}>{totalJobs}</p>
+          <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Jobs</p>
         </div>
         <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
-          <p className="text-[18px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
+          <p className="text-[16px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
             ₹{totalJobs > 0 ? Math.round(totalEarnings / totalJobs) : 0}
           </p>
-          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Avg/Job</p>
+          <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Avg/Job</p>
         </div>
         <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
-          <p className="text-[18px] font-black" style={{ color: "var(--info)", fontFamily: "'Epilogue', sans-serif" }}>
-            {pendingEarnings.length}
+          <p className="text-[16px] font-black" style={{ color: "#FFB800", fontFamily: "'JetBrains Mono', monospace" }}>
+            {streak > 0 ? `${streak}🔥` : "0"}
           </p>
-          <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Pending</p>
+          <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Streak</p>
+        </div>
+        <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
+          <p className="text-[16px] font-black" style={{ color: "var(--info)", fontFamily: "'JetBrains Mono', monospace" }}>
+            {kaizyScore}
+          </p>
+          <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>KS</p>
         </div>
       </div>
 

@@ -61,6 +61,12 @@ export default function WorkerDashboardPage() {
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [todayJobs, setTodayJobs] = useState(0);
   const [avgRating, setAvgRating] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [tier, setTier] = useState("Active");
+  const [tierColor, setTierColor] = useState("#22C55E");
+  const [nextTier, setNextTier] = useState("Trusted");
+  const [jobsToNextTier, setJobsToNextTier] = useState(10);
+  const [weeklyChart, setWeeklyChart] = useState<{ day: string; amount: number }[]>([]);
   const [alerts, setAlerts] = useState<AlertNotification[]>([]);
   const [toggling, setToggling] = useState(false);
   const [greeting, setGreeting] = useState("Good evening");
@@ -94,20 +100,24 @@ export default function WorkerDashboardPage() {
     fetchUser();
   }, []);
 
-  // Fetch worker stats
-  const fetchWorkerStats = async (workerId: string) => {
+  // Fetch worker stats from real bookings data
+  const fetchWorkerStats = async (_workerId: string) => {
     try {
-      const res = await fetch(`/api/earnings?workerId=${workerId}&period=today`);
+      const res = await fetch(`/api/earnings?period=today`);
       const json = await res.json();
-      if (json.success && json.data) {
-        setTodayEarnings(Number(json.data.totalEarnings) || 0);
-        setTodayJobs(Number(json.data.totalJobs) || 0);
-        setAvgRating(Number(json.data.avgRating) || 0);
+      if (json.success) {
+        setTodayEarnings(Number(json.totalEarnings) || 0);
+        setTodayJobs(Number(json.totalJobs) || 0);
+        setAvgRating(Number(json.avgRating) || 0);
+        setStreak(Number(json.streak) || 0);
+        setTier(json.tier || "Active");
+        setTierColor(json.tierColor || "#22C55E");
+        setNextTier(json.nextTier || "Trusted");
+        setJobsToNextTier(Number(json.jobsToNextTier) || 0);
+        if (json.weeklyChart?.length) setWeeklyChart(json.weeklyChart);
       }
     } catch {
-      setTodayEarnings(0);
-      setTodayJobs(0);
-      setAvgRating(0);
+      setTodayEarnings(0); setTodayJobs(0); setAvgRating(0);
     }
   };
 
@@ -417,12 +427,18 @@ export default function WorkerDashboardPage() {
                 style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
               {displayName}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-[11px] font-semibold capitalize" style={{ color: "var(--brand)" }}>{tradeName}</span>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
-                KS {kaizyScore}/1000
+              <span className="text-[9px] font-black px-2 py-0.5 rounded-full"
+                    style={{ background: `${tierColor}20`, color: tierColor, border: `1px solid ${tierColor}40` }}>
+                {tier === "KaizyPro" ? "⚡ KaizyPro" : tier === "Elite" ? "👑 Elite" : tier === "Trusted" ? "✓ Trusted" : "Active"}
               </span>
+              {streak >= 2 && (
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800", border: "1px solid rgba(255,184,0,0.3)" }}>
+                  🔥 {streak}d streak
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -508,11 +524,53 @@ export default function WorkerDashboardPage() {
             </div>
           </div>
 
-          {/* Score progress */}
+          {/* 7-day earnings chart */}
+          {weeklyChart.length > 0 && (
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-1)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-3)" }}>Last 7 Days</p>
+              <div className="flex items-end gap-1 h-[40px]">
+                {(() => {
+                  const maxAmt = Math.max(...weeklyChart.map(d => d.amount), 1);
+                  return weeklyChart.map((d, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                      <div className="w-full rounded-t-sm transition-all"
+                           style={{
+                             height: `${Math.max(2, (d.amount / maxAmt) * 36)}px`,
+                             background: d.amount > 0 ? "var(--gradient-cta)" : "var(--bg-elevated)",
+                             opacity: i === weeklyChart.length - 1 ? 1 : 0.6,
+                           }} />
+                      <span className="text-[7px] font-bold" style={{ color: "var(--text-3)" }}>{d.day[0]}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Tier progress */}
+          {nextTier !== "Max" && (
+            <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-1)" }}>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>
+                  {jobsToNextTier} more jobs → {nextTier}
+                </span>
+                <span className="text-[9px] font-bold" style={{ color: tierColor }}>{tier}</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-elevated)" }}>
+                <div className="h-full rounded-full transition-all"
+                     style={{
+                       width: `${tier === "Active" ? Math.min(100, (todayJobs / 10) * 100) : tier === "Trusted" ? Math.min(100, ((50 - jobsToNextTier) / 50) * 100) : Math.min(100, ((100 - jobsToNextTier) / 100) * 100)}%`,
+                       background: `linear-gradient(90deg, ${tierColor}, ${tierColor}99)`,
+                     }} />
+              </div>
+            </div>
+          )}
+
+          {/* KaizyScore progress */}
           {kaizyScore > 0 && (
             <div className="mt-3">
               <div className="flex justify-between mb-1">
-                <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>KaizyScore Progress</span>
+                <span className="text-[9px] font-bold" style={{ color: "var(--text-3)" }}>KaizyScore</span>
                 <span className="text-[9px] font-bold" style={{ color: "var(--brand)" }}>{kaizyScore}/1000</span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-elevated)" }}>

@@ -227,9 +227,9 @@ export default function MyBookingsPage() {
                     {b.status === "completed" && (
                       <div className="mt-3 pt-3 flex gap-2" style={{ borderTop: "1px solid var(--border-1)" }}>
                         {!b.has_review && (
-                          <Link href={`/review/${b.id}`} className="flex-1 text-center text-[10px] font-bold py-2 rounded-[12px]"
+                          <Link href={`/booking/review?bookingId=${b.id}`} className="flex-1 text-center text-[10px] font-bold py-2 rounded-[12px]"
                                 style={{ background: "var(--success-tint)", color: "var(--success)" }}>
-                            Rate Worker
+                            ⭐ Rate
                           </Link>
                         )}
                         <Link href={`/booking?trade=${b.trade}&workerId=${b.worker_id}`}

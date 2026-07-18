@@ -18,14 +18,19 @@ function ReviewContent() {
   const [workerName, setWorkerName] = useState("Worker");
   const [trade, setTrade] = useState("Service");
   const [amount, setAmount] = useState("600");
+  const [bookingId, setBookingId] = useState("");
+  const [jobId, setJobId] = useState("");
+  const [comment, setComment] = useState("");
 
   useEffect(() => {
     const qWorker = searchParams.get("worker");
     const qTrade = searchParams.get("trade");
     const qAmount = searchParams.get("amount");
+    const qBookingId = searchParams.get("bookingId");
+    const qJobId = searchParams.get("jobId");
 
     // Try sessionStorage fallback
-    let stored: { name?: string; trade?: string; amount?: string } = {};
+    let stored: { name?: string; trade?: string; amount?: string; bookingId?: string; jobId?: string } = {};
     try {
       const raw = sessionStorage.getItem("kaizy_booked_worker");
       if (raw) stored = JSON.parse(raw);
@@ -34,6 +39,8 @@ function ReviewContent() {
     setWorkerName(qWorker || stored.name || "Worker");
     setTrade(qTrade || stored.trade || "Service");
     setAmount(qAmount || stored.amount || "600");
+    setBookingId(qBookingId || stored.bookingId || "");
+    setJobId(qJobId || stored.jobId || "");
   }, [searchParams]);
 
   const workerInitial = workerName.charAt(0).toUpperCase();
@@ -45,10 +52,11 @@ function ReviewContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          worker_name: workerName,
-          trade,
-          amount: parseInt(amount),
+          job_id: jobId || undefined,
+          booking_id: bookingId || undefined,
           rating,
+          comment: comment.trim() || undefined,
+          tags: selPos.map(i => posTags[i]),
           positive_tags: selPos.map(i => posTags[i]),
           negative_tags: selNeg.map(i => negTags[i]),
         }),
@@ -107,9 +115,15 @@ function ReviewContent() {
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-3 rounded-[12px] p-3 mx-4 mt-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-        <div className="w-10 h-10 rounded-full flex items-center justify-center text-[18px]" style={{ background: "var(--brand)" }}>🎙️</div>
-        <div><p className="text-[11px]" style={{ color: "var(--text-2)" }}>Tap to record a voice review</p><p className="text-[9px]" style={{ color: "var(--text-3)" }}>या बोलकर review दें</p></div>
+      <div className="mx-4 mt-3">
+        <textarea
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="Tell us more about your experience (optional)..."
+          rows={2}
+          className="w-full rounded-[12px] p-3 text-[12px] resize-none outline-none"
+          style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-1)" }}
+        />
       </div>
       <div className="mx-4 mt-3">
         <button onClick={handleSubmitReview} disabled={submitting}

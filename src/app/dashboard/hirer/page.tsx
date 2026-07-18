@@ -12,7 +12,8 @@ import PullToRefresh from "@/components/PullToRefresh";
 
 interface Booking {
   id: string; status: string; created_at: string;
-  hirer_price: number; worker_id: string;
+  hirer_price: number; total_amount?: number; worker_id: string;
+  trade?: string; worker_name?: string; has_review?: boolean;
   jobs: { trade: string; description: string } | null;
   worker_profiles: { users: { name: string } | null } | null;
 }
@@ -72,12 +73,17 @@ export default function HirerDashboard() {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-        if (token) {
-          fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place`)
-            .then(r => r.json()).then(d => { if (d.features?.[0]) setLocationLabel(d.features[0].text); })
-            .catch(() => setLocationLabel("Your area"));
-        }
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=14`,
+          { headers: { "Accept-Language": "en", "User-Agent": "Kaizy-App/1.0" } }
+        )
+          .then(r => r.json())
+          .then(d => {
+            const label = [d.address?.suburb || d.address?.neighbourhood, d.address?.city || d.address?.town]
+              .filter(Boolean).join(", ") || d.display_name?.split(",").slice(0, 2).join(",") || "Your area";
+            setLocationLabel(label);
+          })
+          .catch(() => setLocationLabel("Your area"));
       }, () => setLocationLabel("Location off"));
     }
     loadDashboardData().finally(() => setLoading(false));
@@ -302,28 +308,45 @@ export default function HirerDashboard() {
           {!loading && recentBookings.length > 0 && (
             <div className="space-y-2">
               {recentBookings.map(b => {
-                const trade = b.jobs?.trade || "electrician";
+                const trade = b.jobs?.trade || b.trade || "electrician";
                 const icon = tradeIcons[trade] || "🔧";
                 const color = tradeColors[trade] || "#FF6B00";
+                const workerName = b.worker_profiles?.users?.name || b.worker_name || "Worker";
                 return (
-                  <div key={b.id} className="flex items-center gap-3 rounded-[16px] p-3.5"
+                  <div key={b.id} className="rounded-[16px] p-3.5"
                        style={{ background: "var(--bg-surface)" }}>
-                    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[16px] shrink-0"
-                         style={{ background: `${color}12` }}>{icon}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>
-                        {b.jobs?.description || `${trade} job`}
-                      </p>
-                      <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>
-                        {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[16px] shrink-0"
+                           style={{ background: `${color}12` }}>{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>
+                          {workerName} — {trade.replace('_', ' ')}
+                        </p>
+                        <p className="text-[10px] font-medium" style={{ color: "var(--text-3)" }}>
+                          {new Date(b.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full block mb-1"
+                              style={{ background: "var(--success-tint)", color: "var(--success)" }}>Done ✓</span>
+                        <p className="text-[12px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                          ₹{b.hirer_price || b.total_amount || "—"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-[9px] font-bold px-2 py-1 rounded-full block mb-1"
-                            style={{ background: "var(--success-tint)", color: "var(--success)" }}>Done ✓</span>
-                      <p className="text-[13px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        ₹{b.hirer_price || "—"}
-                      </p>
+                    <div className="flex gap-2 mt-2.5">
+                      {!b.has_review && (
+                        <Link href={`/booking/review?bookingId=${b.id}`}
+                              className="flex-1 text-center text-[9px] font-bold py-1.5 rounded-[10px]"
+                              style={{ background: "var(--success-tint)", color: "var(--success)" }}>
+                          ⭐ Rate
+                        </Link>
+                      )}
+                      <Link href={`/booking?trade=${trade}&workerId=${b.worker_id}`}
+                            className="flex-1 text-center text-[9px] font-bold py-1.5 rounded-[10px]"
+                            style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                        Book Again
+                      </Link>
                     </div>
                   </div>
                 );

@@ -31,8 +31,11 @@ export async function GET(req: NextRequest) {
       .from('bookings')
       .select(`
         *,
-        jobs(trade, description),
-        worker_profiles(users(name))
+        jobs(trade, description, hirer_id),
+        worker_profiles!bookings_worker_id_fkey(
+          id, avg_rating, kaizy_score,
+          users!worker_profiles_user_id_fkey(name, phone)
+        )
       `)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -59,7 +62,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    return NextResponse.json({ success: true, data: data || [] });
+    // Check which completed bookings already have a review
+    const completedIds = (data || []).filter(b => b.status === 'completed').map(b => b.id);
+    let reviewedSet = new Set<string>();
+    if (completedIds.length > 0) {
+      const { data: reviews } = await supabaseAdmin
+        .from('reviews')
+        .select('booking_id')
+        .in('booking_id', completedIds);
+      reviewedSet = new Set((reviews || []).map(r => r.booking_id).filter(Boolean));
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enriched = (data || []).map((b: any) => ({
+      ...b,
+      trade: b.jobs?.trade || b.trade || '',
+      description: b.jobs?.description || b.description || '',
+      worker_name: b.worker_profiles?.users?.name || b.worker_name || 'Worker',
+      worker_phone: b.worker_profiles?.users?.phone || '',
+      worker_rating: b.worker_profiles?.avg_rating || 0,
+      worker_kaizy_score: b.worker_profiles?.kaizy_score || 0,
+      has_review: reviewedSet.has(b.id),
+    }));
+
+    return NextResponse.json({ success: true, data: enriched });
   } catch (error) {
     console.error('[bookings error]', error);
     return NextResponse.json({ success: true, data: [] });

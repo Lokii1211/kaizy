@@ -50,13 +50,16 @@ export async function GET(request: NextRequest) {
           name: (w.users as Record<string, unknown>)?.name || 'Worker',
           phone: (w.users as Record<string, unknown>)?.phone || '',
           city: (w.users as Record<string, unknown>)?.city || '',
+          trade: w.trade_primary || '',
           skills: [w.trade_primary],
           experience: `${w.experience_years || 0}`,
-          rating: w.avg_rating || 0,
-          jobsCompleted: w.total_jobs || 0,
-          kaizyScore: w.kaizy_score || 0,
-          verified: w.aadhaar_verified || false,
-          available: w.is_available || false,
+          rating: Number(w.avg_rating) || 0,
+          totalJobs: Number(w.total_jobs) || 0,
+          jobsCompleted: Number(w.total_jobs) || 0,
+          kaizyScore: Number(w.kaizy_score) || 0,
+          kaizy_score: Number(w.kaizy_score) || 0,
+          verified: Boolean(w.aadhaar_verified),
+          available: Boolean(w.is_available),
         }));
 
       return NextResponse.json({
