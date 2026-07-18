@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 
 // ============================================================
 // KAIZYPAY v2.0 — Real Payment Integration
@@ -31,7 +32,9 @@ function PaymentContent() {
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<"razorpay" | "cash">("razorpay");
+  const [selectedMethod, setSelectedMethod] = useState<"razorpay" | "upi_qr" | "cash">("razorpay");
+  const [workerUpiId, setWorkerUpiId] = useState<string | null>(null);
+  const [upiCopied, setUpiCopied] = useState(false);
 
   // Load booking data from URL params and sessionStorage
   useEffect(() => {
@@ -78,6 +81,14 @@ function PaymentContent() {
         amount,
         worker,
       });
+
+      // Fetch worker UPI ID from booking status
+      if (bookingId) {
+        fetch(`/api/bookings/status?id=${bookingId}`)
+          .then(r => r.json())
+          .then(j => { if (j.data?.worker_upi_id) setWorkerUpiId(j.data.worker_upi_id); })
+          .catch(() => {});
+      }
 
       setDataLoading(false);
     };
@@ -206,7 +217,7 @@ function PaymentContent() {
   };
 
   const handlePay = () => {
-    if (selectedMethod === "cash") {
+    if (selectedMethod === "cash" || selectedMethod === "upi_qr") {
       simulateCashPayment();
     } else {
       handleRazorpayPayment();
@@ -336,10 +347,11 @@ function PaymentContent() {
 
         {/* Payment methods */}
         <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>Pay with</p>
-        {[
+        {([
           { key: "razorpay" as const, icon: "💳", name: "UPI / Card / Netbanking", c: "var(--brand)" },
+          ...(workerUpiId ? [{ key: "upi_qr" as const, icon: "📱", name: "Scan UPI QR (Direct)", c: "#22C55E" }] : []),
           { key: "cash" as const, icon: "💵", name: "Pay Cash", c: "var(--success)" },
-        ].map(m => (
+        ]).map(m => (
           <button key={m.key}
                   className="w-full flex items-center gap-3 rounded-[14px] p-3 mb-2 active:scale-[0.98]"
                   style={{
@@ -355,6 +367,41 @@ function PaymentContent() {
             </div>
           </button>
         ))}
+
+        {/* UPI QR panel */}
+        {selectedMethod === "upi_qr" && workerUpiId && (() => {
+          const upiUrl = `upi://pay?pa=${encodeURIComponent(workerUpiId)}&pn=${encodeURIComponent(bookingData?.worker.name || "Worker")}&am=${totalAmount}&cu=INR&tn=${encodeURIComponent("Kaizy Service")}`;
+          return (
+            <div className="rounded-[16px] p-5 mb-3 text-center" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>
+                Scan with any UPI app
+              </p>
+              <div className="flex justify-center mb-3">
+                <div className="rounded-[12px] p-3 bg-white inline-block">
+                  <QRCodeSVG value={upiUrl} size={160} level="M" />
+                </div>
+              </div>
+              <p className="text-[11px] font-bold mb-1" style={{ color: "var(--text-1)" }}>
+                ₹{totalAmount.toLocaleString("en-IN")} → {workerUpiId}
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => { navigator.clipboard.writeText(workerUpiId).then(() => { setUpiCopied(true); setTimeout(() => setUpiCopied(false), 2000); }); }}
+                        className="flex-1 rounded-[12px] py-2.5 text-[10px] font-bold active:scale-95"
+                        style={{ background: "var(--bg-surface)", color: "var(--text-2)" }}>
+                  {upiCopied ? "✓ Copied!" : "📋 Copy UPI ID"}
+                </button>
+                <a href={upiUrl}
+                   className="flex-1 rounded-[12px] py-2.5 text-[10px] font-bold text-center active:scale-95 text-white"
+                   style={{ background: "#22C55E" }}>
+                  Open UPI App →
+                </a>
+              </div>
+              <p className="text-[8px] mt-3 font-medium" style={{ color: "var(--text-3)" }}>
+                After paying, tap "Confirm Payment" below to release to worker
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Error message */}
         {paymentError && (
@@ -373,6 +420,8 @@ function PaymentContent() {
             </span>
           ) : selectedMethod === "cash"
             ? `Pay ₹${totalAmount.toLocaleString("en-IN")} Cash`
+            : selectedMethod === "upi_qr"
+            ? `✓ Confirm Payment ₹${totalAmount.toLocaleString("en-IN")}`
             : `Pay ₹${totalAmount.toLocaleString("en-IN")} →`
           }
         </button>

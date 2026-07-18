@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { job_id, rating, tags, comment, tip_amount } = body;
+    const { job_id, booking_id, rating, tags, comment, tip_amount, positive_tags, negative_tags } = body;
 
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json({ success: false, error: "Invalid rating" }, { status: 400 });
@@ -101,12 +101,21 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    // Save review
+    // Save review — resolve worker_id from booking_id if available
+    let resolvedWorkerId: string | null = null;
+    let resolvedJobId = job_id || null;
+    if (booking_id && !resolvedJobId) {
+      const { data: bk } = await supabase.from("bookings").select("job_id, worker_id").eq("id", booking_id).single();
+      if (bk) { resolvedJobId = bk.job_id || null; resolvedWorkerId = bk.worker_id || null; }
+    }
+
     const { error } = await supabase.from("reviews").insert({
-      job_id: job_id || null,
+      job_id: resolvedJobId || null,
+      booking_id: booking_id || null,
       reviewer_id: userId || null,
+      worker_id: resolvedWorkerId || null,
       rating,
-      tags: tags || [],
+      tags: [...(tags || []), ...(positive_tags || []), ...(negative_tags || [])],
       comment: comment || "",
       tip_amount: tip_amount || 0,
       created_at: new Date().toISOString(),
@@ -117,14 +126,12 @@ export async function POST(request: NextRequest) {
       // Still return success even if table doesn't exist yet
     }
 
-    // Update worker's average rating if we have job_id
-    if (job_id) {
+    // Update worker's average rating if we have job_id or already resolved worker_id
+    if (resolvedJobId || resolvedWorkerId) {
       try {
-        const { data: booking } = await supabase
-          .from("bookings")
-          .select("worker_id")
-          .eq("job_id", job_id)
-          .single();
+        const { data: booking } = resolvedWorkerId
+          ? { data: { worker_id: resolvedWorkerId } }
+          : await supabase.from("bookings").select("worker_id").eq("job_id", resolvedJobId).single();
 
         if (booking?.worker_id) {
           // Recalculate avg_rating from all reviews for this worker

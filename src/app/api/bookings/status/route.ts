@@ -32,11 +32,17 @@ export async function GET(req: NextRequest) {
     if (id && id !== 'latest') {
       const { data } = await supabaseAdmin
         .from('bookings')
-        .select('id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at, worker_diagnosis, quoted_amount, parts_cost, complexity_level, total_quoted')
+        .select(`
+          id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at,
+          worker_diagnosis, quoted_amount, parts_cost, complexity_level, total_quoted,
+          worker_profiles!bookings_worker_id_fkey(upi_id, users!worker_profiles_user_id_fkey(name))
+        `)
         .eq('id', id)
         .single();
 
-      return NextResponse.json({ success: true, data: data || { status: 'pending' } });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = data ? { ...data, worker_upi_id: (data as any).worker_profiles?.upi_id || null, worker_name: (data as any).worker_profiles?.users?.name || null } : { status: 'pending' };
+      return NextResponse.json({ success: true, data: enriched });
     }
 
     // Latest booking for the authenticated user

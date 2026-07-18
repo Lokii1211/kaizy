@@ -49,14 +49,17 @@ export default function EmergencyPage() {
       });
       const { latitude: lat, longitude: lng } = pos.coords;
 
-      // Reverse geocode
+      // Reverse geocode via Nominatim (OSM)
       let label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       try {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-        if (token) {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&limit=1&types=locality,poi,address`);
-          const data = await res.json();
-          if (data.features?.[0]) label = data.features[0].place_name || data.features[0].text;
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+          { headers: { 'User-Agent': 'Kaizy/1.0' } }
+        );
+        const data = await res.json();
+        if (data?.address) {
+          const a = data.address;
+          label = a.suburb || a.neighbourhood || a.county || a.city || a.town || a.village || a.state || label;
         }
       } catch {}
       setLocation({ lat, lng, label });

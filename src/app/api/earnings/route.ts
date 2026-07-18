@@ -195,3 +195,55 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Failed to fetch earnings' }, { status: 500 });
   }
 }
+
+// POST /api/earnings — Claim streak bonus
+export async function POST(req: NextRequest) {
+  try {
+    const jwt = await getUserFromRequest(req.cookies);
+    if (!jwt?.sub) return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const bonusType = body.type || 'streak_7';
+
+    const supabase = getSupabase();
+    const now = new Date();
+
+    // Re-verify streak from actual data
+    const thirtyAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { data: streakRows } = await supabase.from('bookings').select('completed_at')
+      .eq('worker_id', jwt.sub).eq('status', 'completed')
+      .gte('created_at', thirtyAgo.toISOString()).not('completed_at', 'is', null);
+    const streak = calcStreak((streakRows || []).map(r => r.completed_at || '').filter(Boolean));
+
+    const minStreak = bonusType === 'streak_7' ? 7 : bonusType === 'streak_14' ? 14 : bonusType === 'streak_30' ? 30 : 7;
+    if (streak < minStreak) {
+      return NextResponse.json({ success: false, error: `Need ${minStreak}-day streak (you have ${streak})` }, { status: 400 });
+    }
+
+    // Check for duplicate claim this week
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const { data: existing } = await supabase.from('notifications')
+      .select('id').eq('user_id', jwt.sub).eq('type', 'STREAK_BONUS')
+      .gte('created_at', weekAgo.toISOString()).limit(1);
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ success: false, error: 'Bonus already claimed this week' }, { status: 409 });
+    }
+
+    // Record the claim as a notification
+    const bonusAmount = bonusType === 'streak_30' ? 200 : bonusType === 'streak_14' ? 100 : 50;
+    await supabase.from('notifications').insert({
+      user_id: jwt.sub,
+      type: 'STREAK_BONUS',
+      title: `₹${bonusAmount} Streak Bonus Claimed! 🔥`,
+      body: `${streak}-day streak bonus of ₹${bonusAmount} will be added to your next payout.`,
+      data: { streak, bonusAmount, bonusType },
+      is_read: false,
+      created_at: now.toISOString(),
+    });
+
+    return NextResponse.json({ success: true, bonusAmount, streak, message: `₹${bonusAmount} streak bonus queued for your next payout!` });
+  } catch (error) {
+    console.error('[earnings bonus]', error);
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
+  }
+}

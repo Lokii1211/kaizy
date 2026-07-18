@@ -48,6 +48,8 @@ export default function EarningsPage() {
   const [tier, setTier] = useState("Active");
   const [tierColor, setTierColor] = useState("#22C55E");
   const [weeklyChart, setWeeklyChart] = useState<{ day: string; amount: number }[]>([]);
+  const [bonusClaiming, setBonusClaiming] = useState(false);
+  const [bonusClaimed, setBonusClaimed] = useState(false);
 
   useEffect(() => {
     const fetchEarnings = async () => {
@@ -233,6 +235,45 @@ export default function EarningsPage() {
           <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>KS</p>
         </div>
       </div>
+
+      {/* Streak bonus claim banner */}
+      {streak >= 7 && !bonusClaimed && (
+        <div className="px-5 mb-4">
+          <div className="rounded-[16px] p-4 flex items-center gap-3" style={{ background: "linear-gradient(135deg, rgba(255,184,0,0.15), rgba(255,107,0,0.1))", border: "1px solid rgba(255,184,0,0.3)" }}>
+            <span className="text-[28px]">🔥</span>
+            <div className="flex-1">
+              <p className="text-[12px] font-black" style={{ color: "var(--text-1)" }}>
+                {streak}-Day Streak Bonus Ready!
+              </p>
+              <p className="text-[9px] font-medium mt-0.5" style={{ color: "var(--text-3)" }}>
+                Claim ₹{streak >= 30 ? 200 : streak >= 14 ? 100 : 50} added to your next payout
+              </p>
+            </div>
+            <button disabled={bonusClaiming}
+                    onClick={async () => {
+                      setBonusClaiming(true);
+                      try {
+                        const res = await fetch("/api/earnings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: streak >= 30 ? "streak_30" : streak >= 14 ? "streak_14" : "streak_7" }) });
+                        const j = await res.json();
+                        if (j.success) setBonusClaimed(true);
+                      } catch {}
+                      setBonusClaiming(false);
+                    }}
+                    className="rounded-[12px] px-3 py-2 text-[10px] font-black text-white active:scale-95 shrink-0 disabled:opacity-60"
+                    style={{ background: "#FFB800" }}>
+              {bonusClaiming ? "..." : "Claim"}
+            </button>
+          </div>
+        </div>
+      )}
+      {bonusClaimed && (
+        <div className="px-5 mb-4">
+          <div className="rounded-[16px] p-3.5 flex items-center gap-2" style={{ background: "var(--success-tint)" }}>
+            <span className="text-[18px]">✅</span>
+            <p className="text-[11px] font-bold" style={{ color: "var(--success)" }}>Bonus claimed! Will appear in your next UPI payout.</p>
+          </div>
+        </div>
+      )}
 
       {/* Pending payouts section */}
       {pendingTotal > 0 && (
