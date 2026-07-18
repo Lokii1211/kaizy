@@ -48,14 +48,17 @@ export default function PostJobPage() {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       setGpsLat(pos.coords.latitude);
       setGpsLng(pos.coords.longitude);
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-      if (token) {
-        try {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&limit=1&types=locality,place`);
-          const d = await res.json();
-          if (d.features?.[0]) setLocation(d.features[0].place_name?.split(',').slice(0, 2).join(',') || d.features[0].text);
-        } catch { setLocation("Your area"); }
-      }
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&addressdetails=1`,
+          { headers: { 'User-Agent': 'Kaizy/1.0' } }
+        );
+        const d = await res.json();
+        if (d?.address) {
+          const a = d.address;
+          setLocation(a.suburb || a.neighbourhood || a.city || a.town || a.village || a.county || "Your area");
+        }
+      } catch { setLocation("Your area"); }
     }, () => setLocation("Location off"));
   }, []);
 

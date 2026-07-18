@@ -31,17 +31,19 @@ export default function LeaderboardPage() {
     const fetchLeaderboard = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/workers?limit=10&sort=kaizy_score&period=${period}`);
+        const res = await fetch(`/api/workers?limit=10&sort=kaizy_score`);
         const json = await res.json();
-        if (json.success && json.data?.workers?.length > 0) {
-          const mapped: LeaderEntry[] = json.data.workers.map((w: {
-            name: string; trade: string; totalJobs?: number; jobs_done?: number;
+        // API returns data as flat array (GET /api/workers)
+        const rawWorkers = Array.isArray(json.data) ? json.data : (json.data?.workers || []);
+        if (json.success && rawWorkers.length > 0) {
+          const mapped: LeaderEntry[] = rawWorkers.map((w: {
+            name: string; trade: string; totalJobs?: number; jobs_done?: number; jobsCompleted?: number;
             rating: number; earnings?: number; streak?: number; kaizyScore?: number; kaizy_score?: number;
           }, i: number) => ({
             rank: i + 1,
             name: w.name,
             trade: w.trade,
-            jobs: w.totalJobs || w.jobs_done || 0,
+            jobs: w.totalJobs || w.jobs_done || w.jobsCompleted || 0,
             rating: w.rating,
             earnings: w.earnings || 0,
             streak: w.streak || 0,
