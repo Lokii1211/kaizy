@@ -23,8 +23,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { trade, problemType, lat, lng, address, description, isEmergency } = body;
+    const { trade, problemType, lat, lng, address, description, isEmergency, scheduledFor } = body;
     let { hirerId } = body;
+
+    // Validate scheduled time if provided (must be in the future, within 7 days)
+    let scheduledDate: Date | null = null;
+    if (scheduledFor) {
+      scheduledDate = new Date(scheduledFor);
+      const now = Date.now();
+      if (isNaN(scheduledDate.getTime()) || scheduledDate.getTime() < now || scheduledDate.getTime() > now + 7 * 24 * 60 * 60 * 1000) {
+        return NextResponse.json({ success: false, error: 'Invalid scheduled time' }, { status: 400 });
+      }
+    }
 
     if (!trade || !lat || !lng) {
       return NextResponse.json({ success: false, error: 'Trade, latitude, longitude required' }, { status: 400 });
@@ -53,7 +63,8 @@ export async function POST(req: NextRequest) {
         longitude: lng,
         address: address || 'Location detected via GPS',
         urgency: isEmergency ? 'emergency' : 'normal',
-        job_type: isEmergency ? 'emergency' : 'instant',
+        job_type: isEmergency ? 'emergency' : scheduledDate ? 'scheduled' : 'instant',
+        scheduled_for: scheduledDate ? scheduledDate.toISOString() : null,
         estimated_price: pricing.workerCharge,
         status: 'searching',
       })

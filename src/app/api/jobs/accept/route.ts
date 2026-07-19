@@ -32,6 +32,38 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabase();
 
+    // Scheduled-job slot conflict check: if this alert's job has a
+    // scheduled_for, reject when the worker already holds another booking
+    // within ±90 minutes of that slot.
+    try {
+      const { data: alertRow } = await supabase
+        .from('job_alerts')
+        .select('job_id, jobs(scheduled_for)')
+        .eq('id', alertId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scheduledFor = (alertRow as any)?.jobs?.scheduled_for;
+      if (scheduledFor) {
+        const slot = new Date(scheduledFor).getTime();
+        const windowMs = 90 * 60 * 1000;
+        const { data: conflicts } = await supabase
+          .from('bookings')
+          .select('id, scheduled_for, jobs!inner(scheduled_for)')
+          .eq('worker_id', workerId)
+          .in('status', ['accepted', 'scheduled', 'en_route', 'in_progress'])
+          .gte('jobs.scheduled_for', new Date(slot - windowMs).toISOString())
+          .lte('jobs.scheduled_for', new Date(slot + windowMs).toISOString())
+          .limit(1);
+        if (conflicts && conflicts.length > 0) {
+          return NextResponse.json({
+            success: false,
+            error: 'You already have a booking near this time slot',
+            reason: 'slot_conflict',
+          }, { status: 409 });
+        }
+      }
+    } catch { /* conflict check is best-effort — never block accepts on its failure */ }
+
     // Call the atomic accept function (handles race conditions)
     const { data, error } = await supabase.rpc('accept_job_atomic', {
       p_alert_id: alertId,

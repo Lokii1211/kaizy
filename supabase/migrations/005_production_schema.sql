@@ -6,12 +6,19 @@
 
 -- ── jobs table: add missing columns ──────────────────────
 ALTER TABLE jobs
-  ADD COLUMN IF NOT EXISTS job_type TEXT DEFAULT 'instant' CHECK (job_type IN ('sos','instant','later','scheduled')),
+  ADD COLUMN IF NOT EXISTS job_type TEXT DEFAULT 'instant',
   ADD COLUMN IF NOT EXISTS est_price_min DECIMAL(8,2),
   ADD COLUMN IF NOT EXISTS est_price_max DECIMAL(8,2),
   ADD COLUMN IF NOT EXISTS landmark TEXT,
   ADD COLUMN IF NOT EXISTS photos TEXT[] DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS voice_url TEXT;
+
+-- Replace old job_type check (001 only allowed 'sos'/'later' — blocks
+-- 'instant', 'emergency', and 'scheduled' inserts the app actually makes)
+ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_job_type_check;
+ALTER TABLE jobs ADD CONSTRAINT jobs_job_type_check CHECK (
+  job_type IN ('sos','instant','later','scheduled','emergency')
+);
 
 -- ── bookings: add production columns ─────────────────────
 ALTER TABLE bookings
@@ -36,12 +43,12 @@ ALTER TABLE bookings
   ADD COLUMN IF NOT EXISTS razorpay_transfer_id TEXT,
   ADD COLUMN IF NOT EXISTS insurance_fee DECIMAL(6,2) DEFAULT 5;
 
--- Expand bookings.status to include quote flow states
+-- Expand bookings.status to include quote flow + all app lifecycle states
 ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
 ALTER TABLE bookings ADD CONSTRAINT bookings_status_check CHECK (status IN (
-  'accepted','en_route','arrived','quote_sent',
-  'quote_approved','working','in_progress','completed',
-  'confirmed','disputed','cancelled','refunded'
+  'pending','matched','scheduled','accepted','en_route','arrived',
+  'quote_sent','quote_approved','quote_rejected','working','in_progress',
+  'completed','confirmed','paid','disputed','cancelled','refunded','reassigning'
 ));
 
 -- ── job_alerts: add distance and rank columns ─────────────

@@ -275,6 +275,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         }
       } catch {}
 
+      // Scheduled booking? (set on the booking page slot picker)
+      let scheduledFor: string | null = null;
+      try { scheduledFor = sessionStorage.getItem('kaizy_scheduled_for'); } catch {}
+
       // Create REAL job in database
       const res = await fetch("/api/jobs/create", {
         method: "POST",
@@ -287,6 +291,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           description: `${state.selectedCategory}: ${state.selectedProblem}`,
           isEmergency: state.selectedProblem.includes("SOS"),
           hirerId,
+          scheduledFor: scheduledFor || undefined,
         }),
       });
       const json = await res.json();

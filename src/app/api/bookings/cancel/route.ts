@@ -137,6 +137,25 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error('[re-dispatch]', e);
       }
+
+      // Worker cancelled AFTER accepting — trigger priority reassignment
+      // (₹50 bonus alerts to 5 nearest workers within 15km)
+      if (['accepted', 'en_route', 'arrived'].includes(status)) {
+        try {
+          const origin = req.nextUrl.origin;
+          await fetch(`${origin}/api/dispatch/reassign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookingId,
+              cancelledWorkerId: workerId,
+              reason: reason || 'Worker cancelled after accepting',
+            }),
+          });
+        } catch (e) {
+          console.error('[reassign trigger]', e);
+        }
+      }
     }
 
     // Impact worker KaizyScore on repeated cancellations

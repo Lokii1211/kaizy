@@ -384,11 +384,30 @@ export default function BookingPage() {
                     lat: locationCoords?.lat,
                     lng: locationCoords?.lng,
                   }));
+                  // Store scheduled slot as real timestamp for jobs/create
+                  if (bookingMode === "scheduled" && scheduledTime) {
+                    const slotToDate = (slot: string): string => {
+                      const d = new Date();
+                      if (slot === "today_evening") d.setHours(18, 0, 0, 0);
+                      else if (slot === "today_night") d.setHours(21, 0, 0, 0);
+                      else if (slot.startsWith("tomorrow")) {
+                        d.setDate(d.getDate() + 1);
+                        d.setHours(slot === "tomorrow_morning" ? 9 : slot === "tomorrow_afternoon" ? 13 : 18, 0, 0, 0);
+                      } else if (slot === "day_after") {
+                        d.setDate(d.getDate() + 2);
+                        d.setHours(10, 0, 0, 0);
+                      }
+                      return d.toISOString();
+                    };
+                    sessionStorage.setItem("kaizy_scheduled_for", slotToDate(scheduledTime));
+                  } else {
+                    sessionStorage.removeItem("kaizy_scheduled_for");
+                  }
                 } catch {}
                 startSearch(selectedTrade, problem);
               }
             }}
-            disabled={!selectedProblem || !locationVerified || (selectedProblem === "Other" && !customProblem.trim())}
+            disabled={!selectedProblem || !locationVerified || (selectedProblem === "Other" && !customProblem.trim()) || (bookingMode === "scheduled" && !scheduledTime)}
             className="w-full rounded-[16px] py-4 text-[14px] font-black text-white active:scale-[0.97] transition-all disabled:opacity-40"
             style={{ background: selectedProblem && locationVerified ? "var(--gradient-cta)" : "var(--bg-elevated)", boxShadow: selectedProblem && locationVerified ? "var(--shadow-brand)" : "none" }}>
             {locationVerified ? "🔍 Find Workers Near Me" : "📍 Verify Location First"}
