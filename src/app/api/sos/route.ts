@@ -96,22 +96,30 @@ export async function POST(req: NextRequest) {
       expires_at: new Date(Date.now() + 45 * 1000).toISOString(), // 45-second timeout
     }));
 
-    const { error: alertError } = await supabaseAdmin
+    const { data: insertedAlerts, error: alertError } = await supabaseAdmin
       .from('job_alerts')
-      .insert(alerts);
+      .insert(alerts)
+      .select('id, worker_id');
 
     if (alertError) {
       console.error('[sos] alert creation failed:', alertError);
     }
 
+    // Map worker → alert ID so Accept buttons can hit /api/jobs/accept directly
+    const alertIdMap: Record<string, string> = {};
+    for (const a of insertedAlerts || []) {
+      alertIdMap[a.worker_id] = a.id;
+    }
+
     // ── 4. Create notifications for each worker ──
     const notifications = nearbyWorkers.map(w => ({
       user_id: w.id,
-      type: 'sos_job',
+      type: 'EMERGENCY_ALERT',
       title: `🆘 Emergency ${trade.replace('_', ' ')} job nearby!`,
       body: `${address || 'Nearby location'} · ₹49 visit charge`,
       data: {
         jobId: job.id,
+        alertId: alertIdMap[w.id],
         trade,
         problemType: problemType || 'general',
         latitude: lat,
