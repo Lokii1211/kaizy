@@ -5,9 +5,13 @@ import { SignJWT, jwtVerify } from 'jose';
 // Real tokens using jose (Edge-compatible)
 // ═══════════════════════════════════════════════════════
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'kaizy-dev-secret-do-not-use-in-production'
-);
+const JWT_SECRET_STRING = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'kaizy-dev-secret-do-not-use-in-production');
+
+if (!JWT_SECRET_STRING && process.env.NODE_ENV === 'production') {
+  console.error('[CRITICAL] JWT_SECRET environment variable is missing in production!');
+}
+
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING || 'kaizy-dev-secret-do-not-use-in-production');
 
 export interface JWTPayload {
   sub: string;        // userId (UUID from Supabase)

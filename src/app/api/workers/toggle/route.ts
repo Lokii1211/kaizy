@@ -29,6 +29,27 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabase();
+
+    // Check if weekly liveness verification is required before going online (RSK-07 / T-23)
+    if (isOnline) {
+      const { data: wp } = await supabase
+        .from('worker_profiles')
+        .select('last_liveness_verified_at')
+        .eq('id', jwt.sub)
+        .single();
+
+      if (wp?.last_liveness_verified_at) {
+        const daysSince = (Date.now() - new Date(wp.last_liveness_verified_at).getTime()) / 86400000;
+        if (daysSince >= 7) {
+          return NextResponse.json({
+            success: false,
+            error: 'Weekly liveness verification required before going online',
+            requiresLiveness: true,
+          }, { status: 403 });
+        }
+      }
+    }
+
     const { error } = await supabase
       .from('worker_profiles')
       .update(updateData)

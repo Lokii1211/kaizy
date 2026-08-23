@@ -336,10 +336,25 @@ export default function WorkerRegisterPage() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl p-3 mb-2" style={{ background: "var(--brand-tint)" }}>
-                  <p className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>
-                    💡 Set YOUR prices for each job type. Hirers see these before booking.
+                <div className="rounded-2xl p-3 mb-2 flex items-center justify-between" style={{ background: "var(--brand-tint)" }}>
+                  <p className="text-[11px] font-bold flex-1" style={{ color: "var(--brand)" }}>
+                    💡 Set prices or use 1-tap standard market rates.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = workerPrices.map(p => ({
+                        ...p,
+                        price_min: String(p.market_min || 300),
+                        price_max: String(p.market_max || 800),
+                      }));
+                      setWorkerPrices(updated);
+                    }}
+                    className="text-[10px] font-extrabold px-3 py-1.5 rounded-xl active:scale-95 transition-transform shrink-0"
+                    style={{ background: "var(--brand)", color: "#FFFFFF" }}
+                  >
+                    ✨ Use Market Rates
+                  </button>
                 </div>
 
                 {workerPrices.map((p, i) => (

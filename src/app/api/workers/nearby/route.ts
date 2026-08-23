@@ -6,6 +6,16 @@ import { findNearbyWorkers } from '@/lib/supabase';
 // Fetch real online workers from Supabase
 // ═══════════════════════════════════════
 
+const DEFAULT_BASE_RATES: Record<string, number> = {
+  electrician: 400,
+  plumber: 350,
+  mechanic: 500,
+  ac_repair: 600,
+  carpenter: 400,
+  painter: 300,
+  mason: 450,
+};
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -28,7 +38,7 @@ export async function GET(req: NextRequest) {
           rating: Number(w.avg_rating),
           totalJobs: w.total_jobs,
           experience: w.experience_years,
-          rate: Number(w.rate_hourly) || 0,
+          rate: Number(w.rate_hourly) || DEFAULT_BASE_RATES[w.trade_primary] || 400,
           distance: w.distance,
           eta: w.eta,
           kaizyScore: w.kaizy_score,

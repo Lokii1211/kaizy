@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
       ? haversine(hirerLat, hirerLng, workerLat, workerLng)
       : body.distance || 2;
     const distanceCharge = distanceKm > 5 ? Math.round((distanceKm - 5) * rule.perKm) : 0;
+    const fuelAllowance = distanceKm > 4 ? Math.round((distanceKm - 4) * 12) : 0; // ₹12/km fuel allowance for transit > 4km
 
     // 3. Time multipliers
     const now = scheduledAt ? new Date(scheduledAt) : new Date();
@@ -129,9 +130,12 @@ export async function POST(request: NextRequest) {
     const isWeekend = [0, 6].includes(now.getDay());
     const isHol = isHoliday(now);
 
-    // 4. Calculate base + distance
-    let workerCharge = (rule.base + distanceCharge) * complexity;
+    // 4. Calculate base + distance + fuel allowance
+    let workerCharge = (rule.base + distanceCharge + fuelAllowance) * complexity;
     const surcharges: { name: string; mult: number; amount: number }[] = [];
+    if (fuelAllowance > 0) {
+      surcharges.push({ name: "⛽ Fuel Allowance (>4km)", mult: 1.0, amount: fuelAllowance });
+    }
 
     // Apply multipliers
     if (isEmergency) {
@@ -173,8 +177,10 @@ export async function POST(request: NextRequest) {
       surcharges.push({ name: "⭐ Pro Worker", mult: lvl, amount: Math.round(workerCharge * (lvl - 1)) });
     }
 
-    // Apply min/max caps
-    workerCharge = Math.min(Math.max(Math.round(workerCharge), rule.min), rule.max);
+    // Apply min/max caps (scale max with active surcharges so surge compensation is not stripped)
+    const totalSurchargeMult = surcharges.reduce((acc, s) => acc * (s.mult || 1.0), 1.0);
+    const dynamicMax = Math.round(rule.max * Math.max(1.0, totalSurchargeMult));
+    workerCharge = Math.min(Math.max(Math.round(workerCharge), rule.min), dynamicMax);
 
     // 5. Platform fees
     const platformFee = Math.round(workerCharge * 0.10);

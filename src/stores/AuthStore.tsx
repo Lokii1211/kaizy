@@ -73,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             verified: json.data.verified,
           };
           setUser(apiUser);
+          try {
+            localStorage.setItem("kaizy_user_id", apiUser.id);
+          } catch {}
           // Sync role if different from stored
           if (apiUser.user_type !== userType) {
             setUserTypeState(apiUser.user_type);
@@ -92,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
     setUserTypeState(u.user_type);
     try {
+      localStorage.setItem("kaizy_user_id", u.id);
       localStorage.setItem("kaizy_user_type", u.user_type);
       localStorage.setItem("kaizy_user_phone", u.phone);
       localStorage.setItem("kaizy_user_name", u.name);
@@ -103,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setUserTypeState(null);
     try {
+      localStorage.removeItem("kaizy_user_id");
       localStorage.removeItem("kaizy_user_type");
       localStorage.removeItem("kaizy_user_phone");
       localStorage.removeItem("kaizy_user_name");

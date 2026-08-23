@@ -17,6 +17,25 @@ export async function GET(req: NextRequest) {
     const workerId = user.sub;
     const supabase = getSupabase();
 
+    // Check if worker is locked due to unpaid cash commission (R-03 defense)
+    const { data: unpaidCommissions } = await supabase
+      .from("commissions")
+      .select("amount")
+      .eq("worker_id", workerId)
+      .eq("status", "pending");
+
+    const totalPending = (unpaidCommissions || []).reduce((sum, c) => sum + Number(c.amount || 0), 0);
+    if (totalPending >= 200) {
+      return NextResponse.json({
+        success: true,
+        data: null,
+        locked: true,
+        lockReason: `Pending commission ₹${totalPending} exceeds ₹200 limit. Please clear dues via UPI to receive new job alerts.`,
+        pendingAmount: totalPending,
+        upiPayLink: `upi://pay?pa=kaizy@icici&pn=Kaizy+Platform&am=${totalPending}&cu=INR&tn=Commission+Clearance+${workerId.slice(0, 8)}`,
+      });
+    }
+
     // Fetch pending job alerts for this worker that haven't expired
     const { data: alerts, error } = await supabase
       .from("job_alerts")

@@ -111,7 +111,7 @@ export default function KaizyPassPage() {
         <h1 className="text-[14px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>
           KaizyPass
         </h1>
-        <button onClick={() => setShowShareCard(true)} aria-label="Share KaizyPass"
+        <button onClick={handleShare} aria-label="Share KaizyPass"
                 className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
                 style={{ background: "var(--bg-surface)" }}>
           <span className="text-[14px]">{shareSuccess ? "✅" : "📤"}</span>

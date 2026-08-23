@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initiateAadhaarOTP, verifyAadhaarOTP, pullDigiLockerCerts, verifyFaceMatch } from "@/lib/aadhaar";
+import { supabaseAdmin } from "@/lib/supabase";
+import { getUserFromRequest } from "@/lib/auth";
 
 // POST /api/kyc — Aadhaar verification, DigiLocker certs, face match
 export async function POST(request: NextRequest) {
@@ -42,6 +44,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: result.error || "Verification failed" }, { status: 400 });
       }
 
+      // Persist verification to database if user is authenticated
+      const jwtUser = await getUserFromRequest(request.cookies);
+      if (jwtUser?.sub) {
+        await supabaseAdmin.from('worker_profiles').update({
+          aadhaar_verified: true,
+          aadhaar_number: result.maskedAadhaar,
+        }).eq('id', jwtUser.sub);
+
+        await supabaseAdmin.from('users').update({
+          verified: true,
+        }).eq('id', jwtUser.sub);
+      }
+
       return NextResponse.json({
         success: true,
         message: "Aadhaar verified successfully ✅",
@@ -82,6 +97,24 @@ export async function POST(request: NextRequest) {
           matchScore: result.matchScore,
           message: result.matched ? "Face match successful ✅" : "Face match failed. Please try again.",
         },
+      });
+    }
+
+    // ========== WEEKLY LIVENESS RECORD ==========
+    if (action === "weekly_liveness" || body.type === "weekly_liveness") {
+      const jwtUser = await getUserFromRequest(request.cookies);
+      const targetWorkerId = jwtUser?.sub || body.workerId;
+
+      if (targetWorkerId) {
+        await supabaseAdmin.from('worker_profiles').update({
+          last_liveness_verified_at: new Date().toISOString(),
+        }).eq('id', targetWorkerId);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Weekly liveness verified successfully ✅",
+        data: { verifiedAt: new Date().toISOString() },
       });
     }
 

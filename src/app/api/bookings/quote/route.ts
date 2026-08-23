@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createNotification } from '@/lib/push-server';
 import { rateLimits, getClientIP } from '@/lib/rateLimit';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // POST /api/bookings/quote
@@ -14,7 +15,7 @@ import { rateLimits, getClientIP } from '@/lib/rateLimit';
 
 interface QuoteRequest {
   bookingId: string;
-  workerId: string;
+  workerId?: string;
   diagnosis: string;         // What the worker found
   complexityLevel: 'simple' | 'medium' | 'complex';
   suggestedAmount: number;   // Worker's quote in ₹
@@ -30,10 +31,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
     }
 
-    const body: QuoteRequest = await req.json();
-    const { bookingId, workerId, diagnosis, complexityLevel, suggestedAmount, partsNeeded, estimatedDuration } = body;
+    const jwt = await getUserFromRequest(req.cookies);
+    if (!jwt?.sub) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
 
-    if (!bookingId || !workerId || !diagnosis || !suggestedAmount) {
+    const body: QuoteRequest = await req.json();
+    const { bookingId, diagnosis, complexityLevel, suggestedAmount, partsNeeded, estimatedDuration } = body;
+    const workerId = body.workerId || jwt.sub;
+
+    if (!bookingId || !diagnosis || !suggestedAmount) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -51,7 +58,7 @@ export async function POST(req: NextRequest) {
     const partsCost = (partsNeeded || []).reduce((sum, p) => sum + (p.cost || 0), 0);
     const totalQuote = clampedAmount + partsCost;
 
-    // Fetch booking to get hirer
+    // Fetch booking to verify worker ownership and get hirer
     const { data: booking, error: bookingErr } = await supabaseAdmin
       .from('bookings')
       .select('*, jobs(hirer_id, trade)')
@@ -60,6 +67,10 @@ export async function POST(req: NextRequest) {
 
     if (bookingErr || !booking) {
       return NextResponse.json({ success: false, error: 'Booking not found' }, { status: 404 });
+    }
+
+    if (booking.worker_id !== jwt.sub && workerId !== jwt.sub) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Only the assigned worker can submit a quote' }, { status: 403 });
     }
 
     // Get worker name
@@ -137,6 +148,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'bookingId and action required' }, { status: 400 });
     }
 
+    const jwt = await getUserFromRequest(req.cookies);
+    if (!jwt?.sub) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+
     const { data: booking, error } = await supabaseAdmin
       .from('bookings')
       .select('*, jobs(trade, hirer_id)')
@@ -145,6 +161,11 @@ export async function PATCH(req: NextRequest) {
 
     if (error || !booking) {
       return NextResponse.json({ success: false, error: 'Booking not found' }, { status: 404 });
+    }
+
+    const hirerIdOnBooking = booking.hirer_id || booking.jobs?.hirer_id;
+    if (hirerIdOnBooking && hirerIdOnBooking !== jwt.sub) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Only the booking customer can approve or reject quotes' }, { status: 403 });
     }
 
     if (action === 'approve') {
@@ -212,4 +233,52 @@ export async function PATCH(req: NextRequest) {
     console.error('[quote approve/reject error]', error);
     return NextResponse.json({ success: false, error: 'Failed to process' }, { status: 500 });
   }
+}
+
+// ═══════════════════════════════════════
+// GET /api/bookings/quote?trade=electrician
+// Returns standardized diagnosis SKU catalog packages (T-10 / UX-03)
+// ═══════════════════════════════════════
+const STANDARD_SKU_CATALOG: Record<string, { id: string; name: string; laborPrice: number; estDuration: string; complexity: 'simple' | 'medium' | 'complex' }[]> = {
+  electrician: [
+    { id: 'ele-01', name: 'Fan Capacitor / Regulator Replacement', laborPrice: 250, estDuration: '20-30 min', complexity: 'simple' },
+    { id: 'ele-02', name: 'Switchboard / Socket Repair (1-3 points)', laborPrice: 350, estDuration: '30-45 min', complexity: 'simple' },
+    { id: 'ele-03', name: 'MCB / Fuse Tripping Fault Diagnosis', laborPrice: 450, estDuration: '45-60 min', complexity: 'medium' },
+    { id: 'ele-04', name: 'Inverter Wiring & Battery Connection', laborPrice: 650, estDuration: '60-90 min', complexity: 'medium' },
+    { id: 'ele-05', name: 'Complete Room Wiring / Short Circuit Repair', laborPrice: 1200, estDuration: '2-3 hours', complexity: 'complex' },
+  ],
+  plumber: [
+    { id: 'plm-01', name: 'Tap / Faucet Washer Leakage Fix', laborPrice: 200, estDuration: '20-30 min', complexity: 'simple' },
+    { id: 'plm-02', name: 'Washbasin Drain Pipe Unclogging', laborPrice: 300, estDuration: '30-45 min', complexity: 'simple' },
+    { id: 'plm-03', name: 'Toilet Flush Tank Mechanism Overhaul', laborPrice: 450, estDuration: '45-60 min', complexity: 'medium' },
+    { id: 'plm-04', name: 'Motor Pump Pipeline Joint Replacement', laborPrice: 600, estDuration: '60-90 min', complexity: 'medium' },
+    { id: 'plm-05', name: 'Overhead Tank Connection & Valve Overhaul', laborPrice: 950, estDuration: '2 hours', complexity: 'complex' },
+  ],
+  mechanic: [
+    { id: 'mec-01', name: 'Two-Wheeler Puncture / Tube Replacement', laborPrice: 150, estDuration: '15-20 min', complexity: 'simple' },
+    { id: 'mec-02', name: 'Spark Plug Cleaning & Battery Jumpstart', laborPrice: 250, estDuration: '20-30 min', complexity: 'simple' },
+    { id: 'mec-03', name: 'Brake Shoe / Cable Adjustment', laborPrice: 350, estDuration: '30-45 min', complexity: 'simple' },
+    { id: 'mec-04', name: 'Engine Oil Flush & Filter Replacement', laborPrice: 450, estDuration: '45 min', complexity: 'medium' },
+    { id: 'mec-05', name: 'Carburetor / Chain Sprocket Overhaul', laborPrice: 800, estDuration: '90 min', complexity: 'complex' },
+  ],
+  ac_repair: [
+    { id: 'ac-01', name: 'Filter Cleaning & Basic Jet Servicing', laborPrice: 450, estDuration: '45 min', complexity: 'simple' },
+    { id: 'ac-02', name: 'AC Capacitor Replacement', laborPrice: 550, estDuration: '45 min', complexity: 'medium' },
+    { id: 'ac-03', name: 'Gas Leakage Diagnosis & Top-up', laborPrice: 1400, estDuration: '60-90 min', complexity: 'complex' },
+    { id: 'ac-04', name: 'Compressor PCB Circuit Repair', laborPrice: 1800, estDuration: '2 hours', complexity: 'complex' },
+  ],
+};
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const trade = (searchParams.get('trade') || 'electrician').toLowerCase();
+  const packages = STANDARD_SKU_CATALOG[trade] || STANDARD_SKU_CATALOG.electrician;
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      trade,
+      packages,
+    },
+  });
 }

@@ -11,9 +11,15 @@ export async function POST(req: NextRequest) {
   try {
     const { bookingId, orderId, paymentId, signature } = await req.json();
 
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      console.error('[CRITICAL] RAZORPAY_KEY_SECRET is not configured');
+      return NextResponse.json({ success: false, error: 'Payment gateway configuration error' }, { status: 500 });
+    }
+
     // Verify Razorpay signature
     const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac('sha256', keySecret)
       .update(`${orderId}|${paymentId}`)
       .digest('hex');
 

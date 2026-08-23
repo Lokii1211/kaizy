@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createNotification } from '@/lib/push-server';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // PATCH /api/bookings/update
@@ -11,11 +12,35 @@ import { createNotification } from '@/lib/push-server';
 
 export async function PATCH(req: NextRequest) {
   try {
+    const jwt = await getUserFromRequest(req.cookies);
+    if (!jwt?.sub) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { bookingId, status, workerId, hirerId, paymentMethod, paymentAmount } = body;
 
     if (!bookingId || !status) {
       return NextResponse.json({ success: false, error: 'bookingId and status required' }, { status: 400 });
+    }
+
+    // Verify booking exists and caller is party to it
+    const { data: existingBooking, error: fetchErr } = await supabaseAdmin
+      .from('bookings')
+      .select('*, jobs(trade, description, hirer_id)')
+      .eq('id', bookingId)
+      .single();
+
+    if (fetchErr || !existingBooking) {
+      return NextResponse.json({ success: false, error: 'Booking not found' }, { status: 404 });
+    }
+
+    const isAuthorized = jwt.sub === existingBooking.worker_id ||
+                         jwt.sub === existingBooking.hirer_id ||
+                         jwt.sub === existingBooking.jobs?.hirer_id;
+
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: 'Unauthorized: You are not assigned to this booking' }, { status: 403 });
     }
 
     const updates: Record<string, unknown> = { status };

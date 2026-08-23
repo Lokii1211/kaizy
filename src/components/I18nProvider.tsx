@@ -16,16 +16,20 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window === "undefined") return "en";
+    try {
+      const saved = localStorage.getItem("kaizy_locale") as Locale | null;
+      if (saved && LOCALE_NAMES[saved]) return saved;
+    } catch {}
+    return "en";
+  });
 
-  // Load saved locale from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("kaizy_locale") as Locale | null;
-    if (saved && LOCALE_NAMES[saved]) {
-      setLocaleState(saved);
-      document.documentElement.lang = saved === "en" ? "en" : saved;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale === "en" ? "en" : locale;
     }
-  }, []);
+  }, [locale]);
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);

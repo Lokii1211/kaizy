@@ -6,6 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
 // ═══════════════════════════════════════
 
 export async function POST(req: NextRequest) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  const adminKey = req.headers.get('x-admin-key');
+  if (!adminSecret || adminKey !== adminSecret) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { phone } = await req.json();
   const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
   
@@ -93,13 +99,17 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(results);
 }
 
-// Also allow GET for simple testing
-export async function GET() {
+// Also allow GET for simple testing (admin only)
+export async function GET(req: NextRequest) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  const adminKey = req.headers.get('x-admin-key');
+  if (!adminSecret || adminKey !== adminSecret) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
   return NextResponse.json({
     keySet: !!FAST2SMS_KEY,
     keyLength: FAST2SMS_KEY.length,
-    keyPrefix: FAST2SMS_KEY ? FAST2SMS_KEY.substring(0, 8) + '...' : 'not set',
     usage: 'POST with { "phone": "91XXXXXXXXXX" } to test SMS delivery',
   });
 }

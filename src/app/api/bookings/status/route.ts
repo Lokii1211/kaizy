@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const jobId = searchParams.get('jobId');
+    const jwtPayload = await getUserFromRequest(req.cookies);
 
     // Lookup by job_id (used by BookingStore polling)
     if (jobId) {
@@ -25,7 +26,13 @@ export async function GET(req: NextRequest) {
         .limit(1)
         .single();
 
-      return NextResponse.json({ success: true, data: data || { status: 'searching' } });
+      if (data) {
+        const isHirer = !!jwtPayload?.sub && jwtPayload.sub === data.hirer_id;
+        const responseData = { ...data, otp: isHirer ? data.otp : undefined };
+        return NextResponse.json({ success: true, data: responseData });
+      }
+
+      return NextResponse.json({ success: true, data: { status: 'searching' } });
     }
 
     // Specific booking by booking ID
@@ -40,14 +47,22 @@ export async function GET(req: NextRequest) {
         .eq('id', id)
         .single();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enriched = data ? { ...data, worker_upi_id: (data as any).worker_profiles?.upi_id || null, worker_name: (data as any).worker_profiles?.users?.name || null } : { status: 'pending' };
-      return NextResponse.json({ success: true, data: enriched });
+      if (data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const raw = data as any;
+        const isHirer = !!jwtPayload?.sub && jwtPayload.sub === raw.hirer_id;
+        const enriched = {
+          ...raw,
+          otp: isHirer ? raw.otp : undefined,
+          worker_upi_id: raw.worker_profiles?.upi_id || null,
+          worker_name: raw.worker_profiles?.users?.name || null
+        };
+        return NextResponse.json({ success: true, data: enriched });
+      }
+      return NextResponse.json({ success: true, data: { status: 'pending' } });
     }
 
     // Latest booking for the authenticated user
-    const jwtPayload = await getUserFromRequest(req.cookies);
-
     let query = supabaseAdmin
       .from('bookings')
       .select('id, status, worker_id, hirer_id, job_id, total_amount, otp, payment_status, created_at')
@@ -57,11 +72,18 @@ export async function GET(req: NextRequest) {
     // Filter by authenticated user if possible
     if (jwtPayload?.sub) {
       query = query.or(`hirer_id.eq.${jwtPayload.sub},worker_id.eq.${jwtPayload.sub}`);
+    } else {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
     const { data } = await query.single();
+    if (data) {
+      const isHirer = jwtPayload.sub === data.hirer_id;
+      const responseData = { ...data, otp: isHirer ? data.otp : undefined };
+      return NextResponse.json({ success: true, data: responseData });
+    }
 
-    return NextResponse.json({ success: true, data: data || { status: 'pending' } });
+    return NextResponse.json({ success: true, data: { status: 'pending' } });
   } catch {
     return NextResponse.json({ success: true, data: { status: 'pending' } });
   }

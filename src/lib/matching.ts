@@ -146,7 +146,7 @@ export function parseNaturalLanguageQuery(query: string): ParsedQuery {
   let detectedUrgency = "normal";
   let detectedTime = "";
   let maxBudget: number | null = null;
-  let subtypes: string[] = [];
+  const subtypes: string[] = [];
   let confidence = 0;
 
   // Detect skill

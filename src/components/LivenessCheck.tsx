@@ -23,21 +23,13 @@ export default function LivenessCheck({
   onVerified,
   onSkip,
 }: LivenessCheckProps) {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => {
+    if (!lastVerifiedAt) return true;
+    const daysSince = (Date.now() - new Date(lastVerifiedAt).getTime()) / 86400000;
+    return daysSince >= 7;
+  });
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
-
-  useEffect(() => {
-    // Check if 7 days have passed since last verification
-    if (!lastVerifiedAt) {
-      setVisible(true);
-      return;
-    }
-    const daysSince = (Date.now() - new Date(lastVerifiedAt).getTime()) / 86400000;
-    if (daysSince >= 7) {
-      setVisible(true);
-    }
-  }, [lastVerifiedAt]);
 
   const handleVerify = async () => {
     setVerifying(true);

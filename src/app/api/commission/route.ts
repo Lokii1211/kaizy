@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // COMMISSION LEDGER — Kaizy's ₹5/job Revenue Model
@@ -15,20 +16,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const workerId = searchParams.get('workerId');
 
-    // If no workerId, try to get from auth token
-    let resolvedId = workerId;
-    if (!resolvedId) {
-      try {
-        const token = req.cookies.get('kaizy_token')?.value;
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          resolvedId = payload.sub || payload.userId || '';
-        }
-      } catch {}
+    const userPayload = await getUserFromRequest(req.cookies);
+    const adminKey = req.headers.get('x-admin-key');
+    const isAdmin = !!process.env.ADMIN_SECRET_KEY && adminKey === process.env.ADMIN_SECRET_KEY;
+
+    let resolvedId = userPayload?.sub || '';
+    if (workerId && (isAdmin || userPayload?.sub === workerId)) {
+      resolvedId = workerId;
     }
 
     if (!resolvedId) {
-      return NextResponse.json({ success: false, error: 'workerId required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
     // Fetch commission records
@@ -43,8 +41,9 @@ export async function GET(req: NextRequest) {
     const totalPaid = records.filter(c => c.status === 'paid').reduce((sum, c) => sum + Number(c.amount || 0), 0);
     const totalPending = records.filter(c => c.status === 'pending').reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
-    // Check if worker should be blocked (unpaid > ₹50)
-    const isBlocked = totalPending > 50;
+    // Check if worker should be blocked (unpaid >= ₹200 threshold)
+    const MAX_UNPAID_COMMISSION = 200;
+    const isBlocked = totalPending >= MAX_UNPAID_COMMISSION;
 
     return NextResponse.json({
       success: true,
@@ -56,7 +55,8 @@ export async function GET(req: NextRequest) {
           totalPending,
           commissionPerJob: COMMISSION_PER_JOB,
           isBlocked,
-          blockReason: isBlocked ? `Pending commission ₹${totalPending} exceeds ₹50 limit. Clear dues to continue.` : null,
+          blockReason: isBlocked ? `Pending commission ₹${totalPending} exceeds ₹${MAX_UNPAID_COMMISSION} limit. Clear dues via UPI to receive job alerts.` : null,
+          upiPayLink: isBlocked ? `upi://pay?pa=kaizy@icici&pn=Kaizy+Platform&am=${totalPending}&cu=INR&tn=Commission+Clearance+${resolvedId.slice(0, 8)}` : null,
           totalJobs: records.length,
         },
       },
@@ -127,6 +127,12 @@ export async function POST(req: NextRequest) {
 // PATCH — Mark commissions as paid (admin action or UPI auto-deduct)
 export async function PATCH(req: NextRequest) {
   try {
+    const adminSecret = process.env.ADMIN_SECRET_KEY;
+    const adminKey = req.headers.get('x-admin-key');
+    if (!adminSecret || adminKey !== adminSecret) {
+      return NextResponse.json({ success: false, error: 'Unauthorized admin action' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { workerId, commissionIds } = body;
 

@@ -223,18 +223,73 @@ export async function POST(request: NextRequest) {
 
       const workerName = String((wp?.users as Record<string, unknown>)?.name || 'Worker');
       const workerRating = Number(wp?.avg_rating || 4.5);
-      const workerTrade = String(wp?.trade_primary || 'technician');
+      const workerTrade = String(wp?.trade_primary || session.trade || 'technician');
       const workerLat = Number(wp?.latitude || session.hirer_lat);
       const workerLng = Number(wp?.longitude || session.hirer_lng);
       const otp = String(Math.floor(1000 + Math.random() * 9000));
-      const bookingId = `BKG-${Date.now()}`;
+      const eta = Math.round(haversine(session.hirer_lat, session.hirer_lng, workerLat, workerLng) * 6 + 3);
+
+      // Create or update real booking in database
+      let bookingId = `BKG-${Date.now()}`;
+      const { data: jobRow } = await supabase.from('jobs').select('hirer_id').eq('id', jobId).single();
+      const hirerId = jobRow?.hirer_id || null;
+
+      const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('job_id', jobId)
+        .neq('status', 'cancelled')
+        .single();
+
+      if (existingBooking) {
+        bookingId = existingBooking.id;
+        await supabase.from('bookings').update({
+          worker_id: effectiveWorkerId,
+          status: 'accepted',
+          otp,
+        }).eq('id', bookingId);
+      } else {
+        const { data: newBooking } = await supabase
+          .from('bookings')
+          .insert({
+            job_id: jobId,
+            hirer_id: hirerId,
+            worker_id: effectiveWorkerId,
+            status: 'accepted',
+            otp,
+            visit_charge: 49,
+            platform_fee: 5,
+          })
+          .select('id')
+          .single();
+        if (newBooking?.id) bookingId = newBooking.id;
+      }
+
+      // Upsert tracking session
+      await supabase.from('tracking_sessions').upsert({
+        booking_id: bookingId,
+        job_id: jobId,
+        worker_id: effectiveWorkerId,
+        hirer_id: hirerId,
+        worker_lat: workerLat,
+        worker_lng: workerLng,
+        dest_lat: session.hirer_lat,
+        dest_lng: session.hirer_lng,
+        eta_minutes: eta,
+        status: 'accepted',
+        otp,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'booking_id' });
+
+      // Update job status
+      await supabase.from('jobs').update({ status: 'accepted' }).eq('id', jobId);
 
       return NextResponse.json({
         success: true,
         data: {
           bookingId, jobId, workerId: effectiveWorkerId,
           workerName, workerRating, workerTrade, otp,
-          eta: Math.round(haversine(session.hirer_lat, session.hirer_lng, workerLat, workerLng) * 6 + 3),
+          eta,
           status: 'accepted',
           message: `${workerName} has accepted your job!`,
         },

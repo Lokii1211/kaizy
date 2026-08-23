@@ -8,8 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 // ═══════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
   const adminKey = req.headers.get('x-admin-key');
-  if (adminKey !== process.env.ADMIN_SECRET_KEY && adminKey !== 'kaizy-setup-2026') {
+  if (!adminSecret || adminKey !== adminSecret) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   const results: string[] = [];

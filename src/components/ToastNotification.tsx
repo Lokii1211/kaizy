@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext, useCallback, ReactNode } from "react";
+import { useState, createContext, useContext, useCallback, ReactNode } from "react";
 
 // ============================================================
 // Kaizy — TOAST NOTIFICATIONS (Uber/Rapido style popups)
@@ -29,16 +29,16 @@ const ToastContext = createContext<ToastCtx>({} as ToastCtx);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   const addToast = useCallback((toast: Omit<Toast, "id">) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setToasts(prev => [...prev, { ...toast, id }]);
     const dur = toast.duration || 5000;
     if (dur > 0) setTimeout(() => removeToast(id), dur);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
+  }, [removeToast]);
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>

@@ -5,7 +5,12 @@ import { NextResponse } from 'next/server';
 // POST /api/auth/test-whatsapp — Send test OTP via WhatsApp
 // ═══════════════════════════════════════
 
-export async function GET() {
+export async function GET(req: Request) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  const adminKey = req.headers.get('x-admin-key');
+  if (!adminSecret || adminKey !== adminSecret) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const AISENSY_KEY = process.env.AISENSY_API_KEY || '';
   const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
   const TEMPLATE = process.env.AISENSY_TEMPLATE_NAME || 'kaizy_otp_auth';
@@ -14,7 +19,6 @@ export async function GET() {
     aisensy: {
       keySet: !!AISENSY_KEY,
       keyLength: AISENSY_KEY.length,
-      keyPrefix: AISENSY_KEY ? AISENSY_KEY.substring(0, 12) + '...' : 'not set',
       template: TEMPLATE,
     },
     fast2sms: {
@@ -29,6 +33,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  const adminKey = req.headers.get('x-admin-key');
+  if (!adminSecret || adminKey !== adminSecret) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const AISENSY_KEY = process.env.AISENSY_API_KEY || '';
 
   if (!AISENSY_KEY) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { rateLimits, getClientIP } from '@/lib/rateLimit';
+import { getUserFromRequest } from '@/lib/auth';
 
 // ═══════════════════════════════════════
 // POST /api/auth/delete-account
@@ -19,23 +20,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { reason } = body;
 
-    // Get user from token
-    const tokenCookie = req.cookies.get('kaizy_token');
-    if (!tokenCookie?.value) {
+    // Cryptographically verify user from token
+    const userPayload = await getUserFromRequest(req.cookies);
+    if (!userPayload?.sub) {
       return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
 
-    let userId = '';
-    try {
-      const payload = JSON.parse(atob(tokenCookie.value.split('.')[1]));
-      userId = payload.sub || payload.userId || '';
-    } catch {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
-    }
-
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'No user ID' }, { status: 401 });
-    }
+    const userId = userPayload.sub;
 
     // Check for pending payouts
     const { data: pendingBookings } = await supabaseAdmin

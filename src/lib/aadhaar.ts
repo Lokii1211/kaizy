@@ -159,7 +159,7 @@ export async function pullDigiLockerCerts(accessToken: string): Promise<Certific
 }
 
 // Verify Face Match (selfie vs Aadhaar photo)
-export async function verifyFaceMatch(selfieBase64: string, aadhaarPhotoBase64: string): Promise<{ success: boolean; matchScore: number; matched: boolean }> {
+export async function verifyFaceMatch(_selfieBase64: string, _aadhaarPhotoBase64: string): Promise<{ success: boolean; matchScore: number; matched: boolean }> {
   // In production: Use Digio Face Match API or AWS Rekognition
   console.log("[KYC] Face match verification initiated");
 
@@ -194,13 +194,22 @@ function validateVerhoeff(number: string): boolean {
   return c === 0;
 }
 
-// Mock KYC result for development
+// Mock KYC result for development only
 function createMockKYCResult(requestId: string): KYCResult {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MOCK_KYC !== 'true') {
+    return {
+      success: false,
+      verified: false,
+      requestId,
+      error: "KYC verification failed. Please try again with valid Digio credentials.",
+    };
+  }
+
   return {
     success: true,
     verified: true,
     requestId,
-    name: "Raju Kumar",
+    name: "Raju Kumar (Dev Mock)",
     dob: "1989-05-15",
     gender: "M",
     maskedAadhaar: "XXXX-XXXX-4210",
@@ -212,8 +221,12 @@ function createMockKYCResult(requestId: string): KYCResult {
   };
 }
 
-// Mock certificates for development
+// Mock certificates for development only
 function createMockCerts(): CertificateResult {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MOCK_KYC !== 'true') {
+    return { success: false, certificates: [] };
+  }
+
   return {
     success: true,
     certificates: [

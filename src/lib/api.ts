@@ -237,13 +237,18 @@ export const analyticsApi = {
     apiFetch(`/analytics${period ? `?period=${period}` : ""}`),
 };
 
-// ========== PAYMENTS (Razorpay Escrow) ==========
+// ========== PAYMENTS (Razorpay Escrow & Cash/UPI) ==========
 export const paymentsApi = {
-  createOrder: (data: { bookingId: string; amount: number; workerName?: string; hirerName?: string; description?: string }) =>
-    apiFetch("/payments", { method: "POST", body: JSON.stringify({ action: "create_order", ...data }) }),
+  createOrder: (data: { bookingId: string; amount?: number }) =>
+    apiFetch("/payments/create-order", { method: "POST", body: JSON.stringify(data) }),
 
   verifyPayment: (data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; bookingId: string }) =>
-    apiFetch("/payments", { method: "POST", body: JSON.stringify({ action: "verify_payment", ...data }) }),
+    apiFetch("/payments/verify", { method: "POST", body: JSON.stringify({
+      orderId: data.razorpay_order_id,
+      paymentId: data.razorpay_payment_id,
+      signature: data.razorpay_signature,
+      bookingId: data.bookingId,
+    }) }),
 
   releasePayout: (data: { bookingId: string; workerId: string; amount: number; upiId: string }) =>
     apiFetch("/payments", { method: "POST", body: JSON.stringify({ action: "release_payout", ...data }) }),

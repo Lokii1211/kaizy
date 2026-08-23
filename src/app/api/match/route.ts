@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
       results.sort((a: Record<string, unknown>, b: Record<string, unknown>) => Number(a.price) - Number(b.price));
     }
 
+    const zeroSupply = results.length === 0;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -107,6 +109,15 @@ export async function POST(request: NextRequest) {
         total: results.length,
         searchRadius: maxDistance,
         center: { lat, lng },
+        zeroSupply,
+        message: zeroSupply
+          ? "No technicians currently online nearby for instant SOS. Please schedule a booking."
+          : `${results.length} verified worker(s) nearby`,
+        suggestedSlots: zeroSupply ? [
+          "Today 4:00 PM – 6:00 PM",
+          "Tomorrow 9:00 AM – 11:00 AM",
+          "Tomorrow 2:00 PM – 4:00 PM",
+        ] : undefined,
         timestamp: new Date().toISOString(),
       },
     });

@@ -36,21 +36,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user ID from JWT or from phone lookup
-    let userId = jwt?.sub;
-
-    if (!userId) {
-      // Fallback: if not logged in but phone provided
-      const phone = body.phone;
-      if (phone) {
-        const { data: existing } = await supabaseAdmin
-          .from('users')
-          .select('id')
-          .eq('phone', phone.startsWith('+91') ? phone : `+91${phone}`)
-          .single();
-        userId = existing?.id;
-      }
-    }
+    // Enforce authenticated JWT session
+    const userId = jwt?.sub;
 
     if (!userId) {
       return NextResponse.json(

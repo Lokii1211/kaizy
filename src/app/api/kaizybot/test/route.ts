@@ -4,7 +4,12 @@ import { NextResponse } from 'next/server';
 // GET /api/kaizybot/test — Debug Claude API
 // ═══════════════════════════════════════
 
-export async function GET() {
+export async function GET(req: Request) {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  const adminKey = req.headers.get('x-admin-key');
+  if (!adminSecret || adminKey !== adminSecret) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
   const key = process.env.CLAUDE_API_KEY || '';
   
   if (!key) {

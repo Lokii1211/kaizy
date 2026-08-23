@@ -48,6 +48,7 @@ export interface ChatMessage {
 interface BookingCtx {
   state: BookingState;
   startSearch: (category: string, problem: string) => void;
+  instantSOS: (category: string, problem?: string) => Promise<void>;
   selectWorker: (worker: NearbyWorker) => void;
   confirmBooking: () => void;
   workerAccepted: () => void;
@@ -92,16 +93,12 @@ const BASE_RATES: Record<string, number> = {
   "Carpenter": 400, "Painter": 300, "Mason": 450, "Puncture": 150,
 };
 
-// ── Helper: Get user ID from auth cookie ──
+// ── Helper: Get user ID from local auth storage ──
 function getUserId(): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(c => c.trim().startsWith('kaizy_token='));
-    if (tokenCookie) {
-      const token = tokenCookie.split('=')[1];
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.sub || payload.userId || null;
-    }
+    const stored = localStorage.getItem('kaizy_user_id');
+    if (stored) return stored;
   } catch {}
   return null;
 }
@@ -120,25 +117,26 @@ async function updateBookingDB(bookingId: string, status: string, extra: Record<
 }
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<BookingState>(defaultState);
-  const etaTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const moveTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const bookingChannelRef = useRef<RealtimeChannel | undefined>(undefined);
-
-  // ── Restore booking state from sessionStorage on mount ──
-  useEffect(() => {
+  // ── Restore booking state from sessionStorage on initialization (no cascading render) ──
+  const [state, setState] = useState<BookingState>(() => {
+    if (typeof window === "undefined") return defaultState;
     try {
       const saved = sessionStorage.getItem('kaizy_booking_state');
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<BookingState>;
         if (parsed.status && parsed.status !== 'idle') {
-          setState(prev => ({ ...prev, ...parsed }));
+          return { ...defaultState, ...parsed };
         }
       }
     } catch {}
-  }, []);
+    return defaultState;
+  });
+
+  const etaTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const moveTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const bookingChannelRef = useRef<RealtimeChannel | undefined>(undefined);
 
   // ── Persist booking state to sessionStorage on active state changes ──
   useEffect(() => {
@@ -236,6 +234,82 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       worker.dist, "normal"
     );
     setState(prev => ({ ...prev, selectedWorker: worker, pricing }));
+  }, [calculatePricing]);
+
+  // ── 1-TAP INSTANT SOS DISPATCH (UX-01 / T-04 Streamlining) ──
+  const instantSOS = useCallback(async (category: string, problem?: string) => {
+    const trade = TRADE_API_MAP[category] || category.toLowerCase();
+    const prob = problem || "Emergency Immediate Request";
+    const otp = String(Math.floor(1000 + Math.random() * 9000));
+    const baseRate = BASE_RATES[category] || 400;
+    const pricing = calculatePricing(baseRate, 2.5, "sos");
+
+    setState(prev => ({
+      ...prev,
+      selectedCategory: category,
+      selectedProblem: prob,
+      pricing,
+      status: "matched",
+      otp,
+      messages: [{ id: "sys-1", sender: "system", text: "Emergency SOS broadcast started! Searching for nearest verified workers...", timestamp: Date.now(), read: true }],
+    }));
+
+    try {
+      let jobLat = 11.0168;
+      let jobLng = 76.9558;
+
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          );
+          jobLat = pos.coords.latitude;
+          jobLng = pos.coords.longitude;
+        } catch {}
+      }
+
+      const hirerId = getUserId();
+      let verifiedAddress = '';
+      try {
+        const loc = sessionStorage.getItem('kaizy_verified_location');
+        if (loc) {
+          const parsed = JSON.parse(loc);
+          verifiedAddress = parsed.address || '';
+          if (parsed.lat && parsed.lng) { jobLat = parsed.lat; jobLng = parsed.lng; }
+        }
+      } catch {}
+
+      const res = await fetch("/api/jobs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trade,
+          problemType: prob.toLowerCase().replace(/\s+/g, '_'),
+          lat: jobLat, lng: jobLng,
+          address: verifiedAddress || `GPS: ${jobLat.toFixed(4)}, ${jobLng.toFixed(4)}`,
+          description: `SOS: ${category} - ${prob}`,
+          isEmergency: true,
+          hirerId,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data?.jobId) {
+        const realJobId = json.data.jobId;
+        setState(prev => ({ ...prev, jobId: realJobId, userLocation: { lat: jobLat, lng: jobLng } }));
+        try {
+          sessionStorage.setItem('kaizy_active_job', JSON.stringify({
+            jobId: realJobId,
+            bookingId: null,
+            trade, problem: prob,
+            pricing,
+          }));
+          sessionStorage.setItem('kaizy_booking_location', JSON.stringify({ lat: jobLat, lng: jobLng, address: verifiedAddress }));
+        } catch {}
+      }
+    } catch (e) {
+      console.error("[instantSOS error]", e);
+    }
   }, [calculatePricing]);
 
   // ── CONFIRM BOOKING: Create REAL job in Supabase ──
@@ -577,7 +651,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ bookingId: state.bookingId, jobId: state.jobId }),
       }).catch(() => {});
     }
-    setState(prev => ({
+    setState(() => ({
       ...defaultState,
       messages: [{ id: `sys-${Date.now()}`, sender: "system", text: "Booking cancelled.", timestamp: Date.now(), read: true }],
     }));
@@ -602,7 +676,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   return (
     <BookingContext.Provider value={{
-      state, startSearch, selectWorker, confirmBooking, workerAccepted,
+      state, startSearch, instantSOS, selectWorker, confirmBooking, workerAccepted,
       updateWorkerLocation, workerArrived, jobStarted, jobCompleted,
       confirmPayment, submitReview, sendMessage, cancelBooking, resetBooking, calculatePricing,
     }}>

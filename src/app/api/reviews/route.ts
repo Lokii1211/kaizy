@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { rateLimits, getClientIP } from "@/lib/rateLimit";
+import { getUserFromRequest } from "@/lib/auth";
 
 // GET /api/reviews?workerId=xxx&limit=5 — Fetch reviews for a worker
 export async function GET(request: NextRequest) {
@@ -91,15 +92,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid rating" }, { status: 400 });
     }
 
-    // Get user from auth cookie
-    const tokenCookie = request.cookies.get("kaizy_token");
-    let userId = "";
-    try {
-      if (tokenCookie?.value) {
-        const payload = JSON.parse(atob(tokenCookie.value.split(".")[1]));
-        userId = payload.sub || payload.userId || "";
-      }
-    } catch {}
+    // Authenticate reviewer via cryptographic token
+    const userPayload = await getUserFromRequest(request.cookies);
+    const userId = userPayload?.sub || null;
 
     // Save review — resolve worker_id from booking_id if available
     let resolvedWorkerId: string | null = null;

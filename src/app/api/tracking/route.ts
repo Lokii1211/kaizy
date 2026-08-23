@@ -97,11 +97,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ── UPDATE WORKER GPS LOCATION ──
+    // ── UPDATE WORKER GPS LOCATION (With Mock & Velocity Defense) ──
     if (action === 'update') {
-      const { bookingId, lat, lng, speed = 0 } = body;
+      const { bookingId, lat, lng, speed = 0, isMock = false, is_mock = false } = body;
       if (!bookingId || lat == null || lng == null) {
         return NextResponse.json({ success: false, error: 'bookingId, lat, lng required' }, { status: 400 });
+      }
+
+      // Reject Mock GPS providers
+      if (isMock || is_mock) {
+        return NextResponse.json({ success: false, error: 'Mock location detected', code: 'mock_location_detected' }, { status: 403 });
       }
 
       const { data: session, error: fetchErr } = await supabase
@@ -115,6 +120,22 @@ export async function POST(request: NextRequest) {
       }
       if (session.status !== 'en_route') {
         return NextResponse.json({ success: true, data: { status: session.status, message: 'Not en route' } });
+      }
+
+      // Velocity & Impossible Travel Check (R-02 defense)
+      if (session.updated_at && session.worker_lat != null && session.worker_lng != null) {
+        const timeDiffSeconds = Math.max(1, (Date.now() - new Date(session.updated_at).getTime()) / 1000);
+        const distanceDeltaKm = haversine(session.worker_lat, session.worker_lng, lat, lng);
+        const calculatedKmh = (distanceDeltaKm / timeDiffSeconds) * 3600;
+
+        // Impossible speed for two-wheeler city transit (> 120 km/h)
+        if (calculatedKmh > 120 && distanceDeltaKm > 0.5) {
+          return NextResponse.json({
+            success: false,
+            error: 'Impossible velocity delta detected',
+            code: 'teleportation_detected',
+          }, { status: 403 });
+        }
       }
 
       const dist = haversine(lat, lng, session.dest_lat, session.dest_lng);
@@ -239,6 +260,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getSupabase();
+    const user = await getUserFromRequest(request.cookies);
+
     const { data: session, error } = await supabase
       .from('tracking_sessions')
       .select('*, users!worker_id(name)')
@@ -248,6 +271,15 @@ export async function GET(request: NextRequest) {
     if (error || !session) {
       return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
+
+    // Lookup booking to verify caller is party to this booking
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('hirer_id, worker_id')
+      .eq('id', bookingId)
+      .single();
+
+    const isHirer = !!user?.sub && (booking?.hirer_id === user.sub || session.hirer_id === user.sub);
 
     const dist = haversine(session.worker_lat, session.worker_lng, session.dest_lat, session.dest_lng);
 
@@ -266,7 +298,7 @@ export async function GET(request: NextRequest) {
         },
         destination: { lat: session.dest_lat, lng: session.dest_lng },
         eta: session.eta_minutes,
-        otp: session.otp,
+        otp: isHirer ? session.otp : undefined,
         distanceKm: Math.round(dist * 100) / 100,
         startedAt: session.started_at,
         arrivedAt: session.arrived_at,

@@ -170,10 +170,14 @@ export async function POST(req: NextRequest) {
 
     console.log(`[OTP] ${cleanPhone}: sent=${sent} channel=${channel} dbSaved=${dbSaved}`);
 
+    if (process.env.NODE_ENV !== 'production' && !sent) {
+      console.log(`\x1b[33m[DEV ONLY OTP]\x1b[0m ${cleanPhone} -> \x1b[32m${otp}\x1b[0m (valid 10m)`);
+    }
+
     const getMessage = () => {
       if (channel === 'whatsapp' || channel === 'whatsapp-direct') return 'OTP sent to your WhatsApp ✓';
       if (channel === 'sms') return 'OTP sent to your phone via SMS ✓';
-      return 'OTP generated — use the code shown below';
+      return 'Verification code sent. Please check your phone.';
     };
 
     return NextResponse.json({
@@ -183,8 +187,6 @@ export async function POST(req: NextRequest) {
       data: {
         otp_sent: sent,
         channel,
-        // Always expose OTP on-screen since no SMS/WhatsApp keys are configured
-        fallback_otp: otp,
       },
     });
   } catch (error) {

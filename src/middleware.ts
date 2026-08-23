@@ -8,9 +8,13 @@ import { jwtVerify } from 'jose';
 // 3. Runs at the edge — no Node.js APIs
 // ═══════════════════════════════════════════════════════
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'kaizy-dev-secret-do-not-use-in-production'
-);
+const JWT_SECRET_STRING = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'kaizy-dev-secret-do-not-use-in-production');
+
+if (!JWT_SECRET_STRING && process.env.NODE_ENV === 'production') {
+  console.error('[CRITICAL] JWT_SECRET environment variable is missing in production!');
+}
+
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING || 'kaizy-dev-secret-do-not-use-in-production');
 
 // Routes that don't need authentication
 const PUBLIC_PATHS = [
@@ -68,7 +72,7 @@ const HIRER_PATHS = [
   '/profile',
 ];
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // ── 1. Skip public paths ──
