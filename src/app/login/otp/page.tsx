@@ -150,7 +150,7 @@ function OtpVerificationContent() {
         // Navigate to role home after brief green flash
         setTimeout(() => {
           if (data.isNewUser) {
-            router.replace(resolvedRole === "worker" ? "/register/worker" : "/onboarding/hirer");
+            router.replace(resolvedRole === "worker" ? "/onboarding/worker" : "/onboarding/hirer");
           } else {
             router.replace(resolvedRole === "worker" ? "/dashboard/worker" : "/dashboard/hirer");
           }

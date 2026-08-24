@@ -37,11 +37,16 @@ const parentMap: Record<string, string> = {
   "/onboarding/hirer/profile": "/login",
   "/onboarding/hirer/location": "/onboarding/hirer/profile",
   "/onboarding/hirer/ready": "/onboarding/hirer/location",
-  "/onboarding/worker/trade": "/register/worker",
-  "/onboarding/worker/pricing": "/onboarding/specialization",
+  "/onboarding/worker/selfie": "/login",
+  "/onboarding/worker/trade": "/onboarding/worker/selfie",
+  "/onboarding/worker/pricing": "/onboarding/worker/trade",
+  "/onboarding/worker/verification": "/onboarding/worker/pricing",
+  "/onboarding/worker/availability": "/onboarding/worker/verification",
+  "/onboarding/worker/payment": "/onboarding/worker/availability",
   "/onboarding/bank": "/dashboard/worker",
   "/onboarding/specialization": "/dashboard/worker",
   "/onboarding/hirer": "/",
+  "/onboarding/worker": "/",
 
   // Settings & Preferences
   "/settings/notifications": "/settings",
