@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, calculateDistance } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/auth";
+import { createEscrowOrder } from "@/lib/razorpay";
+import { sendPushNotification } from "@/lib/push-server";
+import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
 // ═══════════════════════════════════════════════════════
 // POST /api/dispatch/later
-// Scheduled "Later" Booking Creation + Worker Notification
+// Scheduled "Later" Booking Creation + Conflict Check + Razorpay Deposit + Worker FCM/WhatsApp
 // ═══════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
@@ -12,17 +15,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const {
       workerId,
-      trade = "electrician",
-      problemType = "General Service",
-      description = "",
-      scheduledFor,
-      photos = [],
-      voiceNoteUrl = null,
-      address = "Hirer Location",
       lat = 11.0168,
       lng = 76.9558,
-      estimatedMin = 249,
-      estimatedMax = 499,
+      address = "Hirer Address",
+      landmark = "",
+      trade = "electrician",
+      problemType = "General Inspection",
+      description = "",
+      photos = [],
+      scheduledFor,
     } = body;
 
     if (!workerId || !scheduledFor) {
@@ -34,14 +35,49 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabase();
 
-    // Get current hirer ID from cookie/auth
     let hirerId = body.hirerId;
     if (!hirerId) {
       const jwt = await getUserFromRequest(req.cookies);
       if (jwt?.sub) hirerId = jwt.sub;
     }
 
-    // 1. Create Job record
+    // 1. Conflict Check: check if worker has booking within ±2 hours of scheduledFor
+    const startTime = new Date(new Date(scheduledFor).getTime() - 2 * 3600000).toISOString();
+    const endTime = new Date(new Date(scheduledFor).getTime() + 2 * 3600000).toISOString();
+
+    const { count: conflictCount } = await supabase
+      .from("bookings")
+      .select("*", { count: "exact", head: true })
+      .eq("worker_id", workerId)
+      .not("status", "in", '("cancelled","refunded")')
+      .gte("scheduled_for", startTime)
+      .lte("scheduled_for", endTime);
+
+    if (conflictCount && conflictCount > 0) {
+      return NextResponse.json(
+        { success: false, error: "slot_unavailable", message: "Worker already has a booking within this 2-hour window" },
+        { status: 409 }
+      );
+    }
+
+    // 2. Fetch worker info for distance & visit charge
+    const { data: worker } = await supabase
+      .from("worker_profiles")
+      .select("*, users(name, phone)")
+      .eq("id", workerId)
+      .single();
+
+    let distance = 1.8;
+    if (worker?.latitude && worker?.longitude) {
+      distance = calculateDistance(lat, lng, Number(worker.latitude), Number(worker.longitude));
+    }
+
+    // Zone logic: <3km -> 49, 3-7km -> 79, 7+km -> 119
+    let visitCharge = 49;
+    if (distance > 7) visitCharge = 119;
+    else if (distance >= 3) visitCharge = 79;
+
+    // 3. Create Job
     const { data: job, error: jobError } = await supabase
       .from("jobs")
       .insert({
@@ -51,29 +87,25 @@ export async function POST(req: NextRequest) {
         description: description || `Scheduled booking: ${problemType}`,
         latitude: lat,
         longitude: lng,
-        address,
+        address: landmark ? `${address} (Near ${landmark})` : address,
+        landmark,
         job_type: "later",
         scheduled_for: scheduledFor,
-        estimated_price: estimatedMin,
+        estimated_price: body.estimatedMin || 299,
         photos,
-        status: "accepted",
+        status: "matched",
         created_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (jobError || !job) {
-      console.error("[dispatch/later job create error]", jobError);
-      return NextResponse.json(
-        { success: false, error: "Failed to create scheduled job" },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: "Failed to create scheduled job" }, { status: 500 });
     }
 
-    // Generate 4-digit OTP
     const otp = String(Math.floor(1000 + Math.random() * 9000));
 
-    // 2. Create Booking record
+    // 4. Create Booking
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -81,53 +113,73 @@ export async function POST(req: NextRequest) {
         hirer_id: hirerId || null,
         worker_id: workerId,
         status: "accepted",
+        scheduled_for: scheduledFor,
         otp,
-        visit_charge: 49,
-        hirer_price: estimatedMin,
+        visit_charge: visitCharge,
+        hirer_price: body.estimatedMin || 299,
         created_at: new Date().toISOString(),
       })
-      .select("*, worker_profiles(*, users(name, profile_photo, phone))")
+      .select()
       .single();
 
     if (bookingError || !booking) {
-      console.error("[dispatch/later booking create error]", bookingError);
-      return NextResponse.json(
-        { success: false, error: "Failed to create booking confirmation" },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: "Failed to create booking" }, { status: 500 });
     }
 
-    // 3. Notify Worker (In-app Notification record)
-    await supabase.from("notifications").insert({
-      user_id: workerId,
-      title: "🗓️ New Scheduled Booking Confirmed!",
-      body: `You have a booking for ${problemType} on ${new Date(scheduledFor).toLocaleDateString("en-IN", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })}.`,
-      type: "BOOKING_ACCEPTED",
-      data: { bookingId: booking.id, scheduledFor },
-      created_at: new Date().toISOString(),
+    // 5. Create Razorpay order for visit_charge amount
+    let orderId = `KON-${booking.id.slice(0, 8)}`;
+    try {
+      const order = await createEscrowOrder({
+        bookingId: booking.id,
+        amount: visitCharge,
+        workerName: worker?.users?.name || "Kaizy Captain",
+        hirerName: "Hirer",
+        description: `Visit charge deposit for ${problemType}`,
+      });
+      if (order?.orderId) orderId = order.orderId;
+    } catch {}
+
+    const formattedDate = new Date(scheduledFor).toLocaleDateString("en-IN", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
 
-    const bookingCode = `KZ-${booking.id.slice(0, 8).toUpperCase()}`;
+    // 6. Send FCM to Worker
+    sendPushNotification(
+      workerId,
+      "📅 New Scheduled Booking",
+      `New booking for ${problemType} on ${formattedDate}. Visit deposit ₹${visitCharge} reserved.`,
+      `/active-job`
+    ).catch(() => {});
+
+    // 7. Send WhatsApp to Worker
+    if (worker?.users?.phone) {
+      sendWhatsAppNotification({
+        to: worker.users.phone,
+        template: "worker_assigned",
+        params: {
+          hirerName: "Customer",
+          task: problemType,
+          location: address.slice(0, 30),
+          amount: String(body.estimatedMin || 299),
+          date: formattedDate,
+          trackingLink: `https://kaizy.app/active-job`,
+        },
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
       bookingId: booking.id,
-      bookingCode,
+      orderId,
+      amount: visitCharge,
       scheduledFor,
-      job,
-      booking,
     });
   } catch (error) {
     console.error("[dispatch/later error]", error);
-    return NextResponse.json(
-      { success: false, error: "Internal scheduling error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Scheduling failed" }, { status: 500 });
   }
 }

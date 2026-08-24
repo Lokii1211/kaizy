@@ -164,3 +164,5 @@ export async function sendEmergencyAlert(params: {
     timing: "ASAP — Emergency",
   });
 }
+
+export const sendWhatsAppNotification = sendWhatsAppMessage;
