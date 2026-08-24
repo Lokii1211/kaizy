@@ -30,6 +30,8 @@ const parentMap: Record<string, string> = {
   "/booking": "/",
 
   // Worker Flows
+  "/worker/job": "/dashboard/worker",
+  "/worker/payment-received": "/dashboard/worker",
   "/worker/active-job": "/dashboard/worker",
   "/active-job": "/dashboard/worker",
   "/earnings/withdrawal-success": "/earnings",
