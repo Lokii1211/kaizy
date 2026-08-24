@@ -62,7 +62,9 @@ const parentMap: Record<string, string> = {
   "/onboarding/worker": "/",
 
   // Settings & Preferences
+  "/notifications": "/",
   "/settings/notifications": "/settings",
+  "/settings": "/",
   "/delete-account": "/settings",
   "/saved-addresses": "/settings",
   "/saved-workers": "/settings",
