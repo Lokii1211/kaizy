@@ -63,6 +63,7 @@ const parentMap: Record<string, string> = {
 
   // Settings & Preferences
   "/notifications": "/",
+  "/kaizybot": "/",
   "/settings/notifications": "/settings",
   "/settings": "/",
   "/delete-account": "/settings",
