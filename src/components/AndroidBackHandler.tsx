@@ -16,6 +16,8 @@ const parentMap: Record<string, string> = {
   "/emergency": "/",
   "/emergency/searching": "/hirer/sos",
   "/hirer/browse": "/",
+  "/hirer/worker": "/hirer/browse",
+  "/hirer/book": "/hirer/browse",
   "/hirer/booking/searching": "/dashboard/hirer",
   "/hirer/booking/matched": "/dashboard/hirer",
   "/hirer/booking/payment": "/dashboard/hirer",

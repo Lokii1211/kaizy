@@ -350,7 +350,7 @@ function HirerBrowseContent() {
                   {/* Action Buttons */}
                   <div className="flex gap-2.5 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
                     <Link
-                      href={`/hirer/browse/${w.id}`}
+                      href={`/hirer/worker/${w.id}`}
                       className="flex-1 py-2.5 rounded-[14px] text-center text-[12px] font-bold border active:scale-95 transition-all"
                       style={{
                         background: "var(--bg-surface)",
