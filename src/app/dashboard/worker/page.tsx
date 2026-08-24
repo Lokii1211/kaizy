@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import JobAlertOverlay from "@/components/JobAlertOverlay";
 import LivenessCheck from "@/components/LivenessCheck";
 import NightSafetyBriefing from "@/components/NightSafetyBriefing";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // WORKER DASHBOARD v10.0 — Stitch "Digital Artisan" Design
@@ -51,12 +52,16 @@ interface ActiveJobAlert {
 
 export default function WorkerDashboardPage() {
   const { isDark, toggle } = useTheme();
-  const { user: authUser } = useAuth();
+  const { user: authUser, userType } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (authUser !== null && authUser.user_type !== "worker") router.replace("/dashboard/hirer");
-  }, [authUser, router]);
+    if (userType === "hirer") router.replace("/dashboard/hirer");
+  }, [userType, router]);
+
+  if (userType === "hirer") {
+    return <LoadingShell />;
+  }
   const [isOnline, setIsOnline] = useState(false);
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [todayJobs, setTodayJobs] = useState(0);

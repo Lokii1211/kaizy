@@ -88,7 +88,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" />
       </head>
       <body className={`${epilogue.variable} ${jakarta.variable} ${jetbrains.variable} antialiased`}
-            style={{ fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}>
+            style={{ backgroundColor: "var(--bg-app)", fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" }}>
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
         <AuthProvider>
         <ThemeProvider>

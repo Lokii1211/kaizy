@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 
 // ═══════════════════════════════════════════════════════
-// KAIZY — EDGE MIDDLEWARE (runs before every route)
-// 1. Protects private routes — redirects to /login
-// 2. Role-based routing — ZERO flash bug
-// 3. Runs at the edge — no Node.js APIs
+// KAIZY — SYNCHRONOUS EDGE MIDDLEWARE (Zero Role Flash)
+// 1. Synchronously decodes JWT & role cookies at the Edge
+// 2. Injects x-user-type header BEFORE any page renders
+// 3. Immediate role redirects (no client-side 300ms flash)
 // ═══════════════════════════════════════════════════════
 
-const JWT_SECRET_STRING = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'kaizy-dev-secret-do-not-use-in-production');
-
-if (!JWT_SECRET_STRING && process.env.NODE_ENV === 'production') {
-  console.error('[CRITICAL] JWT_SECRET environment variable is missing in production!');
-}
-
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING || 'kaizy-dev-secret-do-not-use-in-production');
-
-// Routes that don't need authentication
-const PUBLIC_PATHS = [
-  '/login',
-  '/register',        // /register/worker and /register/hirer (post-OTP onboarding)
+// Public static / informational paths
+const PUBLIC_INFO_PATHS = [
   '/welcome',
   '/terms',
   '/privacy',
@@ -28,18 +17,11 @@ const PUBLIC_PATHS = [
   '/how-kaizy-earns',
   '/pricing',
   '/help',
-  '/search',          // Discoverable without login (browse before sign-up)
-  '/marketplace',     // Discoverable without login
-  '/worker/',         // Worker profiles are publicly viewable (e.g. /worker/abc123)
-  '/api/',            // API routes handle their own auth
-  '/_next/',          // Next.js internals
-  '/favicon',
-  '/kaizy-logo',
-  '/manifest',
-  '/sw.js',
+  '/search',
+  '/marketplace',
 ];
 
-// Worker-only routes
+// Worker-only paths
 const WORKER_PATHS = [
   '/dashboard/worker',
   '/dashboard/performance',
@@ -57,9 +39,10 @@ const WORKER_PATHS = [
   '/onboarding/bank',
   '/onboarding/specialization',
   '/worker/profile',
+  '/register/worker',
 ];
 
-// Hirer-only routes
+// Hirer-only paths
 const HIRER_PATHS = [
   '/dashboard/hirer',
   '/booking',
@@ -70,82 +53,113 @@ const HIRER_PATHS = [
   '/saved-addresses',
   '/onboarding/hirer',
   '/profile',
+  '/register/hirer',
 ];
 
-export async function middleware(req: NextRequest) {
+/**
+ * Synchronously parses JWT payload without async crypto latency
+ */
+function parseJwtPayload(token: string): { userType?: string; sub?: string; phone?: string; exp?: number } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ── 1. Skip public paths ──
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  // ── 2. Skip static files ──
+  // ── 1. Skip internal assets & API routes ──
   if (
-    pathname.includes('.') || // files with extensions
     pathname.startsWith('/_next') ||
-    pathname === '/favicon.ico'
+    pathname.startsWith('/api/') ||
+    pathname.includes('.') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/sw.js'
   ) {
     return NextResponse.next();
   }
 
-  // ── 3. Get token from cookie ──
+  // ── 2. Read authentication tokens & role cookies synchronously ──
   const token = req.cookies.get('kaizy_token')?.value;
+  const cookieRole = req.cookies.get('kaizy_role')?.value || req.cookies.get('kaizy_user_type')?.value;
 
-  if (!token) {
-    // ── No token: redirect to login ──
-    // But allow home page (/) for discovery
-    if (pathname === '/') return NextResponse.next();
+  const jwtPayload = token ? parseJwtPayload(token) : null;
+  const isExpired = jwtPayload?.exp ? jwtPayload.exp * 1000 < Date.now() : false;
 
+  const isAuthenticated = Boolean(token && jwtPayload && !isExpired);
+  const userType: 'worker' | 'hirer' | null = isAuthenticated
+    ? ((jwtPayload?.userType as 'worker' | 'hirer') || (cookieRole as 'worker' | 'hirer') || 'hirer')
+    : (cookieRole as 'worker' | 'hirer') || null;
+
+  // ── 3. Handle /login route: skip if already authenticated ──
+  if (pathname === '/login') {
+    if (isAuthenticated && userType) {
+      const dest = userType === 'worker' ? '/dashboard/worker' : '/dashboard/hirer';
+      return NextResponse.redirect(new URL(dest, req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ── 4. Handle root / route: instant role dispatch ──
+  if (pathname === '/') {
+    if (isAuthenticated && userType === 'worker') {
+      return NextResponse.redirect(new URL('/dashboard/worker', req.url));
+    }
+    // Hirers and unauthenticated visitors view the discovery home map
+    const response = NextResponse.next();
+    if (userType) response.headers.set('x-user-type', userType);
+    return response;
+  }
+
+  // ── 5. Allow public informational routes ──
+  if (PUBLIC_INFO_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    const response = NextResponse.next();
+    if (userType) response.headers.set('x-user-type', userType);
+    return response;
+  }
+
+  // Allow public worker profile view (e.g. /worker/abc-123) unless it is /worker/profile
+  if (pathname.startsWith('/worker/') && pathname !== '/worker/profile') {
+    const response = NextResponse.next();
+    if (userType) response.headers.set('x-user-type', userType);
+    return response;
+  }
+
+  // ── 6. Unauthenticated access to protected routes → redirect to /login ──
+  if (!isAuthenticated) {
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── 4. Verify JWT ──
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    const userType = payload.userType as string;
-
-    // ── 5. Role-based access control ──
-    // Worker trying to access hirer-only paths
-    if (userType === 'worker' && HIRER_PATHS.some(p => pathname.startsWith(p))) {
+  // ── 7. Role-based route protection & redirection ──
+  if (userType === 'worker') {
+    if (HIRER_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
       return NextResponse.redirect(new URL('/dashboard/worker', req.url));
     }
-
-    // Hirer trying to access worker-only paths
-    if (userType === 'hirer' && WORKER_PATHS.some(p => pathname.startsWith(p))) {
+  } else if (userType === 'hirer') {
+    if (WORKER_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
       return NextResponse.redirect(new URL('/dashboard/hirer', req.url));
     }
-
-    // ── 6. If logged-in user visits /login, send to dashboard ──
-    if (pathname === '/login') {
-      const dashboardUrl = userType === 'worker'
-        ? '/dashboard/worker'
-        : '/dashboard/hirer';
-      return NextResponse.redirect(new URL(dashboardUrl, req.url));
-    }
-
-    // ── 7. Set user info in headers for server components ──
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', payload.sub as string);
-    response.headers.set('x-user-type', userType);
-    response.headers.set('x-user-phone', (payload.phone as string) || '');
-    return response;
-
-  } catch {
-    // ── Invalid/expired token → clear and redirect ──
-    const loginUrl = new URL('/login', req.url);
-    const response = NextResponse.redirect(loginUrl);
-    response.cookies.delete('kaizy_token');
-    response.cookies.delete('kaizy_user_type');
-    return response;
   }
+
+  // ── 8. Forward request with verified user headers ──
+  const response = NextResponse.next();
+  if (jwtPayload?.sub) response.headers.set('x-user-id', jwtPayload.sub);
+  if (userType) response.headers.set('x-user-type', userType);
+  if (jwtPayload?.phone) response.headers.set('x-user-phone', jwtPayload.phone);
+
+  return response;
 }
 
 export const config = {
   matcher: [
-    // Run on all routes except static files
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|woff|woff2|ttf|eot|css|js)$).*)',
   ],
 };

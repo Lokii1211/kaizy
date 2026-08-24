@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useAuth, DashboardSkeleton } from "@/stores/AuthStore";
 import { useI18n } from "@/components/I18nProvider";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // KAIZY HOME v10.0 — Stitch "Digital Artisan" Hirer Experience
@@ -66,6 +67,10 @@ export default function HomePage() {
       router.replace('/dashboard/worker');
     }
   }, [userType, router]);
+
+  if (userType === 'worker') {
+    return <LoadingShell />;
+  }
 
   // ── FIRST-TIME VISITOR: Show onboarding carousel before the map experience ──
   useEffect(() => {
@@ -339,11 +344,6 @@ export default function HomePage() {
 
     recognition.start();
   }, [locale, router]);
-
-  // Show skeleton while redirecting workers — prevents flash of hirer content
-  if (userType === 'worker') {
-    return <DashboardSkeleton />;
-  }
 
   return (
     <div className="min-h-screen relative" style={{ background: "var(--bg-app)" }}>

@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
 import PullToRefresh from "@/components/PullToRefresh";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // HIRER DASHBOARD v12.0 — Urban Company + Swiggy hybrid
@@ -42,8 +44,17 @@ const statusConfig: Record<string, { label: string; color: string; pulse: boolea
 };
 
 export default function HirerDashboard() {
+  const router = useRouter();
   const { isDark, toggle } = useTheme();
-  const { user } = useAuth();
+  const { user, userType } = useAuth();
+
+  useEffect(() => {
+    if (userType === 'worker') router.replace('/dashboard/worker');
+  }, [userType, router]);
+
+  if (userType === 'worker') {
+    return <LoadingShell />;
+  }
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlineCount, setOnlineCount] = useState(0);

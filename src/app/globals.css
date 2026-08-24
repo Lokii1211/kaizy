@@ -8,6 +8,12 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+html, body {
+  background-color: var(--bg-app);
+  color: var(--text-1);
+  min-height: 100%;
+}
+
 /* ═══════════════════════════════════════
    KAIZY DESIGN SYSTEM v4.0
    "The Digital Artisan" — Editorial Precision

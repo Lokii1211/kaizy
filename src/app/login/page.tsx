@@ -78,6 +78,7 @@ export default function LoginPage() {
           localStorage.setItem("kaizy_user_phone", phone);
           if (r.data?.user?.name) localStorage.setItem("kaizy_user_name", r.data.user.name);
           document.cookie = `kaizy_user_type=${actualRole};path=/;max-age=31536000`;
+          document.cookie = `kaizy_role=${actualRole};path=/;max-age=31536000`;
         } catch {}
         setStep("success");
         const destination = isNew
