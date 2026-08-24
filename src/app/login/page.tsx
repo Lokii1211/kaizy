@@ -99,7 +99,7 @@ export default function LoginPage() {
     : "linear-gradient(160deg,#FF6B00,#C84B00)";
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: isDark ? "var(--bg-lowest)" : "#F5F5F5" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: isDark ? "var(--bg-lowest)" : "#FFFFFF" }}>
 
       {/* ══════════════════════════════
           HERO BAND (top ~40%)

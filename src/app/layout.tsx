@@ -96,12 +96,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <ToastProvider>
               <I18nProvider>
                 {/* App shell: sidebar (desktop) + centered content */}
-                <div className="flex min-h-screen" style={{ background: "var(--bg-lowest)" }}>
+                <div className="flex min-h-screen" style={{ background: "var(--bg-surface)" }}>
                   <DesktopSidebar />
                   <div className="flex-1 flex flex-col items-center justify-start">
                     <main
                       className="w-full relative desktop-content-col"
-                      style={{ maxWidth: 480, minHeight: "100vh" }}
+                      style={{ maxWidth: 480, minHeight: "100vh", background: "var(--bg-app)" }}
                     >
                       {children}
                     </main>

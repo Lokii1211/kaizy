@@ -12,20 +12,27 @@ interface ThemeCtx { theme: Theme; toggle: () => void; isDark: boolean; }
 const ThemeContext = createContext<ThemeCtx>({ theme: "light", toggle: () => {}, isDark: false });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem("ks-theme") as Theme | null;
-      if (saved === "dark" || saved === "light") return saved;
+      const saved = localStorage.getItem("ks-theme-v2") as Theme | null;
+      if (saved === "dark" || saved === "light") {
+        setTheme(saved);
+      } else {
+        localStorage.removeItem("ks-theme");
+        localStorage.setItem("ks-theme-v2", "light");
+      }
     } catch {}
-    return "light";
-  });
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("dark", "light");
     root.classList.add(theme);
-    localStorage.setItem("ks-theme", theme);
+    try {
+      localStorage.setItem("ks-theme-v2", theme);
+    } catch {}
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#090909" : "#FFFFFF");
   }, [theme]);
 

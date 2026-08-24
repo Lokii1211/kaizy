@@ -356,8 +356,8 @@ body, .theme-transition, .theme-transition * {
 
 /* ─── DESKTOP LAYOUT (lg: 1024px+) ─── */
 @media (min-width: 1024px) {
-  /* html/body fill with lowest surface — sidebar + content sit on top */
-  html, body { background: var(--bg-lowest); }
+  /* html/body fill with soft surface — sidebar + content sit on top */
+  html, body { background: var(--bg-surface); }
 
   /* Mobile nav bottom padding is not needed on desktop — collapse it */
   .pb-28 { padding-bottom: 1.5rem !important; }
@@ -365,6 +365,7 @@ body, .theme-transition, .theme-transition * {
 
   /* Content column gets a subtle elevation shadow on desktop */
   .desktop-content-col {
+    background: var(--bg-app);
     box-shadow: 0 0 40px -4px rgba(15,23,42,0.08), 0 0 1px 1px var(--border-1);
   }
 }
