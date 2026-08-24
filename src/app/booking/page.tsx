@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useBooking, type NearbyWorker } from "@/stores/BookingStore";
 import { useAuth } from "@/stores/AuthStore";
+import { formatPrice, formatPriceWithZero } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // Kaizy v10.0 — BOOKING FLOW (Stitch Digital Artisan)
@@ -25,15 +28,17 @@ const tradeProblems: Record<string, string[]> = {
   "Mason": ["Wall Repair", "Tile Work", "Plastering", "Waterproofing", "Other"],
 };
 
-export default function BookingPage() {
+function BookingContent() {
   const {} = useTheme();
   const { userType } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { state, startSearch, selectWorker, confirmBooking, sendMessage, cancelBooking, workerArrived, jobStarted, jobCompleted, confirmPayment, submitReview, resetBooking, calculatePricing } = useBooking();
 
   useEffect(() => {
     if (userType === "worker") router.replace("/dashboard/worker");
   }, [userType, router]);
+
   const [selectedTrade, setSelectedTrade] = useState("Electrician");
   const [selectedProblem, setSelectedProblem] = useState("");
   const [chatInput, setChatInput] = useState("");
@@ -54,6 +59,56 @@ export default function BookingPage() {
 
   const [bookingMode, setBookingMode] = useState<"instant" | "scheduled">("instant");
   const [scheduledTime, setScheduledTime] = useState("");
+
+  // Restore selection from URL params or sessionStorage on mount
+  useEffect(() => {
+    try {
+      const urlTrade = searchParams.get("trade");
+      const urlProblem = searchParams.get("problem");
+      if (urlTrade && tradeProblems[urlTrade]) {
+        setSelectedTrade(urlTrade);
+      }
+      if (urlProblem) {
+        setSelectedProblem(urlProblem);
+      }
+      const saved = sessionStorage.getItem("kaizy_booking_form_state");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!urlTrade && parsed.selectedTrade && tradeProblems[parsed.selectedTrade]) {
+          setSelectedTrade(parsed.selectedTrade);
+        }
+        if (!urlProblem && parsed.selectedProblem) {
+          setSelectedProblem(parsed.selectedProblem);
+        }
+        if (parsed.bookingMode) setBookingMode(parsed.bookingMode);
+        if (parsed.scheduledTime) setScheduledTime(parsed.scheduledTime);
+        if (parsed.locationLabel && parsed.locationLabel !== "Detecting location...") {
+          setLocationLabel(parsed.locationLabel);
+        }
+        if (parsed.locationCoords) {
+          setLocationCoords(parsed.locationCoords);
+          setLocationVerified(true);
+        }
+      }
+    } catch {}
+  }, [searchParams]);
+
+  // Persist form state to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        "kaizy_booking_form_state",
+        JSON.stringify({
+          selectedTrade,
+          selectedProblem,
+          bookingMode,
+          scheduledTime,
+          locationLabel,
+          locationCoords,
+        })
+      );
+    } catch {}
+  }, [selectedTrade, selectedProblem, bookingMode, scheduledTime, locationLabel, locationCoords]);
 
   // GPS reverse geocode for location label (Nominatim — no token needed)
   useEffect(() => {
@@ -470,8 +525,7 @@ export default function BookingPage() {
                           background: state.selectedWorker?.id === w.id ? "var(--brand-tint)" : "var(--bg-card)",
                           border: state.selectedWorker?.id === w.id ? "2px solid var(--brand)" : "2px solid transparent",
                         }}>
-                  <div className="rounded-full flex items-center justify-center text-[16px] font-black text-white shrink-0"
-                       style={{ width: 44, height: 44, background: w.color }}>{w.initials}</div>
+                  <UserAvatar name={w.name} size={44} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>
                       {w.name} <span style={{ color: "var(--warning)" }}>⭐{w.rating}</span>
@@ -483,7 +537,7 @@ export default function BookingPage() {
                   <div className="text-right shrink-0">
                     <p className="text-[13px] font-black" style={{ color: "var(--success)" }}>{w.eta} min</p>
                     <p className="text-[9px]" style={{ color: "var(--text-3)" }}>starts from</p>
-                    <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>₹{pricing.base}</p>
+                    <p className="text-[13px] font-extrabold" style={{ color: "var(--text-1)" }}>{formatPrice(pricing.base)}</p>
                   </div>
                 </button>
               );
@@ -503,11 +557,11 @@ export default function BookingPage() {
                 )}
               </div>
               <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Base inspection fee</span><span style={{ color: "var(--text-1)" }} className="font-bold">₹{state.pricing.base}</span></div>
-                {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Visit charge ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+₹{state.pricing.distanceFee}</span></div>}
+                <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Base inspection fee</span><span style={{ color: "var(--text-1)" }} className="font-bold">{formatPrice(state.pricing.base)}</span></div>
+                {state.pricing.distanceFee > 0 && <div className="flex justify-between"><span style={{ color: "var(--text-2)" }}>Visit charge ({state.selectedWorker?.dist}km)</span><span style={{ color: "var(--text-2)" }} className="font-bold">+{formatPrice(state.pricing.distanceFee)}</span></div>}
                 <div className="border-t pt-1 mt-1 flex justify-between" style={{ borderColor: "var(--border-1)" }}>
                   <span className="font-extrabold" style={{ color: "var(--text-1)" }}>Starts from</span>
-                  <span className="text-[14px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing.grandTotal}</span>
+                  <span className="text-[14px] font-black" style={{ color: "var(--brand)" }}>{formatPrice(state.pricing.grandTotal)}</span>
                 </div>
                 <p className="text-[8px] mt-1" style={{ color: "var(--text-3)" }}>
                   💡 Final price after worker inspects. Includes labour + materials used.
@@ -519,7 +573,7 @@ export default function BookingPage() {
           <button onClick={confirmBooking} disabled={!state.selectedWorker}
                   className="w-full rounded-[16px] py-4 text-[14px] font-black text-white active:scale-[0.97] transition-all disabled:opacity-40 mb-16"
                   style={{ background: state.selectedWorker ? "var(--gradient-cta)" : "var(--bg-elevated)", boxShadow: state.selectedWorker ? "var(--shadow-brand)" : "none" }}>
-            {state.selectedWorker ? `Book ${state.selectedWorker.name} — from ₹${state.pricing?.base}` : "Select a worker"}
+            {state.selectedWorker ? `Book ${state.selectedWorker.name} — from ${formatPrice(state.pricing?.base)}` : "Select a worker"}
           </button>
         </div>
       </div>
@@ -590,15 +644,14 @@ export default function BookingPage() {
 
           {/* Worker info */}
           <div className="flex items-center gap-3 mb-3 rounded-[14px] p-3" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <div className="rounded-full flex items-center justify-center text-[18px] font-black text-white shrink-0"
-                 style={{ width: 48, height: 48, background: w?.color }}>{w?.initials}</div>
+            <UserAvatar name={w?.name} size={48} />
             <div className="flex-1">
               <p className="text-[14px] font-extrabold" style={{ color: "var(--text-1)" }}>{w?.name}</p>
               <p className="text-[11px] font-bold" style={{ color: w?.color }}>{w?.tradeIcon} {w?.trade} · {w?.experience}</p>
               <p className="text-[10px]" style={{ color: "var(--text-3)" }}>⭐ {w?.rating} · {w?.jobs} jobs · KS {w?.KaizyScore}</p>
             </div>
             <div className="text-right">
-              <p className="text-[15px] font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</p>
+              <p className="text-[15px] font-black" style={{ color: "var(--brand)" }}>{formatPrice(state.pricing?.grandTotal)}</p>
               {/* Phone visible only AFTER accepted */}
               {["accepted", "en_route", "arrived", "working"].includes(state.status) && w?.phone && (
                 <a href={`tel:${w.phone}`} className="text-[9px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block"
@@ -607,15 +660,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Contact info — only after booking */}
-          {["accepted", "en_route", "arrived", "working"].includes(state.status) && w?.phone && (
-            <div className="rounded-[12px] p-3 mb-3" style={{ background: "var(--success-tint)", border: "1px solid var(--success)" }}>
-              <p className="text-[10px] font-bold mb-1" style={{ color: "var(--success)" }}>📞 Worker Contact (visible after booking)</p>
-              <p className="text-[14px] font-black" style={{ color: "var(--text-1)" }}>{w.phone}</p>
-            </div>
-          )}
-
-          {/* Chat section (WhatsApp-style) */}
+          {/* Chat section */}
           <p className="text-[11px] font-bold mb-2" style={{ color: "var(--text-3)" }}>💬 Messages</p>
           <div ref={chatRef} className="rounded-[14px] p-3 mb-3 overflow-y-auto" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", maxHeight: 200 }}>
             {state.messages.map(msg => (
@@ -624,45 +669,42 @@ export default function BookingPage() {
                      style={{
                        background: msg.sender === "user" ? "var(--brand)" : msg.sender === "system" ? "var(--bg-elevated)" : "var(--bg-elevated)",
                        color: msg.sender === "user" ? "#fff" : "var(--text-1)",
-                       border: msg.sender === "system" ? "1px solid var(--border-1)" : "none",
                      }}>
-                  <p className="text-[11px]">{msg.text}</p>
-                  <p className="text-[8px] mt-0.5 text-right" style={{ color: msg.sender === "user" ? "rgba(255,255,255,0.6)" : "var(--text-3)" }}>
-                    {new Date(msg.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  <p className="text-[11px] font-medium">{msg.text}</p>
+                  <p className="text-[8px] mt-0.5 text-right opacity-60">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
               </div>
             ))}
           </div>
+          {/* Chat input */}
           <div className="flex gap-2 mb-3">
-            <input value={chatInput} onChange={e => setChatInput(e.target.value)}
-                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
-                   placeholder="Type a message..."
-                   className="flex-1 rounded-[12px] px-4 py-2.5 text-[12px] font-semibold outline-none"
-                   style={{ background: "var(--bg-input)", color: "var(--text-1)", border: "1px solid var(--border-1)" }} />
-            <button onClick={() => { if (chatInput.trim()) { sendMessage(chatInput.trim()); setChatInput(""); } }}
-                    aria-label="Send message"
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:scale-90"
+            <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                   onKeyDown={e => { if (e.key === "Enter" && chatInput.trim()) { sendMessage(chatInput); setChatInput(""); } }}
+                   placeholder="Message worker..."
+                   className="flex-1 rounded-[12px] px-3 py-2.5 text-[12px] outline-none"
+                   style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)", color: "var(--text-1)" }} />
+            <button onClick={() => { if (chatInput.trim()) { sendMessage(chatInput); setChatInput(""); } }}
+                    className="rounded-[12px] px-4 py-2.5 text-[12px] font-bold text-white active:scale-95 transition-transform"
                     style={{ background: "var(--brand)" }}>
-              <span className="text-white text-[14px]">➤</span>
+              Send
             </button>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex gap-2 mb-4">
-            <a href="tel:+919876543210" className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
-               style={{ background: "var(--success)" }}>📞 Call</a>
-            {(state.status === "matched" || state.status === "accepted" || state.status === "en_route") && (
-              <Link href="/tracking" className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
-                    style={{ background: "#3B82F6" }}>🗺️ Live Track</Link>
+          {/* Action buttons based on status */}
+          <div className="flex gap-2">
+            {state.status === "en_route" && (
+              <button onClick={workerArrived} className="flex-1 rounded-[14px] py-3.5 text-[13px] font-extrabold text-white active:scale-[0.98]"
+                      style={{ background: "var(--brand)" }}>Worker Has Arrived</button>
             )}
             {state.status === "arrived" && (
-              <button onClick={jobStarted} className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
-                      style={{ background: "var(--brand)" }}>▶ Start Job</button>
+              <button onClick={jobStarted} className="flex-1 rounded-[14px] py-3.5 text-[13px] font-extrabold text-white active:scale-[0.98]"
+                      style={{ background: "var(--brand)" }}>Start Job (Worker enters OTP)</button>
             )}
             {state.status === "working" && (
-              <button onClick={jobCompleted} className="flex-1 rounded-[12px] py-3 text-center text-[12px] font-extrabold text-white active:scale-95"
-                      style={{ background: "var(--brand)" }}>✓ Job Done</button>
+              <button onClick={jobCompleted} className="flex-1 rounded-[14px] py-3.5 text-[13px] font-extrabold text-white active:scale-[0.98]"
+                      style={{ background: "var(--success)" }}>Job Done — Proceed to Pay</button>
             )}
             <button onClick={() => setShowCancelModal(true)} aria-label="Cancel booking" className="rounded-[12px] py-3 px-4 text-center text-[12px] font-extrabold active:scale-95"
                     style={{ background: "var(--bg-card)", color: "var(--danger)", border: "1px solid var(--danger-tint)" }}>✕</button>
@@ -721,14 +763,13 @@ export default function BookingPage() {
             <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 animate-bounce-in" style={{ background: "var(--success)", boxShadow: "0 6px 24px rgba(0,208,132,0.3)" }}>
               <span className="text-white text-[28px]">✓</span>
             </div>
-         <h1 className="text-[20px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Job Completed! 🎉</h1>
+            <h1 className="text-[20px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Job Completed! 🎉</h1>
             <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Please pay the worker to proceed</p>
           </div>
 
           {/* Worker card */}
           <div className="flex items-center gap-3 rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
-            <div className="rounded-full flex items-center justify-center text-[18px] font-black text-white shrink-0"
-                 style={{ width: 48, height: 48, background: w?.color }}>{w?.initials}</div>
+            <UserAvatar name={w?.name} size={48} />
             <div className="flex-1">
               <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{w?.name}</p>
               <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{w?.tradeIcon} {selectedProblem}</p>
@@ -739,12 +780,12 @@ export default function BookingPage() {
           <div className="rounded-xl p-4 mb-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border-1)" }}>
             <p className="text-[12px] font-bold mb-3" style={{ color: "var(--text-3)" }}>Payment Summary</p>
             <div className="space-y-2">
-              <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.base}</span></div>
+              <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Worker&apos;s rate</span><span className="font-bold" style={{ color: "var(--text-1)" }}>{formatPrice(state.pricing?.base)}</span></div>
               {(state.pricing?.distanceFee || 0) > 0 && (
-                <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Distance fee</span><span className="font-bold" style={{ color: "var(--text-1)" }}>₹{state.pricing?.distanceFee}</span></div>
+                <div className="flex justify-between text-[13px]"><span style={{ color: "var(--text-2)" }}>Distance fee</span><span className="font-bold" style={{ color: "var(--text-1)" }}>+{formatPrice(state.pricing?.distanceFee)}</span></div>
               )}
               <div className="h-px" style={{ background: "var(--border-1)" }} />
-              <div className="flex justify-between text-[16px]"><span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span><span className="font-black" style={{ color: "var(--brand)" }}>₹{state.pricing?.grandTotal}</span></div>
+              <div className="flex justify-between text-[16px]"><span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span><span className="font-black" style={{ color: "var(--brand)" }}>{formatPrice(state.pricing?.grandTotal)}</span></div>
             </div>
           </div>
 
@@ -755,7 +796,7 @@ export default function BookingPage() {
           <button onClick={() => confirmPayment('cash', state.pricing?.grandTotal || 0)}
                   className="w-full rounded-[16px] py-4 mb-3 active:scale-[0.97] transition-all"
                   style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
-            <p className="text-[15px] font-black text-white">💵 Paid ₹{state.pricing?.grandTotal} Cash</p>
+            <p className="text-[15px] font-black text-white">💵 Paid {formatPrice(state.pricing?.grandTotal)} Cash</p>
             <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>I have paid {w?.name} directly</p>
           </button>
 
@@ -783,11 +824,10 @@ export default function BookingPage() {
 
           {/* Worker card */}
           <div className="flex items-center gap-3 rounded-xl p-3 mb-4" style={{ background: "var(--bg-card)" }}>
-            <div className="rounded-full flex items-center justify-center text-[18px] font-black text-white shrink-0"
-                 style={{ width: 44, height: 44, background: w?.color }}>{w?.initials}</div>
+            <UserAvatar name={w?.name} size={44} />
             <div>
               <p className="text-[13px] font-bold" style={{ color: "var(--text-1)" }}>{w?.name}</p>
-              <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{w?.tradeIcon} {selectedProblem} · ₹{state.pricing?.grandTotal}</p>
+              <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{w?.tradeIcon} {selectedProblem} · {formatPrice(state.pricing?.grandTotal)}</p>
             </div>
           </div>
 
@@ -850,7 +890,7 @@ export default function BookingPage() {
           <span className="text-white text-[32px]">✓</span>
         </div>
         <h1 className="text-[24px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Payment Done! 🎉</h1>
-        <p className="text-[13px] mt-2 text-center font-medium" style={{ color: "var(--text-3)" }}>₹{state.pricing?.workerPayout} released to {state.selectedWorker?.name}</p>
+        <p className="text-[13px] mt-2 text-center font-medium" style={{ color: "var(--text-3)" }}>{formatPrice(state.pricing?.workerPayout)} released to {state.selectedWorker?.name}</p>
         <p className="text-[10px] mt-1 text-center font-medium" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>Review saved · Worker notified</p>
         <Link href="/" onClick={() => resetBooking()} className="mt-8 rounded-[16px] px-8 py-4 text-[15px] font-black text-white active:scale-[0.97] transition-transform"
               style={{ background: "var(--gradient-cta)", boxShadow: "var(--shadow-brand)" }}>
@@ -861,4 +901,12 @@ export default function BookingPage() {
   }
 
   return null;
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<LoadingShell />}>
+      <BookingContent />
+    </Suspense>
+  );
 }

@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/stores/ThemeStore";
 import { AuthProvider } from "@/stores/AuthStore";
 import { BookingProvider } from "@/stores/BookingStore";
 import { ToastProvider } from "@/components/ToastNotification";
+import AndroidBackHandler from "@/components/AndroidBackHandler";
 import "./globals.css";
 
 const epilogue = Epilogue({
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 </div>
 
                 <MobileNav />
+                <AndroidBackHandler />
                 <PWAInstallPrompt />
                 <NetworkStatus />
                 <ServiceWorkerRegistration />

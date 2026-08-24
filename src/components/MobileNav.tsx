@@ -30,21 +30,30 @@ const workerNav: NavItem[] = [
 ];
 
 const hideOnRoutes = [
-  "/login", "/register/worker", "/register/hirer",
-  "/tracking", "/chat", "/verify",
-  "/onboarding", "/welcome",
-  "/emergency", "/kaizypay",
+  "/login",
+  "/welcome",
+  "/register",
+  "/onboarding",
+  "/tracking",
+  "/hirer/tracking",
+  "/chat",
+  "/hirer/chat",
+  "/worker/chat",
+  "/booking",
+  "/hirer/booking",
   "/active-job",
+  "/worker/active-job",
+  "/emergency",
+  "/verify",
+  "/delete-account",
 ];
 
 export default function MobileNav() {
   const pathname = usePathname();
   const { userType } = useAuth();
 
-  // Hide nav on auth/onboarding/fullscreen routes
+  // Hide nav on specified sub-flows & active execution screens
   if (hideOnRoutes.some(p => pathname === p || pathname.startsWith(p + "/"))) return null;
-  // Also hide on booking tracking states (active booking flow)
-  if (pathname.startsWith("/booking/") && pathname !== "/my-bookings") return null;
 
   const navItems = userType === "worker" ? workerNav : hirerNav;
 

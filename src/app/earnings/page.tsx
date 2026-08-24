@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/stores/AuthStore";
+import { formatPrice, formatPriceWithZero } from "@/lib/formatters";
 
 // ============================================================
 // EARNINGS v12.0 — Stitch "Digital Artisan" Design
@@ -137,7 +138,7 @@ export default function EarningsPage() {
             {period === "today" ? "Today's" : period === "week" ? "This Week's" : "This Month's"} Earnings
           </p>
           <p className="text-[38px] font-black mt-1" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
-            ₹{totalEarnings.toLocaleString("en-IN")}
+            {formatPriceWithZero(totalEarnings)}
           </p>
           <p className="text-[10px] mt-1 font-medium" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
             {totalJobs} jobs completed
@@ -218,7 +219,7 @@ export default function EarningsPage() {
         </div>
         <div className="rounded-[14px] p-3 text-center" style={{ background: "var(--bg-surface)" }}>
           <p className="text-[16px] font-black" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
-            ₹{totalJobs > 0 ? Math.round(totalEarnings / totalJobs) : 0}
+            {totalJobs > 0 ? formatPriceWithZero(Math.round(totalEarnings / totalJobs)) : "—"}
           </p>
           <p className="text-[7px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>Avg/Job</p>
         </div>
@@ -403,7 +404,7 @@ export default function EarningsPage() {
               </div>
               <p className="text-[14px] font-black shrink-0"
                  style={{ color: e.type === "penalty" ? "var(--danger)" : "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
-                {e.type === "penalty" ? "-" : "+"}₹{Number(e.amount).toLocaleString("en-IN")}
+                {e.type === "penalty" ? "-" : "+"}{formatPriceWithZero(Number(e.amount))}
               </p>
             </div>
           );

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/stores/AuthStore";
 import PullToRefresh from "@/components/PullToRefresh";
+import { formatPrice } from "@/lib/formatters";
 
 // ============================================================
 // MY BOOKINGS v12.0 — Stitch "Digital Artisan" Design
@@ -215,7 +216,7 @@ export default function MyBookingsPage() {
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-[8px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>{time}</span>
                             <span className="text-[13px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
-                              {b.hirer_price > 0 ? `₹${b.hirer_price}` : "TBD"}
+                              {b.hirer_price > 0 ? formatPrice(b.hirer_price) : "TBD"}
                             </span>
                           </div>
                         </div>

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
+import { formatPrice } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // WORKER PROFILE — Full public profile for hirers
@@ -183,15 +185,12 @@ export default function WorkerProfilePage() {
       {/* Profile info */}
       <div className="px-5 -mt-10 relative z-10">
         {/* Avatar */}
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
-             style={{
-               background: "var(--brand-tint)",
-               border: "4px solid var(--bg-app)",
-               boxShadow: "var(--shadow-card)",
-             }}>
-          <span className="text-[32px] font-black" style={{ color: "var(--brand)" }}>
-            {worker.name.charAt(0)}
-          </span>
+        <div className="mb-3">
+          <UserAvatar
+            name={worker.name}
+            size={80}
+            className="border-4 border-[var(--bg-app)] shadow-md"
+          />
         </div>
 
         <h1 className="text-[22px] font-black tracking-tight"
@@ -218,43 +217,46 @@ export default function WorkerProfilePage() {
 
         {/* Availability indicator */}
         <div className="flex items-center gap-2 mt-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${worker.is_online ? "online-dot" : ""}`}
+          <div className="w-2 h-2 rounded-full"
                style={{ background: worker.is_online ? "var(--success)" : "var(--text-3)" }} />
-          <span className="text-[11px] font-bold"
+          <span className="text-[11px] font-semibold"
                 style={{ color: worker.is_online ? "var(--success)" : "var(--text-3)" }}>
-            {worker.is_online ? "🟢 Available now" : worker.available_from}
+            {worker.is_online ? "Available right now" : `Next available: ${worker.available_from}`}
           </span>
-          <span className="text-[10px]" style={{ color: "var(--text-3)" }}>· {worker.distance} km</span>
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* ═══ STATS BAR (4 tiles) ═══ */}
       <div className="grid grid-cols-4 gap-2 px-5 mt-5">
         {[
-          { label: "Rating", value: worker.rating.toFixed(1), icon: "⭐" },
-          { label: "Jobs", value: worker.jobs_done.toString(), icon: "📋" },
-          { label: "Done %", value: `${worker.completion_rate}%`, icon: "✅" },
-          { label: "KS", value: worker.kaizy_score.toString(), icon: "🏅" },
-        ].map(stat => (
-          <div key={stat.label} className="rounded-[14px] p-3 text-center"
-               style={{ background: "var(--bg-card)" }}>
-            <p className="text-[10px] mb-0.5">{stat.icon}</p>
-            <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
-              {stat.value}
-            </p>
-            <p className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-3)" }}>
-              {stat.label}
-            </p>
+          { label: "RATING", val: `★ ${worker.rating.toFixed(1)}`, sub: `${worker.jobs_done} reviews`, color: "var(--warning)" },
+          { label: "JOBS", val: `${worker.jobs_done}+`, sub: "Completed", color: "var(--brand)" },
+          { label: "SUCCESS", val: `${worker.completion_rate}%`, sub: "Reliability", color: "var(--success)" },
+          { label: "DISTANCE", val: `${worker.distance} km`, sub: "Away", color: "#3B82F6" },
+        ].map(s => (
+          <div key={s.label} className="rounded-[16px] p-3 text-center"
+               style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
+            <p className="text-[7px] font-black uppercase tracking-widest" style={{ color: "var(--text-3)" }}>{s.label}</p>
+            <p className="text-[14px] font-black my-0.5" style={{ color: s.color, fontFamily: "'JetBrains Mono', monospace" }}>{s.val}</p>
+            <p className="text-[8px] font-medium" style={{ color: "var(--text-3)" }}>{s.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* ═══ PRICING SECTION ═══ */}
+      {/* ═══ SERVICES & PRICING TABLE ═══ */}
       <div className="px-5 mt-6">
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>
-          {worker.name.split(" ")[0]}&apos;s Prices
-        </p>
-        <div className="rounded-[18px] overflow-hidden" style={{ background: "var(--bg-card)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>
+            Rate Card & Services
+          </p>
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "var(--success-tint)", color: "var(--success)" }}>
+            Fixed Prices
+          </span>
+        </div>
+
+        <div className="rounded-[18px] overflow-hidden"
+             style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
           {worker.services.map((service, i) => (
             <div key={service.id}
                  className="flex items-center justify-between px-4 py-3"
@@ -264,7 +266,7 @@ export default function WorkerProfilePage() {
                 <p className="text-[12px] font-bold" style={{ color: "var(--text-1)" }}>{service.name}</p>
               </div>
               <p className="text-[13px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>
-                ₹{service.price.toLocaleString("en-IN")}
+                {formatPrice(service.price)}
               </p>
             </div>
           ))}
@@ -275,7 +277,7 @@ export default function WorkerProfilePage() {
               + Visit charge ({VISIT_CHARGES.find(v => worker.distance <= parseInt(v.range))?.range || "7+ km"})
             </span>
             <span className="text-[11px] font-bold" style={{ color: "var(--text-2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              ₹{visitCharge}
+              {formatPrice(visitCharge)}
             </span>
           </div>
         </div>
@@ -332,10 +334,7 @@ export default function WorkerProfilePage() {
         {(showAllReviews ? worker.reviews : worker.reviews.slice(0, 3)).map(review => (
           <div key={review.id} className="rounded-[14px] p-3.5 mb-2" style={{ background: "var(--bg-surface)" }}>
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-                   style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
-                {review.name.charAt(0)}
-              </div>
+              <UserAvatar name={review.name} size={28} />
               <div className="flex-1">
                 <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{review.name}</p>
                 <div className="flex items-center gap-1">

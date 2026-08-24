@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
+import { formatPrice } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // MARKETPLACE v10.0 — Stitch "Digital Artisan" Design
@@ -172,16 +174,16 @@ export default function MarketplacePage() {
             <Link key={w.id} href={`/worker/${w.id}`}
                   className="flex items-center gap-3 rounded-[16px] p-4 active:scale-[0.98] transition-all"
                   style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
-              <div className="relative shrink-0">
-                <div className="flex items-center justify-center rounded-full text-[15px] font-bold text-white"
-                     style={{ width: 48, height: 48, background: `linear-gradient(135deg, ${color}, ${color}99)` }}>{w.name?.[0] || "?"}</div>
-                <div className="absolute -bottom-0.5 -right-0.5 rounded-full online-dot"
-                     style={{ width: 12, height: 12, background: "var(--success)", border: "2px solid var(--bg-card)" }} />
-                {w.verified && (
-                  <div className="absolute -top-1 -right-1 text-[8px] rounded-full w-4 h-4 flex items-center justify-center"
-                       style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
-                )}
-              </div>
+              <UserAvatar
+                name={w.name}
+                size={48}
+                badge={
+                  w.verified ? (
+                    <div className="text-[8px] rounded-full w-4 h-4 flex items-center justify-center"
+                         style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
+                  ) : null
+                }
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-[13px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
@@ -197,7 +199,7 @@ export default function MarketplacePage() {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[8px] font-bold uppercase" style={{ color: "var(--text-3)" }}>starts</p>
-                <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>₹{w.rate}<span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
+                <p className="text-[16px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>{formatPrice(w.rate)}<span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span></p>
                 <p className="text-[8px] font-bold mt-0.5" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>~{w.eta}m ETA</p>
               </div>
             </Link>

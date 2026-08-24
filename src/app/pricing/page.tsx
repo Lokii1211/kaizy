@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Footer from "@/components/Footer";
+import { formatPrice, formatPriceWithZero } from "@/lib/formatters";
 
 // ============================================================
 // PRICING TRANSPARENCY v10.0 — Stitch "Digital Artisan" Design
@@ -111,7 +112,7 @@ export default function PricingPage() {
                   <div className="flex items-center justify-between mb-2.5">
                     <p className="text-[11px] font-bold" style={{ color: "var(--text-1)" }}>{svc.name}</p>
                     <p className="text-[14px] font-black" style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      ₹{svc.total.toLocaleString("en-IN")}
+                      {formatPrice(svc.total)}
                     </p>
                   </div>
 
@@ -127,14 +128,14 @@ export default function PricingPage() {
                   <div className="flex gap-3">
                     {svc.base > 0 && (
                       <span className="text-[8px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        Material: ₹{svc.base}
+                        Material: {formatPrice(svc.base)}
                       </span>
                     )}
                     <span className="text-[8px] font-bold" style={{ color: "var(--text-3)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      Labor: ₹{svc.labor}
+                      Labor: {formatPrice(svc.labor)}
                     </span>
                     <span className="text-[8px] font-bold" style={{ color: "var(--success)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      Fee: ₹0
+                      Fee: {formatPriceWithZero(0)}
                     </span>
                   </div>
                 </div>
