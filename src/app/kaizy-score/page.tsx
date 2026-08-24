@@ -123,11 +123,20 @@ export default function KaizyScorePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="text-center">
-          <div className="w-8 h-8 border-3 rounded-full animate-spin mx-auto mb-3"
-               style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-          <p className="text-[11px] font-bold" style={{ color: "var(--text-3)" }}>Loading your score...</p>
+      <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
+        <div className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl skeleton" />
+            <div className="w-32 h-4 rounded-full skeleton" />
+          </div>
+        </div>
+        <div className="mx-5 mb-5 rounded-[24px] skeleton" style={{ height: 200 }} />
+        <div className="mx-5 mb-5 rounded-[18px] skeleton" style={{ height: 80 }} />
+        <div className="px-5 space-y-3">
+          <div className="w-28 h-3 rounded-full skeleton mb-2" />
+          <div className="rounded-[16px] skeleton" style={{ height: 72 }} />
+          <div className="rounded-[16px] skeleton" style={{ height: 72 }} />
+          <div className="rounded-[16px] skeleton" style={{ height: 72 }} />
         </div>
       </div>
     );

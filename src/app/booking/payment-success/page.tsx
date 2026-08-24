@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // PAYMENT SUCCESS — Stitch "Payment Success (P-01)" Screen
@@ -143,9 +144,7 @@ function PaymentContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-      <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-    </div>}>
+    <Suspense fallback={<LoadingShell />}>
       <PaymentContent />
     </Suspense>
   );

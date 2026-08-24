@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // ONBOARDING: BANK/UPI SETUP — Stitch "Bank Account Setup" Screen
@@ -228,9 +229,7 @@ function BankSetupContent() {
 
 export default function BankSetupPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-      <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-    </div>}>
+    <Suspense fallback={<LoadingShell />}>
       <BankSetupContent />
     </Suspense>
   );

@@ -53,10 +53,19 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="text-center">
-          <div className="w-10 h-10 border-3 rounded-full animate-spin mx-auto" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-          <p className="text-[12px] font-bold mt-3" style={{ color: "var(--text-3)" }}>Loading admin data...</p>
+      <div className="min-h-screen pb-20" style={{ background: "var(--bg-app)" }}>
+        <div className="px-5 pt-5 pb-3">
+          <div className="w-40 h-5 rounded-full skeleton mb-5" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 px-5 mb-5">
+          <div className="rounded-[18px] skeleton" style={{ height: 100 }} />
+          <div className="rounded-[18px] skeleton" style={{ height: 100 }} />
+          <div className="rounded-[18px] skeleton" style={{ height: 100 }} />
+          <div className="rounded-[18px] skeleton" style={{ height: 100 }} />
+        </div>
+        <div className="px-5 space-y-3">
+          <div className="rounded-[18px] skeleton" style={{ height: 120 }} />
+          <div className="rounded-[18px] skeleton" style={{ height: 120 }} />
         </div>
       </div>
     );

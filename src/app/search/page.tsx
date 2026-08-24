@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
+import { WorkerListSkeleton } from "@/components/Skeletons";
+import { formatPrice } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // WORKER SEARCH v12.0 — Urban Company-style discovery
@@ -295,8 +298,8 @@ function SearchContent() {
 
           {/* Skeleton */}
           <div className="px-4 space-y-2.5">
-            {loading && [1, 2, 3, 4].map(i => (
-              <div key={i} className="skeleton rounded-[18px]" style={{ height: 110 }} />
+            {loading && [1, 2, 3, 4, 5].map(i => (
+              <WorkerListSkeleton key={i} />
             ))}
 
             {/* Empty state (after search, no results) */}
@@ -328,24 +331,23 @@ function SearchContent() {
             {/* Worker cards */}
             {!loading && filtered.map(w => {
               const icon = tradeIcons[w.trade] || "🔧";
-              const color = tradeColors[w.trade] || "#FF6B00";
               return (
                 <Link key={w.id} href={`/worker/${w.id}`}
                       className="flex items-center gap-3.5 rounded-[20px] p-4 active:scale-[0.98] transition-all"
                       style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
                   {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[19px] font-black text-white"
-                         style={{ background: `linear-gradient(135deg, ${color}, ${color}99)` }}>
-                      {w.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                    </div>
-                    {w.verified && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px]"
-                           style={{ background: "var(--bg-app)", border: "2px solid var(--bg-app)" }}>
-                        ✅
-                      </div>
-                    )}
-                  </div>
+                  <UserAvatar
+                    name={w.name}
+                    size={52}
+                    badge={
+                      w.verified ? (
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px]"
+                             style={{ background: "var(--bg-app)", border: "2px solid var(--bg-app)" }}>
+                          ✅
+                        </div>
+                      ) : null
+                    }
+                  />
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
@@ -377,7 +379,7 @@ function SearchContent() {
                   {/* Price */}
                   <div className="text-right shrink-0">
                     <p className="text-[17px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
-                      ₹{w.price}
+                      {formatPrice(w.price)}
                     </p>
                     <p className="text-[8px] font-bold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>est.</p>
                   </div>

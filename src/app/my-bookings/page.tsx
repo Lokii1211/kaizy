@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/stores/AuthStore";
 import PullToRefresh from "@/components/PullToRefresh";
 import { formatPrice } from "@/lib/formatters";
+import { JobAlertSkeleton } from "@/components/Skeletons";
 
 // ============================================================
 // MY BOOKINGS v12.0 — Stitch "Digital Artisan" Design
@@ -152,8 +153,10 @@ export default function MyBookingsPage() {
       <div className="px-5 mt-3">
         {/* Loading skeleton */}
         {loading && (
-          <div className="space-y-2.5">
-            {[1,2,3].map(i => <div key={i} className="rounded-[16px] skeleton" style={{ height: 100 }} />)}
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <JobAlertSkeleton key={i} />
+            ))}
           </div>
         )}
 

@@ -197,8 +197,7 @@ export default function WorkerRegisterPage() {
         <p className="text-[13px] mt-2 text-center" style={{ color: "var(--text-2)" }}>
           {workerPrices.length} services priced · Ready to receive jobs
         </p>
-        <div className="mt-5 w-5 h-5 border-2 rounded-full animate-spin"
-             style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+        <div className="mt-5 h-1.5 w-24 rounded-full skeleton mx-auto" />
       </div>
     );
   }
@@ -323,10 +322,10 @@ export default function WorkerRegisterPage() {
         {step === 3 && (
           <div className="space-y-3">
             {loadingPrices ? (
-              <div className="text-center py-10">
-                <div className="w-6 h-6 border-2 rounded-full animate-spin mx-auto"
-                     style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-                <p className="text-[12px] mt-3" style={{ color: "var(--text-3)" }}>Loading market prices...</p>
+              <div className="space-y-2.5">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-16 rounded-[16px] skeleton" />
+                ))}
               </div>
             ) : workerPrices.length === 0 ? (
               <div className="text-center py-10">

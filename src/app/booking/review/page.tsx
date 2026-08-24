@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import LoadingShell from "@/components/LoadingShell";
 
 const posTags = ["✓ On Time","✓ Good Work","✓ Polite","✓ Clean","✓ Fair Price"];
 const negTags = ["✗ Late","✗ Overcharged","✗ Rude","✗ Messy"];
@@ -139,9 +140,7 @@ function ReviewContent() {
 
 export default function ReviewPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-      <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-    </div>}>
+    <Suspense fallback={<LoadingShell />}>
       <ReviewContent />
     </Suspense>
   );

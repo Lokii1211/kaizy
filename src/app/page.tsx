@@ -7,6 +7,9 @@ import { useTheme } from "@/stores/ThemeStore";
 import { useAuth, DashboardSkeleton } from "@/stores/AuthStore";
 import { useI18n } from "@/components/I18nProvider";
 import LoadingShell from "@/components/LoadingShell";
+import { WorkerCardSkeleton } from "@/components/Skeletons";
+import { formatPrice } from "@/lib/formatters";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // KAIZY HOME v10.0 — Stitch "Digital Artisan" Hirer Experience
@@ -512,7 +515,9 @@ export default function HomePage() {
 
           {loading && (
             <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-2">
-              {[1,2,3].map(i => <div key={i} className="shrink-0 rounded-2xl p-3.5 skeleton" style={{ width: 172, height: 130 }} />)}
+              {[1, 2, 3].map(i => (
+                <WorkerCardSkeleton key={i} />
+              ))}
             </div>
           )}
 
@@ -535,16 +540,16 @@ export default function HomePage() {
                         className="shrink-0 rounded-[20px] p-4 active:scale-[0.97] transition-all"
                         style={{ width: 176, background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
                     <div className="flex items-center gap-2.5 mb-3">
-                      <div className="relative shrink-0">
-                        <div className="flex items-center justify-center rounded-full text-[14px] font-bold text-white"
-                             style={{ width: 40, height: 40, background: `linear-gradient(135deg, ${color}, ${color}99)` }}>{w.name?.[0] || "?"}</div>
-                        <div className="absolute -bottom-0.5 -right-0.5 rounded-full online-dot"
-                             style={{ width: 10, height: 10, background: "var(--success)", border: "2px solid var(--bg-card)" }} />
-                        {w.verified && (
-                          <div className="absolute -top-1 -right-1 text-[8px] rounded-full w-[14px] h-[14px] flex items-center justify-center"
-                               style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
-                        )}
-                      </div>
+                      <UserAvatar
+                        name={w.name}
+                        size={40}
+                        badge={
+                          w.verified ? (
+                            <div className="text-[8px] rounded-full w-[14px] h-[14px] flex items-center justify-center"
+                                 style={{ background: "var(--trust)", color: "#fff" }}>✓</div>
+                          ) : null
+                        }
+                      />
                       <div className="min-w-0">
                         <p className="text-[12px] font-bold truncate" style={{ color: "var(--text-1)" }}>{w.name}</p>
                         <p className="text-[10px] font-semibold" style={{ color }}>{icon} {w.trade.replace('_',' ')}</p>
@@ -560,7 +565,7 @@ export default function HomePage() {
                         <p className="text-[9px] font-medium" style={{ color: "var(--text-3)" }}>{w.distance}km · {w.eta}m</p>
                       </div>
                       <p className="text-[14px] font-black" style={{ color: "var(--text-1)", fontFamily: "'JetBrains Mono', monospace" }}>
-                        <span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>from </span>₹{w.rate}
+                        <span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>from </span>{formatPrice(w.rate)}
                         <span className="text-[8px] font-normal" style={{ color: "var(--text-3)" }}>/hr</span>
                       </p>
                     </div>

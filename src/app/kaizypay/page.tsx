@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // KAIZYPAY v2.0 — Real Payment Integration
@@ -432,15 +433,7 @@ function PaymentContent() {
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto mb-3"
-               style={{ borderColor: "var(--bg-elevated)", borderTopColor: "var(--brand)" }} />
-          <p className="text-[11px] font-bold" style={{ color: "var(--text-3)" }}>Loading payment...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingShell />}>
       <PaymentContent />
     </Suspense>
   );

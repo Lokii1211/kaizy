@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
 import { supabase } from "@/lib/supabase";
+import { ChatSkeleton } from "@/components/Skeletons";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // REAL-TIME CHAT — Supabase Realtime subscriptions
@@ -143,8 +145,7 @@ export default function ChatPage() {
               style={{ background: "var(--bg-elevated)" }}>
           <span className="text-[13px]">←</span>
         </Link>
-        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
-             style={{ background: "var(--brand)" }}>{workerInitials}</div>
+        <UserAvatar name={workerName} size={36} />
         <div className="flex-1">
           <p className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>{workerName}</p>
           <div className="flex items-center gap-1">
@@ -160,11 +161,7 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5" style={{ paddingBottom: 140 }}>
-        {loading && (
-          <div className="text-center py-8">
-            <div className="w-6 h-6 border-2 rounded-full mx-auto animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-          </div>
-        )}
+        {loading && <ChatSkeleton />}
 
         {!loading && messages.length === 0 && (
           <div className="text-center py-12">

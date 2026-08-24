@@ -337,8 +337,7 @@ function BookingContent() {
                     autoFocus
                   />
                   {addressSearching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 rounded-full animate-spin"
-                         style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full skeleton" />
                   )}
                 </div>
 

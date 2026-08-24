@@ -137,8 +137,10 @@ export default function IncentivesPage() {
 
       <div className="px-4 mt-4 space-y-3">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="rounded-[18px] skeleton" style={{ height: 110 }} />
+            ))}
           </div>
         ) : error ? (
           /* ── Fetch failed — distinct from legitimate empty state ── */

@@ -141,9 +141,7 @@ export default function ReferralPage() {
         <div className="rounded-[20px] p-5 text-center" style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-card)" }}>
           <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-3)" }}>Your Referral Code</p>
           {loading ? (
-            <div className="flex items-center justify-center h-12 mt-2">
-              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-            </div>
+            <div className="h-8 w-44 rounded-lg skeleton mx-auto mt-2" />
           ) : (
             <p className="text-[28px] font-black mt-2 tracking-[0.2em]"
                style={{ color: "var(--brand)", fontFamily: "'JetBrains Mono', monospace" }}>{referralCode}</p>

@@ -1,6 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/AuthStore";
+import { ProfileSkeleton } from "@/components/Skeletons";
+import UserAvatar from "@/components/UserAvatar";
 
 // ============================================================
 // HIRER PROFILE — Edit name, phone, saved addresses
@@ -52,11 +56,7 @@ export default function HirerProfilePage() {
   const initials = displayName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/stores/AuthStore";
 import { formatPrice, formatPriceWithZero } from "@/lib/formatters";
+import { EarningsSkeleton } from "@/components/Skeletons";
 
 // ============================================================
 // EARNINGS v12.0 — Stitch "Digital Artisan" Design
@@ -118,6 +119,10 @@ export default function EarningsPage() {
 
   const pendingEarnings = earnings.filter(e => e.status === "pending");
   const pendingTotal = pendingEarnings.reduce((sum, e) => sum + Number(e.amount), 0);
+
+  if (loading) {
+    return <EarningsSkeleton />;
+  }
 
   return (
     <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>

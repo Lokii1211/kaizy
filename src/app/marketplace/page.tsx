@@ -6,6 +6,7 @@ import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
 import { formatPrice } from "@/lib/formatters";
 import UserAvatar from "@/components/UserAvatar";
+import { WorkerListSkeleton } from "@/components/Skeletons";
 
 // ============================================================
 // MARKETPLACE v10.0 — Stitch "Digital Artisan" Design
@@ -157,7 +158,7 @@ export default function MarketplacePage() {
 
       {/* Worker list */}
       <div className="px-5 space-y-2.5">
-        {loading && [1,2,3,4].map(i => <div key={i} className="skeleton rounded-[16px]" style={{ height: 90 }} />)}
+        {loading && [1, 2, 3, 4, 5].map(i => <WorkerListSkeleton key={i} />)}
 
         {!loading && sorted.length === 0 && (
           <div className="text-center py-12 rounded-[18px]" style={{ background: "var(--bg-card)" }}>

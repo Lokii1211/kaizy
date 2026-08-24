@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import LoadingShell from "@/components/LoadingShell";
 
 // ============================================================
 // WITHDRAWAL SUCCESS — Stitch "Withdrawal Success" Screen
@@ -137,9 +138,7 @@ function WithdrawalContent() {
 
 export default function WithdrawalSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-      <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
-    </div>}>
+    <Suspense fallback={<LoadingShell />}>
       <WithdrawalContent />
     </Suspense>
   );

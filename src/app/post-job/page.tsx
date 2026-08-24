@@ -138,7 +138,7 @@ export default function PostJobPage() {
 
         {mode === "instant" && (
           <div className="w-full mt-4 rounded-[16px] p-4 flex items-center gap-3" style={{ background: "var(--brand-tint)" }}>
-            <div className="w-5 h-5 border-2 rounded-full animate-spin shrink-0" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+            <div className="w-4 h-4 rounded-full skeleton shrink-0" />
             <p className="text-[10px] font-bold" style={{ color: "var(--brand)" }}>Matching you with the nearest available worker...</p>
           </div>
         )}

@@ -6,6 +6,7 @@ import { useTheme } from "@/stores/ThemeStore";
 import { useAuth } from "@/stores/AuthStore";
 import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
+import LoadingShell from "@/components/LoadingShell";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false });
 
@@ -370,12 +371,7 @@ function TrackingContent() {
       {/* Map — fills remaining space */}
       <div className="flex-1 relative min-h-[260px] mx-4 rounded-[20px] overflow-hidden" style={{ background: "var(--bg-surface)" }}>
         {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2" style={{ borderColor: "var(--brand)" }} />
-              <p className="text-[11px]" style={{ color: "var(--text-3)" }}>Loading map…</p>
-            </div>
-          </div>
+          <div className="absolute inset-0 w-full h-full skeleton rounded-[20px]" />
         ) : (
           <LiveMap
             center={mapCenter}
@@ -663,11 +659,7 @@ function TrackingContent() {
 
 export default function TrackingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--brand)" }} />
-      </div>
-    }>
+    <Suspense fallback={<LoadingShell />}>
       <TrackingContent />
     </Suspense>
   );

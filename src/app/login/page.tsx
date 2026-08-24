@@ -178,8 +178,7 @@ export default function LoginPage() {
             </div>
             <h2 className="text-[26px] font-black text-white" style={{ fontFamily: "'Epilogue', sans-serif" }}>Welcome! 🎉</h2>
             <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>Setting up your dashboard...</p>
-            <div className="mt-4 w-5 h-5 border-2 rounded-full mx-auto animate-spin"
-                 style={{ borderColor: "rgba(255,255,255,0.5)", borderTopColor: "#fff" }} />
+            <div className="mt-4 h-1.5 w-24 rounded-full skeleton mx-auto" />
           </div>
         )}
       </div>

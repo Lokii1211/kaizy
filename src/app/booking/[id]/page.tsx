@@ -66,8 +66,16 @@ export default function BookingDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-app)" }}>
-        <div className="w-8 h-8 border-3 rounded-full animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+      <div className="min-h-screen pb-24" style={{ background: "var(--bg-app)" }}>
+        <div className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl skeleton" />
+            <div className="w-36 h-4 rounded-full skeleton" />
+          </div>
+        </div>
+        <div className="mx-5 mb-4 rounded-[20px] skeleton" style={{ height: 160 }} />
+        <div className="mx-5 mb-4 rounded-[18px] skeleton" style={{ height: 100 }} />
+        <div className="mx-5 mb-4 rounded-[18px] skeleton" style={{ height: 140 }} />
       </div>
     );
   }

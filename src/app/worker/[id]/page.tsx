@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "@/stores/ThemeStore";
 import { formatPrice } from "@/lib/formatters";
 import UserAvatar from "@/components/UserAvatar";
+import { ProfileSkeleton } from "@/components/Skeletons";
 
 // ============================================================
 // WORKER PROFILE — Full public profile for hirers
@@ -72,19 +73,7 @@ export default function WorkerProfilePage() {
   }, [workerId]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen" style={{ background: "var(--bg-app)" }}>
-        <div className="skeleton h-48 w-full" />
-        <div className="px-5 mt-4 space-y-3">
-          <div className="skeleton h-8 w-48 rounded-full" />
-          <div className="skeleton h-4 w-32 rounded-full" />
-          <div className="grid grid-cols-4 gap-2 mt-4">
-            {[1,2,3,4].map(i => <div key={i} className="skeleton h-16 rounded-[14px]" />)}
-          </div>
-          <div className="skeleton h-40 rounded-[16px] mt-4" />
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (!worker) return (
