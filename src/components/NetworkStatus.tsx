@@ -38,11 +38,13 @@ export default function NetworkStatus() {
     >
       {isOnline ? (
         <>
-          <Wifi className="w-3.5 h-3.5" /> Back online
+          <Wifi className="w-3.5 h-3.5" />
+          <span>Back online</span>
         </>
       ) : (
         <>
-          <WifiOff className="w-3.5 h-3.5" /> No internet — showing cached data
+          <WifiOff className="w-3.5 h-3.5" />
+          <span>You&apos;re offline — some features limited</span>
         </>
       )}
     </div>

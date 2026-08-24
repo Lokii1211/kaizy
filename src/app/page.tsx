@@ -339,9 +339,7 @@ export default function HomePage() {
 
         // Clear existing markers
         markersRef.current.forEach((m) => m.remove());
-        markersRef.current = [];
-
-        workers.forEach((w) => {
+        workers.slice(0, 20).forEach((w) => {
           const color = tradeColors[w.trade_primary || w.trade] || "#FF6B00";
           const icon = tradeIcons[w.trade_primary || w.trade] || "🔧";
           const isHighlighted = highlightedWorkerId === w.id;
@@ -502,6 +500,7 @@ export default function HomePage() {
             </button>
             <Link
               href="/notifications"
+              prefetch={true}
               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[13px] text-white relative active:scale-90 transition-transform"
               aria-label="Notifications"
             >
@@ -536,6 +535,7 @@ export default function HomePage() {
         >
           <Link
             href="/search"
+            prefetch={true}
             className="flex items-center gap-2.5 flex-1 min-w-0 active:scale-[0.99] transition-transform"
           >
             <span className="text-[16px] opacity-80">🔍</span>
@@ -555,7 +555,7 @@ export default function HomePage() {
       </div>
 
       {/* ── SOS Floating Emergency Button ── */}
-      <Link href="/emergency" className="fixed z-30" style={{ right: 16, bottom: 220 }}>
+      <Link href="/emergency" prefetch={true} className="fixed z-30" style={{ right: 16, bottom: 220 }}>
         <div
           className="flex flex-col items-center justify-center rounded-full text-white sos-pulse shadow-2xl"
           style={{ width: 50, height: 50, background: "var(--danger)" }}
