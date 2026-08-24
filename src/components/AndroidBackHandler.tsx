@@ -11,6 +11,10 @@ import { useRouter, usePathname } from "next/navigation";
 
 const parentMap: Record<string, string> = {
   // Hirer & Booking Flows
+  "/hirer/sos": "/",
+  "/hirer/sos/searching": "/hirer/sos",
+  "/emergency": "/",
+  "/emergency/searching": "/hirer/sos",
   "/hirer/booking/searching": "/dashboard/hirer",
   "/hirer/booking/matched": "/dashboard/hirer",
   "/hirer/booking/payment": "/dashboard/hirer",
