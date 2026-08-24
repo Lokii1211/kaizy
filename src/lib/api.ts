@@ -46,29 +46,28 @@ async function apiFetch<T>(
   }
 }
 
-// ========== AUTH (Real Supabase OTP) ==========
+// ========== AUTH (Real WhatsApp / Supabase OTP) ==========
 export const authApi = {
   sendOtp: async (phone: string) => {
-    const cleanPhone = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
-    return apiFetch<{ expires_in: number; debug_otp?: string; fallback_otp?: string; sms_sent?: boolean; channel?: string }>("/auth/send-otp", {
+    return apiFetch<{ expiresIn: number; channel?: string }>("/auth/send-otp", {
       method: "POST",
-      body: JSON.stringify({ phone: cleanPhone }),
+      body: JSON.stringify({ phone }),
     });
   },
 
   verifyOtp: async (phone: string, otp: string, userType: "worker" | "hirer") => {
-    const cleanPhone = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
-    return apiFetch<{ user: { id: string; name: string; userType: string }; token: string; isNewUser: boolean }>("/auth/verify-otp", {
+    return apiFetch<{ user: { id: string; name: string; user_type: string; phone: string }; isNewUser: boolean; userType: string; userId: string }>("/auth/verify-otp", {
       method: "POST",
-      body: JSON.stringify({ phone: cleanPhone, otp, userType }),
+      body: JSON.stringify({ phone, otp, userType }),
     });
   },
 
   me: () => apiFetch<{ id: string; name: string; user_type: string }>("/auth/me"),
 
   logout: async () => {
-    document.cookie = 'kaizy_token=; Max-Age=0; path=/';
-    return { success: true };
+    return apiFetch<{ success: boolean }>("/auth/logout", {
+      method: "POST",
+    });
   },
 };
 

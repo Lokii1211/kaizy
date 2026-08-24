@@ -1,199 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendOTP, normalizePhone } from '@/lib/otp';
 import { rateLimits, getClientIP } from '@/lib/rateLimit';
-import { saveOtp } from '@/lib/otp-store';
 
 // ═══════════════════════════════════════════════════════
 // POST /api/auth/send-otp
-// OTP is saved to Supabase DB (primary, awaited — serverless-safe)
-// AND in-memory store (secondary, helps local dev same-process flow).
-// WhatsApp via AISensy (primary) + SMS fallback.
-// Rate limited: 3 OTP requests per minute per IP.
+// Dispatches WhatsApp OTP via AiSensy (SMS fallback)
 // ═══════════════════════════════════════════════════════
-
-const AISENSY_API_KEY = process.env.AISENSY_API_KEY || '';
-const AISENSY_TEMPLATE = process.env.AISENSY_TEMPLATE_NAME || 'kaizy_otp_auth';
-const FAST2SMS_KEY = process.env.FAST2SMS_API_KEY || '';
-
-async function sendWhatsAppOTP(phone: string, otp: string): Promise<boolean> {
-  if (!AISENSY_API_KEY) return false;
-  try {
-    const cleanNum = phone.replace('+', '');
-    const res = await fetch('https://backend.aisensy.com/campaign/t1/api/v2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apiKey: AISENSY_API_KEY,
-        campaignName: 'kaizy_otp_campaign',
-        destination: cleanNum,
-        userName: 'Kaizy User',
-        templateParams: [otp],
-        source: 'kaizy-app',
-        media: {},
-        buttons: [],
-        carouselCards: [],
-        location: {},
-        paramsFallbackValue: { FirstName: 'User' },
-      }),
-    });
-    const data = await res.json();
-    console.log(`[WhatsApp OTP] ${phone}: status=${res.status}`, JSON.stringify(data));
-    return res.ok && (data.status === 'success' || data.success === true);
-  } catch (e) {
-    console.error('[WhatsApp OTP error]', e);
-    return false;
-  }
-}
-
-async function sendWhatsAppDirect(phone: string, otp: string): Promise<boolean> {
-  if (!AISENSY_API_KEY) return false;
-  try {
-    const cleanNum = phone.replace('+', '');
-    const res = await fetch('https://backend.aisensy.com/direct/t1/api/v2', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apiKey: AISENSY_API_KEY,
-        destination: cleanNum,
-        templateName: AISENSY_TEMPLATE,
-        languageCode: 'en',
-        bodyValues: [otp],
-      }),
-    });
-    const data = await res.json();
-    console.log(`[WhatsApp Direct] ${phone}: status=${res.status}`, JSON.stringify(data));
-    return res.ok && (data.status === 'success' || data.success === true);
-  } catch (e) {
-    console.error('[WhatsApp Direct error]', e);
-    return false;
-  }
-}
-
-async function sendSMSFallback(phone: string, otp: string): Promise<boolean> {
-  if (!FAST2SMS_KEY) return false;
-  try {
-    const cleanNum = phone.replace('+91', '');
-    const message = `Your Kaizy verification code is: ${otp}. Valid for 10 minutes. Do not share this code. - Team Kaizy`;
-    const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
-      method: 'POST',
-      headers: { 'authorization': FAST2SMS_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ route: 'q', message, language: 'english', flash: 0, numbers: cleanNum }),
-    });
-    const data = await res.json();
-    console.log(`[SMS Fallback] ${phone}: status=${res.status}`, JSON.stringify(data));
-    return data.return === true;
-  } catch (e) {
-    console.error('[SMS Fallback error]', e);
-    return false;
-  }
-}
-
-// Save OTP to Supabase — awaited (required for serverless compatibility).
-// Marks any previous OTPs for this phone as used, then inserts a fresh row.
-// otp_codes can have multiple rows per phone (history); we query the latest unused one.
-async function saveToDb(phone: string, otp: string, expiresAt: string): Promise<boolean> {
-  try {
-    const { getSupabase } = await import('@/lib/supabase');
-    const supabase = getSupabase();
-    // Invalidate any prior unused OTPs for this phone so only the latest works
-    await supabase
-      .from('otp_codes')
-      .update({ used: true })
-      .eq('phone', phone)
-      .neq('used', true);
-    // Insert new OTP
-    const { error } = await supabase.from('otp_codes').insert({
-      phone, otp, expires_at: expiresAt, used: false, attempts: 0,
-    });
-    if (error) {
-      console.error('[send-otp] DB save failed:', error.message);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.error('[send-otp] DB unavailable:', e instanceof Error ? e.message : e);
-    return false;
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIP(req.headers);
-    const rl = rateLimits.otp(ip);
+    const rl = rateLimits.auth(ip);
     if (!rl.allowed) {
       return NextResponse.json(
-        { success: false, error: 'Too many OTP requests. Please wait a moment.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+        { success: false, error: 'Too many requests. Please wait a moment.' },
+        { status: 429 }
       );
     }
 
-    const { phone } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const rawPhone = body.phone;
 
-    const cleanPhone = phone?.replace(/\s/g, '');
-    if (!cleanPhone || !/^\+91\d{10}$/.test(cleanPhone)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid phone number. Use +91XXXXXXXXXX format',
-      }, { status: 400 });
+    if (!rawPhone || typeof rawPhone !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Phone number is required' },
+        { status: 400 }
+      );
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    // PRIMARY: save to Supabase DB (awaited — serverless-safe across Lambda invocations)
-    const dbSaved = await saveToDb(cleanPhone, otp, expiresAt);
-
-    // SECONDARY: also save to in-memory for same-process dev flows (no-op in serverless)
-    saveOtp(cleanPhone, otp);
-
-    if (!dbSaved) {
-      // DB is required for OTP to survive across serverless invocations
-      console.error('[send-otp] DB save failed — cannot guarantee OTP delivery');
-      // Still proceed: in-memory works in single-process (dev/staging), and delivery
-      // channels still fire. Log the warning but don't block the user.
+    const cleanPhone = normalizePhone(rawPhone);
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return NextResponse.json(
+        { success: false, error: 'Enter a valid 10-digit Indian mobile number' },
+        { status: 400 }
+      );
     }
 
-    let sent = false;
-    let channel = 'none';
+    const result = await sendOTP(cleanPhone);
 
-    sent = await sendWhatsAppOTP(cleanPhone, otp);
-    if (sent) channel = 'whatsapp';
-
-    if (!sent) {
-      sent = await sendWhatsAppDirect(cleanPhone, otp);
-      if (sent) channel = 'whatsapp-direct';
+    if (!result.success) {
+      if (result.error === 'rate_limited') {
+        return NextResponse.json(
+          { success: false, error: 'Too many OTP requests. Please try again after an hour.' },
+          { status: 429 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: result.error || 'Failed to send OTP. Please try again.' },
+        { status: 500 }
+      );
     }
-
-    if (!sent) {
-      sent = await sendSMSFallback(cleanPhone, otp);
-      if (sent) channel = 'sms';
-    }
-
-    console.log(`[OTP] ${cleanPhone}: sent=${sent} channel=${channel} dbSaved=${dbSaved}`);
-
-    if (process.env.NODE_ENV !== 'production' && !sent) {
-      console.log(`\x1b[33m[DEV ONLY OTP]\x1b[0m ${cleanPhone} -> \x1b[32m${otp}\x1b[0m (valid 10m)`);
-    }
-
-    const getMessage = () => {
-      if (channel === 'whatsapp' || channel === 'whatsapp-direct') return 'OTP sent to your WhatsApp ✓';
-      if (channel === 'sms') return 'OTP sent to your phone via SMS ✓';
-      return 'Verification code sent. Please check your phone.';
-    };
 
     return NextResponse.json({
       success: true,
-      message: getMessage(),
-      expires_in: 600,
-      data: {
-        otp_sent: sent,
-        channel,
-      },
+      expiresIn: result.expiresIn || 600,
+      channel: result.channel || 'whatsapp',
+      message: 'OTP sent successfully to your WhatsApp number',
     });
   } catch (error) {
-    console.error('[send-otp error]', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to send OTP. Please try again.',
-    }, { status: 503 });
+    console.error('[POST /api/auth/send-otp error]', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error while sending OTP' },
+      { status: 500 }
+    );
   }
 }

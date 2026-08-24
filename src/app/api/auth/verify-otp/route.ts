@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { generateJWT } from '@/lib/auth';
+import { verifyOTP, normalizePhone } from '@/lib/otp';
 import { rateLimits, getClientIP } from '@/lib/rateLimit';
-import { verifyOtp as memVerify, getAttemptsRemaining } from '@/lib/otp-store';
 
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // POST /api/auth/verify-otp
-// Checks Supabase DB first (serverless-safe primary), then in-memory
-// fallback (for same-process dev flows / instant checks).
-// Creates user if new, returns signed JWT.
-// ═══════════════════════════════════════════════════════════════════════
+// Verifies OTP, finds/creates user, generates JWT & cookies
+// ═══════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,166 +15,159 @@ export async function POST(req: NextRequest) {
     const rl = rateLimits.auth(ip);
     if (!rl.allowed) {
       return NextResponse.json(
-        { success: false, error: 'Too many attempts. Wait a moment.' },
+        { success: false, error: 'Too many verification attempts. Please wait.' },
         { status: 429 }
       );
     }
 
-    const { phone, otp, userType } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { phone: rawPhone, otp, userType } = body;
 
-    const cleanPhone = phone?.replace(/\s/g, '');
-    if (!cleanPhone || !/^\+91\d{10}$/.test(cleanPhone)) {
-      return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 });
+    if (!rawPhone || !otp) {
+      return NextResponse.json(
+        { success: false, error: 'Phone number and 6-digit OTP are required' },
+        { status: 400 }
+      );
     }
-    if (!otp || !/^\d{6}$/.test(otp)) {
-      return NextResponse.json({ success: false, error: 'Invalid OTP. Must be 6 digits.' }, { status: 400 });
+
+    const cleanPhone = normalizePhone(rawPhone);
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid phone number format' },
+        { status: 400 }
+      );
     }
 
-    // ── 1. Check Supabase DB first (primary — survives across Lambda invocations) ──
-    const dbResult = await tryDbVerify(cleanPhone, otp);
+    const cleanOtp = String(otp).trim();
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      return NextResponse.json(
+        { success: false, error: 'OTP must be a 6-digit number' },
+        { status: 400 }
+      );
+    }
 
-    if (dbResult === 'ok') {
-      // DB verified — proceed to user lookup
-    } else if (dbResult === 'not_found') {
-      // Not in DB — fall back to in-memory (same-process dev / race condition safety)
-      const memResult = memVerify(cleanPhone, otp);
-      console.log(`[verify-otp] DB=not_found, memory=${memResult} phone=${cleanPhone}`);
+    // 1. Verify OTP
+    const verification = await verifyOTP(cleanPhone, cleanOtp);
 
-      if (memResult !== 'ok') {
-        const msg = memResult === 'expired' ? 'OTP expired. Request a new one.'
-          : memResult === 'used' ? 'OTP already used. Request a new one.'
-          : memResult === 'too_many' ? 'Too many wrong attempts. Request a new OTP.'
-          : memResult === 'wrong'
-            ? `Wrong OTP. ${getAttemptsRemaining(cleanPhone)} attempts remaining.`
-            : 'OTP not found or expired. Request a new one.';
-        return NextResponse.json({ success: false, error: msg }, { status: 400 });
+    if (!verification.valid) {
+      let errorMsg = 'Invalid verification code';
+      if (verification.reason === 'expired') {
+        errorMsg = 'OTP expired. Please request a new one.';
+      } else if (verification.reason === 'blocked') {
+        errorMsg = 'Too many failed attempts. Please request a new OTP.';
+      } else if (verification.reason === 'wrong') {
+        const left = verification.attemptsLeft ?? 4;
+        errorMsg = `Wrong OTP. ${left} attempt${left === 1 ? '' : 's'} left.`;
+      } else if (verification.reason === 'not_found') {
+        errorMsg = 'No active OTP found. Please request a new code.';
       }
-    } else {
-      // DB returned a specific error
-      const msg = dbResult === 'expired' ? 'OTP expired. Request a new one.'
-        : dbResult === 'used' ? 'OTP already used. Request a new one.'
-        : dbResult === 'too_many' ? 'Too many wrong attempts. Request a new OTP.'
-        : dbResult === 'wrong' ? 'Wrong OTP. Please try again.'
-        : 'OTP verification failed. Please try again.';
-      return NextResponse.json({ success: false, error: msg }, { status: 400 });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMsg,
+          reason: verification.reason,
+          attemptsLeft: verification.attemptsLeft,
+        },
+        { status: 400 }
+      );
     }
 
-    // ── 2. Find or create user in DB ──
+    // 2. Find or create user in Supabase
     const supabase = getSupabase();
+    const e164Phone = `+91${cleanPhone}`;
 
     let isNewUser = false;
     let user;
 
+    // Check with E.164 and bare number
     const { data: existingUser } = await supabase
       .from('users')
       .select('*')
-      .eq('phone', cleanPhone)
-      .single();
+      .or(`phone.eq.${e164Phone},phone.eq.${cleanPhone}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (existingUser) {
       user = existingUser;
-      if (!existingUser.user_type && userType) {
-        await supabase.from('users').update({ user_type: userType }).eq('id', existingUser.id);
-        user.user_type = userType;
+      // Update role if newly selected
+      if (userType && (!existingUser.user_type || existingUser.user_type === 'hirer')) {
+        if (userType === 'worker' && existingUser.user_type !== 'worker') {
+          await supabase.from('users').update({ user_type: 'worker' }).eq('id', existingUser.id);
+          user.user_type = 'worker';
+        }
       }
     } else {
       isNewUser = true;
+      const initialRole = userType === 'worker' ? 'worker' : 'hirer';
       const { data: newUser, error: createError } = await supabase
         .from('users')
-        .insert({ phone: cleanPhone, user_type: userType || null, name: null, language: 'en', is_active: true })
+        .insert({
+          phone: e164Phone,
+          user_type: initialRole,
+          name: null,
+          language: 'en',
+          is_active: true,
+        })
         .select()
         .single();
 
       if (createError || !newUser) {
-        console.error('[verify-otp] Failed to create user:', createError);
-        return NextResponse.json({ success: false, error: 'Failed to create account. Try again.' }, { status: 500 });
+        console.error('[verify-otp] User create error:', createError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create user account. Please try again.' },
+          { status: 500 }
+        );
       }
       user = newUser;
     }
 
-    // ── 3. Generate JWT ──
-    const resolvedType = user.user_type || userType || 'hirer';
-    const token = await generateJWT(user.id, cleanPhone, resolvedType);
+    // 3. Generate signed JWT (30 days expiry)
+    const resolvedRole: 'worker' | 'hirer' = user.user_type === 'worker' ? 'worker' : 'hirer';
+    const token = await generateJWT(user.id, e164Phone, resolvedRole);
 
-    // ── 4. Set cookies + return ──
+    // 4. Build response with TWO cookies: kaizy_token and kaizy_role
     const response = NextResponse.json({
       success: true,
-      message: 'Login successful',
-      data: {
-        user: { id: user.id, phone: user.phone, name: user.name, userType: resolvedType, profilePhoto: user.profile_photo },
-        token,
-        isNewUser,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      isNewUser,
+      userType: resolvedRole,
+      userId: user.id,
+      user: {
+        id: user.id,
+        phone: user.phone,
+        name: user.name,
+        user_type: resolvedRole,
       },
     });
 
+    const isProd = process.env.NODE_ENV === 'production';
+    const thirtyDaysSeconds = 30 * 24 * 60 * 60;
+
+    // Cookie 1: kaizy_token (httpOnly, secure)
     response.cookies.set('kaizy_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: thirtyDaysSeconds,
       path: '/',
     });
-    response.cookies.set('kaizy_user_type', resolvedType, {
+
+    // Cookie 2: kaizy_role (accessible to JS for instant UI sync)
+    response.cookies.set('kaizy_role', resolvedRole, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
-      path: '/',
-    });
-    response.cookies.set('kaizy_role', resolvedType, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: thirtyDaysSeconds,
       path: '/',
     });
 
     return response;
   } catch (error) {
-    console.error('[verify-otp] Unexpected error:', error);
-    const message = error instanceof Error && error.message.includes('Database not configured')
-      ? 'Service unavailable. Please try again later.'
-      : 'Verification failed. Please try again.';
-    return NextResponse.json({ success: false, error: message }, { status: 503 });
-  }
-}
-
-type DbVerifyResult = 'ok' | 'not_found' | 'expired' | 'used' | 'too_many' | 'wrong' | 'error';
-
-async function tryDbVerify(phone: string, otp: string): Promise<DbVerifyResult> {
-  try {
-    const supabase = getSupabase();
-
-    // Get the most recent non-used OTP for this phone
-    const { data: record, error } = await supabase
-      .from('otp_codes')
-      .select('id, otp, used, expires_at, attempts')
-      .eq('phone', phone)
-      .neq('used', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error || !record) return 'not_found';
-    if (new Date(record.expires_at) < new Date()) {
-      await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
-      return 'expired';
-    }
-    if (record.attempts >= 5) {
-      await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
-      return 'too_many';
-    }
-    if (record.otp !== otp) {
-      await supabase.from('otp_codes').update({ attempts: (record.attempts || 0) + 1 }).eq('id', record.id);
-      return 'wrong';
-    }
-
-    // Mark as used
-    await supabase.from('otp_codes').update({ used: true }).eq('id', record.id);
-    return 'ok';
-  } catch (e) {
-    console.error('[verify-otp] DB check error:', e);
-    return 'error';
+    console.error('[POST /api/auth/verify-otp error]', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error while verifying OTP' },
+      { status: 500 }
+    );
   }
 }
