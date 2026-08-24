@@ -33,6 +33,10 @@ const parentMap: Record<string, string> = {
   "/job-photos": "/dashboard/worker",
 
   // Onboarding & Registration
+  "/login/otp": "/login",
+  "/onboarding/hirer/profile": "/login",
+  "/onboarding/hirer/location": "/onboarding/hirer/profile",
+  "/onboarding/hirer/ready": "/onboarding/hirer/location",
   "/onboarding/worker/trade": "/register/worker",
   "/onboarding/worker/pricing": "/onboarding/specialization",
   "/onboarding/bank": "/dashboard/worker",
