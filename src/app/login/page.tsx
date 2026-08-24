@@ -242,7 +242,7 @@ export default function LoginPage() {
             <button
               onClick={() => setStep("phone")}
               className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] transition-transform"
-              style={{ background: "var(--gradient-cta)", color: "#FFDBCC", boxShadow: "var(--shadow-brand)" }}
+              style={{ background: "var(--gradient-cta)", color: "#FFFFFF", boxShadow: "var(--shadow-brand)" }}
             >
               Continue as {userType === "worker" ? "Worker" : "Home Owner"} →
             </button>
@@ -302,7 +302,7 @@ export default function LoginPage() {
               className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
               style={{
                 background: phone.length === 10 ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                color: phone.length === 10 ? "#FFDBCC" : "var(--text-3)",
+                color: phone.length === 10 ? "#FFFFFF" : "var(--text-3)",
                 boxShadow: phone.length === 10 ? "var(--shadow-brand)" : "none",
               }}
             >
@@ -311,8 +311,8 @@ export default function LoginPage() {
 
             <p className="text-[9px] text-center mt-4" style={{ color: "var(--text-3)" }}>
               By continuing you agree to our{" "}
-              <span style={{ color: "var(--brand-soft)" }}>Terms</span> and{" "}
-              <span style={{ color: "var(--brand-soft)" }}>Privacy Policy</span>
+              <span style={{ color: "var(--brand)" }}>Terms</span> and{" "}
+              <span style={{ color: "var(--brand)" }}>Privacy Policy</span>
             </p>
           </div>
         )}
@@ -361,7 +361,7 @@ export default function LoginPage() {
               className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
               style={{
                 background: otp.join("").length === 6 ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                color: otp.join("").length === 6 ? "#FFDBCC" : "var(--text-3)",
+                color: otp.join("").length === 6 ? "#FFFFFF" : "var(--text-3)",
                 boxShadow: otp.join("").length === 6 ? "var(--shadow-brand)" : "none",
               }}
             >

@@ -16,13 +16,76 @@
    Colors: Material You Fidelity · #FF6B00 Saffron
    ═══════════════════════════════════════ */
 
-/* ── DARK THEME (default) ── 
-   Based on Stitch Kaizzy Tonal Architecture:
-   No #000000 — use #0E0E0E as deepest.
-   "No-Line Rule" — tonal shifts, not borders.
-   ── */
-:root, .dark {
+/* ── WHITE / LIGHT THEME (Default) ── */
+:root, .light {
   /* ── Brand: Saffron Energy ── */
+  --brand:          #FF6B00;
+  --brand-soft:     #FF9E66;
+  --brand-dark:     #C84B00;
+  --brand-light:    #FFF0EB;
+  --brand-glow:     rgba(255,107,0,0.20);
+  --brand-tint:     rgba(255,107,0,0.08);
+
+  /* ── Clean White & High-Contrast Light Mode Surfaces ── */
+  --bg-app:         #FFFFFF;   /* Crisp white background */
+  --bg-surface:     #F8FAFC;   /* Very soft slate-50 */
+  --bg-card:        #FFFFFF;   /* Pure white card surface */
+  --bg-elevated:    #F1F5F9;   /* Clean slate-100 */
+  --bg-highest:     #E2E8F0;   /* Slate-200 */
+  --bg-lowest:      #FFFFFF;   /* Pure white */
+  --bg-overlay:     rgba(255,255,255,0.92);
+  --bg-input:       #F8FAFC;
+
+  /* ── High-Contrast Typography ── */
+  --text-1:         #0F172A;   /* Slate-900 (High contrast bold text) */
+  --text-2:         #334155;   /* Slate-700 (Crisp secondary text) */
+  --text-3:         #64748B;   /* Slate-500 (Readable tertiary / label) */
+
+  /* ── Semantic Colors ── */
+  --success:        #10B981;
+  --success-tint:   rgba(16,185,129,0.10);
+  --danger:         #EF4444;
+  --danger-dark:    #B91C1C;
+  --danger-tint:    rgba(239,68,68,0.10);
+  --warning:        #F59E0B;
+  --warning-tint:   rgba(245,158,11,0.10);
+  --info:           #3B82F6;
+  --info-tint:      rgba(59,130,246,0.10);
+
+  /* ── Trust: Tertiary Blue ── */
+  --trust:          #0284C7;
+  --trust-soft:     #0369A1;
+  --trust-tint:     rgba(2,132,199,0.10);
+
+  /* ── Crisp Borders ── */
+  --border-1:       #F1F5F9;
+  --border-2:       #E2E8F0;
+
+  /* ── Secondary ── */
+  --secondary:      #FF6B00;
+  --secondary-container: #FFF0EB;
+
+  /* ── Map ── */
+  --map-bg:         #F8FAFC;
+  --map-road:       #E2E8F0;
+
+  /* ── Shadows: Crisp Modern Elevation ── */
+  --shadow-brand:   0 10px 25px -4px rgba(255,107,0,0.30);
+  --shadow-card:    0 2px 12px -2px rgba(15,23,42,0.06), 0 1px 4px -1px rgba(15,23,42,0.04);
+  --shadow-sm:      0 1px 3px 0 rgba(15,23,42,0.05);
+  --shadow-float:   0 20px 30px -6px rgba(15,23,42,0.10), 0 8px 12px -4px rgba(15,23,42,0.06);
+
+  /* ── Gradients ── */
+  --gradient-hero:  linear-gradient(135deg, #FF8C38 0%, #FF6B00 100%);
+  --gradient-cta:   linear-gradient(135deg, #FF6B00 0%, #E05300 100%);
+  --gradient-trust: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+
+  --background:     #FFFFFF;
+  --foreground:     #0F172A;
+}
+
+/* ── DARK THEME OVERRIDE ── */
+.dark {
   --brand:          #FF6B00;
   --brand-soft:     #FFB693;
   --brand-dark:     #A04100;
@@ -30,17 +93,15 @@
   --brand-glow:     rgba(255,107,0,0.25);
   --brand-tint:     rgba(255,107,0,0.08);
 
-  /* ── Surfaces: Tonal Layering (NO pure black) ── */
-  --bg-app:         #131313;   /* surface */
-  --bg-surface:     #1C1B1B;   /* surface-container-low */
-  --bg-card:        #201F1F;   /* surface-container */
-  --bg-elevated:    #2A2A2A;   /* surface-container-high */
-  --bg-highest:     #353534;   /* surface-container-highest */
-  --bg-lowest:      #0E0E0E;   /* surface-container-lowest */
-  --bg-overlay:     rgba(19,19,19,0.70);
+  --bg-app:         #131313;
+  --bg-surface:     #1C1B1B;
+  --bg-card:        #201F1F;
+  --bg-elevated:    #2A2A2A;
+  --bg-highest:     #353534;
+  --bg-lowest:      #0E0E0E;
+  --bg-overlay:     rgba(19,19,19,0.80);
   --bg-input:       #0E0E0E;
 
-  /* ── Semantic ── */
   --success:        #34D399;
   --success-tint:   rgba(52,211,153,0.10);
   --danger:         #FFB4AB;
@@ -51,99 +112,34 @@
   --info:           #9CCAFF;
   --info-tint:      rgba(156,202,255,0.10);
 
-  /* ── Trust: Tertiary Blue ── */
   --trust:          #059EFF;
   --trust-soft:     #9CCAFF;
   --trust-tint:     rgba(5,158,255,0.12);
 
-  /* ── Text: on_surface hierarchy ── */
-  --text-1:         #E5E2E1;   /* on_surface */
-  --text-2:         #A98A7D;   /* outline (warm muted) */
-  --text-3:         #5A4136;   /* outline_variant */
+  --text-1:         #E5E2E1;
+  --text-2:         #A98A7D;
+  --text-3:         #8A7065;
 
-  /* ── Borders: Ghost Borders (outline_variant at 15%) ── */
-  --border-1:       rgba(90,65,54,0.15);
-  --border-2:       rgba(90,65,54,0.30);
+  --border-1:       rgba(90,65,54,0.18);
+  --border-2:       rgba(90,65,54,0.35);
 
-  /* ── Secondary: Warm Amber ── */
   --secondary:      #FFB693;
   --secondary-container: #7B3409;
 
-  /* ── Map ── */
   --map-bg:         #0E0E0E;
   --map-road:       #201F1F;
 
-  /* ── Shadows: Ambient only (warm-tinted) ── */
   --shadow-brand:   0 8px 32px -4px rgba(255,107,0,0.30);
   --shadow-card:    0 4px 24px -4px rgba(229,226,225,0.04);
   --shadow-sm:      0 2px 8px -2px rgba(229,226,225,0.06);
   --shadow-float:   0 12px 40px -4px rgba(229,226,225,0.08);
 
-  /* ── Gradient: Saffron Energy CTA ── */
   --gradient-hero:  linear-gradient(135deg, #FFB693 0%, #FF6B00 100%);
   --gradient-cta:   linear-gradient(135deg, #FF6B00 0%, #A04100 100%);
   --gradient-trust: linear-gradient(135deg, #059EFF 0%, #003257 100%);
 
   --background:     #131313;
   --foreground:     #E5E2E1;
-}
-
-/* ── LIGHT THEME ── */
-.light {
-  --brand:          #FF6B00;
-  --brand-soft:     #FFB693;
-  --brand-dark:     #A04100;
-  --brand-light:    #FFDBCC;
-  --brand-glow:     rgba(255,107,0,0.12);
-  --brand-tint:     rgba(255,107,0,0.04);
-
-  --bg-app:         #FBF9F8;   /* surface (warm white) */
-  --bg-surface:     #F5F3F3;
-  --bg-card:        #FFFFFF;
-  --bg-elevated:    #EFEDED;
-  --bg-highest:     #EAE8E7;
-  --bg-lowest:      #FFFFFF;
-  --bg-overlay:     rgba(251,249,248,0.85);
-  --bg-input:       #F5F3F3;
-
-  --success:        #059669;
-  --success-tint:   rgba(5,150,105,0.06);
-  --danger:         #BA1A1A;
-  --danger-dark:    #680003;
-  --danger-tint:    rgba(186,26,26,0.06);
-  --warning:        #D97706;
-  --warning-tint:   rgba(217,119,6,0.06);
-  --info:           #2563EB;
-  --info-tint:      rgba(37,99,235,0.06);
-
-  --trust:          #059EFF;
-  --trust-soft:     #0068A9;
-  --trust-tint:     rgba(5,158,255,0.08);
-
-  --text-1:         #1B1C1C;
-  --text-2:         #594137;
-  --text-3:         #8D7165;
-
-  --border-1:       rgba(89,65,55,0.08);
-  --border-2:       rgba(89,65,55,0.14);
-
-  --secondary:      #9E3E00;
-  --secondary-container: #FFDBCC;
-
-  --map-bg:         #EFEDED;
-  --map-road:       #E4E2E2;
-
-  --shadow-brand:   0 8px 32px -4px rgba(255,107,0,0.18);
-  --shadow-card:    0 4px 24px -4px rgba(27,28,28,0.06);
-  --shadow-sm:      0 2px 8px -2px rgba(27,28,28,0.04);
-  --shadow-float:   0 12px 40px -4px rgba(27,28,28,0.08);
-
-  --gradient-hero:  linear-gradient(135deg, #FF6B00 0%, #A04100 100%);
-  --gradient-cta:   linear-gradient(135deg, #FF6B00 0%, #CC5500 100%);
-  --gradient-trust: linear-gradient(135deg, #059EFF 0%, #003257 100%);
-
-  --background:     #FBF9F8;
-  --foreground:     #1B1C1C;
 }
 
 /* ── RADII: Artisan (no sharp corners < 8px) ── */
@@ -303,7 +299,7 @@ body, .theme-transition, .theme-transition * {
 /* ── CTA BUTTON: Saffron Gradient ── */
 .btn-cta {
   background: var(--gradient-cta);
-  color: #FFDBCC;
+  color: #FFFFFF;
   font-weight: 700;
   border: none;
   border-radius: var(--r-lg);
@@ -369,7 +365,7 @@ body, .theme-transition, .theme-transition * {
 
   /* Content column gets a subtle elevation shadow on desktop */
   .desktop-content-col {
-    box-shadow: 0 0 80px -8px rgba(0,0,0,0.6);
+    box-shadow: 0 0 40px -4px rgba(15,23,42,0.08), 0 0 1px 1px var(--border-1);
   }
 }
 

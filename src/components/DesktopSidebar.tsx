@@ -84,7 +84,7 @@ export default function DesktopSidebar() {
                   : isActive
                     ? "rgba(255,107,0,0.1)"
                     : "transparent",
-                color: item.isCta ? "#FFDBCC" : isActive ? "var(--brand)" : "var(--text-2)",
+                color: item.isCta ? "#FFFFFF" : isActive ? "var(--brand)" : "var(--text-2)",
                 boxShadow: item.isCta ? "var(--shadow-brand)" : "none",
                 marginBottom: item.isCta ? 8 : 0,
                 marginTop: item.isCta ? 4 : 0,

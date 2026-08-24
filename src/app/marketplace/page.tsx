@@ -144,7 +144,7 @@ export default function MarketplacePage() {
                     className="text-[9px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-all"
                     style={{
                       background: sortBy === s ? "var(--brand)" : "var(--bg-surface)",
-                      color: sortBy === s ? "#FFDBCC" : "var(--text-3)",
+                      color: sortBy === s ? "#FFFFFF" : "var(--text-3)",
                     }}>
               {s === "distance" ? "📍 Nearest" : s === "rating" ? "⭐ Top" : "💰 Cheapest"}
             </button>

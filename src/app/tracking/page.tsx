@@ -421,7 +421,7 @@ function TrackingContent() {
             <p className="text-[15px] font-black" style={{ color: "var(--text-1)", fontFamily: "'Epilogue',sans-serif" }}>
               {worker?.name || "Worker"}
             </p>
-            <p className="text-[10px] font-bold mt-0.5" style={{ color: "var(--brand-soft)" }}>
+            <p className="text-[10px] font-bold mt-0.5" style={{ color: "var(--brand)" }}>
               {worker?.tradeIcon} {worker?.trade} · ⭐ {worker?.rating?.toFixed(1) || "4.5"}
             </p>
           </div>
@@ -559,7 +559,7 @@ function TrackingContent() {
             </button>
             <button onClick={() => handlePayment("upi")}
               className="rounded-[14px] py-3 text-[13px] font-black active:scale-95 transition-transform"
-              style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}>
+              style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}>
               📱 UPI
             </button>
           </div>

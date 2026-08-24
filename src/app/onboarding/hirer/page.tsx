@@ -152,7 +152,7 @@ export default function HirerOnboardingPage() {
         </p>
         <button onClick={() => router.push("/dashboard/hirer")}
                 className="w-full max-w-sm rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] transition-transform"
-                style={{ background: "var(--gradient-cta)", color: "#FFDBCC", boxShadow: "var(--shadow-brand)" }}>
+                style={{ background: "var(--gradient-cta)", color: "#FFFFFF", boxShadow: "var(--shadow-brand)" }}>
           Start Exploring →
         </button>
       </div>
@@ -357,7 +357,7 @@ export default function HirerOnboardingPage() {
                 className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
                 style={{
                   background: (step === 1 ? name.trim() : true) ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                  color: (step === 1 ? name.trim() : true) ? "#FFDBCC" : "var(--text-3)",
+                  color: (step === 1 ? name.trim() : true) ? "#FFFFFF" : "var(--text-3)",
                   boxShadow: (step === 1 ? name.trim() : true) ? "var(--shadow-brand)" : "none",
                 }}>
           {saving ? "Setting up..." : step === 3 ? "Complete Setup ✓" : "Continue →"}

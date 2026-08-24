@@ -275,7 +275,7 @@ function OnboardingContent() {
                 className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
                 style={{
                   background: selectedServices.size > 0 ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                  color: selectedServices.size > 0 ? "#FFDBCC" : "var(--text-3)",
+                  color: selectedServices.size > 0 ? "#FFFFFF" : "var(--text-3)",
                   boxShadow: selectedServices.size > 0 ? "var(--shadow-brand)" : "none",
                 }}>
           {saving ? "Saving..." : `Continue with ${selectedServices.size} Services →`}

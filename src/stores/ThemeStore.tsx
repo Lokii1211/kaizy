@@ -9,17 +9,16 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 type Theme = "dark" | "light";
 interface ThemeCtx { theme: Theme; toggle: () => void; isDark: boolean; }
 
-const ThemeContext = createContext<ThemeCtx>({ theme: "dark", toggle: () => {}, isDark: true });
+const ThemeContext = createContext<ThemeCtx>({ theme: "light", toggle: () => {}, isDark: false });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "light";
     try {
       const saved = localStorage.getItem("ks-theme") as Theme | null;
       if (saved === "dark" || saved === "light") return saved;
-      if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
     } catch {}
-    return "dark";
+    return "light";
   });
 
   useEffect(() => {

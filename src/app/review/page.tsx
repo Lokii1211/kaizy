@@ -252,7 +252,7 @@ function ReviewContent() {
           <button onClick={handleSubmit}
                   disabled={submitting || (rating < 4 && !comment.trim())}
                   className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
-                  style={{ background: "var(--gradient-cta)", color: "#FFDBCC", boxShadow: "var(--shadow-brand)" }}>
+                  style={{ background: "var(--gradient-cta)", color: "#FFFFFF", boxShadow: "var(--shadow-brand)" }}>
             {submitting ? "Submitting..." : `Submit Review${tipAmount > 0 ? ` + ₹${tipAmount} Tip` : ""}`}
           </button>
         </div>

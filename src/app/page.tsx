@@ -484,10 +484,12 @@ export default function HomePage() {
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {trades.map((t, i) => (
             <button key={t.key} onClick={() => handleTradeClick(i)}
-                    className="flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-2 text-[12px] font-semibold active:scale-95 transition-all shadow-md"
+                    className="flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-2 text-[12px] font-semibold active:scale-95 transition-all"
                     style={{
-                      background: activeTrade === i ? t.color : (isDark ? "rgba(255,255,255,0.9)" : "#FFFFFF"),
-                      color: activeTrade === i ? "#FFF" : "#333",
+                      background: activeTrade === i ? t.color : "var(--bg-card)",
+                      color: activeTrade === i ? "#FFF" : "var(--text-1)",
+                      boxShadow: activeTrade === i ? `0 4px 16px ${t.color}40` : "var(--shadow-sm)",
+                      border: activeTrade === i ? "none" : "1px solid var(--border-2)",
                     }}>
               <span className="text-[15px]">{t.icon}</span>
               {t.name}
@@ -505,7 +507,7 @@ export default function HomePage() {
               <span className="text-[13px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Nearby Workers</span>
               <span className="trust-badge">LIVE</span>
             </div>
-            <Link href="/marketplace" className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>See All →</Link>
+            <Link href="/marketplace" className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>See All →</Link>
           </div>
 
           {loading && (

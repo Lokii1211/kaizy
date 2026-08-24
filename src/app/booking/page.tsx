@@ -204,7 +204,7 @@ export default function BookingPage() {
                       className="shrink-0 rounded-full px-4 py-2.5 text-[11px] font-bold active:scale-95 transition-all"
                       style={{
                         background: selectedTrade === trade ? "var(--brand)" : "var(--bg-surface)",
-                        color: selectedTrade === trade ? "#FFDBCC" : "var(--text-2)",
+                        color: selectedTrade === trade ? "#FFFFFF" : "var(--text-2)",
                         boxShadow: selectedTrade === trade ? "var(--shadow-brand)" : "none",
                       }}>
                 {trade}

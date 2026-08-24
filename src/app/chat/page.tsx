@@ -218,9 +218,9 @@ export default function ChatPage() {
                  placeholder="Type a message..."
                  className="flex-1 rounded-xl px-4 py-3 text-[13px] outline-none"
                  style={{
-                   background: isDark ? "rgba(255,255,255,0.95)" : "#fff",
-                   color: "#111",
-                   border: "1px solid var(--border-2)",
+                   background: "var(--bg-card)",
+                   color: "var(--text-1)",
+                   border: "1.5px solid var(--border-2)",
                  }} />
           <button onClick={() => sendMessage()} disabled={!input.trim()}
                   aria-label="Send message"

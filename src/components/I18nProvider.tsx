@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { type Locale, LOCALE_NAMES, LOCALE_FLAGS, getTranslations } from "@/lib/i18n";
 
+export { type Locale } from "@/lib/i18n";
+
 type TranslationKeys = ReturnType<typeof getTranslations>;
 
 interface I18nContextType {

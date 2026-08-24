@@ -187,13 +187,13 @@ export default function NotificationsPage() {
             <span className="text-[14px]">←</span>
           </Link>
           <h1 className="text-[16px] font-black tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>Activity</h1>
-          <button onClick={markAllRead} className="text-[10px] font-bold" style={{ color: "var(--brand-soft)" }}>Mark read</button>
+          <button onClick={markAllRead} className="text-[11px] font-bold" style={{ color: "var(--brand)" }}>Mark read</button>
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {tabs.map((t, i) => (
             <button key={t} onClick={() => setActiveTab(i)}
                     className="shrink-0 rounded-full px-4 py-[7px] text-[10px] font-bold active:scale-95 transition-all"
-                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-surface)", color: activeTab === i ? "#FFDBCC" : "var(--text-3)" }}>
+                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-surface)", color: activeTab === i ? "#FFFFFF" : "var(--text-3)" }}>
               {t}
               {i === 0 && notifications.filter(n => !n.is_read).length > 0 && (
                 <span className="ml-1 text-[8px] bg-white text-orange-500 rounded-full px-1.5 font-black">

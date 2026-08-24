@@ -260,7 +260,7 @@ export default function WorkerRegisterPage() {
               onClick={() => { if (name.trim()) { setStep(2); setError(""); } else setError("Name is required"); }}
               disabled={!name.trim()}
               className="w-full rounded-2xl py-4 text-[14px] font-black mt-4 active:scale-[0.97] disabled:opacity-40"
-              style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}
+              style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}
             >
               Next → Select Trade
             </button>
@@ -311,7 +311,7 @@ export default function WorkerRegisterPage() {
                 onClick={() => { if (trade) { setStep(3); setError(""); } }}
                 disabled={!trade}
                 className="flex-1 rounded-2xl py-4 text-[14px] font-black disabled:opacity-40"
-                style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}
+                style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}
               >
                 Next → Pricing
               </button>
@@ -414,7 +414,7 @@ export default function WorkerRegisterPage() {
                   if (err) { setError(err); } else { setStep(4); setError(""); }
                 }}
                 className="flex-1 rounded-2xl py-4 text-[14px] font-black"
-                style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}
+                style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}
               >
                 Next → Availability
               </button>
@@ -523,7 +523,7 @@ export default function WorkerRegisterPage() {
               <button
                 onClick={() => { setStep(5); setError(""); }}
                 className="flex-1 rounded-2xl py-4 text-[14px] font-black"
-                style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}
+                style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}
               >
                 Next → Payment
               </button>
@@ -580,7 +580,7 @@ export default function WorkerRegisterPage() {
                   setStep(6); setError("");
                 }}
                 className="flex-1 rounded-2xl py-4 text-[14px] font-black"
-                style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}
+                style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}
               >
                 Next → Review
               </button>

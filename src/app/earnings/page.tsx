@@ -151,7 +151,7 @@ export default function EarningsPage() {
                     className="flex-1 rounded-full py-2 text-[11px] font-bold active:scale-95 transition-all"
                     style={{
                       background: period === p ? "var(--gradient-cta)" : "var(--bg-surface)",
-                      color: period === p ? "#FFDBCC" : "var(--text-3)",
+                      color: period === p ? "#FFFFFF" : "var(--text-3)",
                       boxShadow: period === p ? "var(--shadow-brand)" : "none",
                     }}>
               {p === "today" ? "Today" : p === "week" ? "7 Days" : "30 Days"}
@@ -360,7 +360,7 @@ export default function EarningsPage() {
             <p className="text-[14px] font-bold tracking-tight" style={{ color: "var(--text-1)", fontFamily: "'Epilogue', sans-serif" }}>No earnings yet</p>
             <p className="text-[11px] mt-1 font-medium" style={{ color: "var(--text-3)" }}>Complete jobs to start earning</p>
             <Link href="/dashboard/worker" className="inline-block mt-4 rounded-full px-6 py-3 text-[12px] font-bold active:scale-95"
-                  style={{ background: "var(--gradient-cta)", color: "#FFDBCC" }}>
+                  style={{ background: "var(--gradient-cta)", color: "#FFFFFF" }}>
               Go Online
             </Link>
           </div>

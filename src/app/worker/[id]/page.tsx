@@ -379,9 +379,9 @@ export default function WorkerProfilePage() {
                           background: selectedDate === i ? "var(--brand)" : "var(--bg-card)",
                           minWidth: 72,
                         }}>
-                  <p className="text-[9px] font-bold" style={{ color: selectedDate === i ? "#FFDBCC" : "var(--text-3)" }}>{d.day}</p>
+                  <p className="text-[9px] font-bold" style={{ color: selectedDate === i ? "#FFFFFF" : "var(--text-3)" }}>{d.day}</p>
                   <p className="text-[18px] font-black" style={{ color: selectedDate === i ? "#fff" : "var(--text-1)" }}>{d.date}</p>
-                  <p className="text-[8px] font-medium" style={{ color: selectedDate === i ? "#FFDBCC" : "var(--text-3)" }}>{d.month}</p>
+                  <p className="text-[8px] font-medium" style={{ color: selectedDate === i ? "#FFFFFF" : "var(--text-3)" }}>{d.month}</p>
                 </button>
               ))}
             </div>
@@ -405,7 +405,7 @@ export default function WorkerProfilePage() {
                     className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
                     style={{
                       background: selectedTime ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                      color: selectedTime ? "#FFDBCC" : "var(--text-3)",
+                      color: selectedTime ? "#FFFFFF" : "var(--text-3)",
                       boxShadow: selectedTime ? "var(--shadow-brand)" : "none",
                     }}>
               Confirm Schedule →

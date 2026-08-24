@@ -38,7 +38,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#131313",
+  themeColor: "#FFFFFF",
 };
 
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   description: "Find verified electricians, plumbers, mechanics & more in minutes. Same-day UPI payments. Built for 55 crore skilled workers in India.",
   keywords: ["Kaizy","workforce","skilled workers","India","electrician","plumber","KaizyScore","KaizyPass","KaizySOS","UPI"],
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Kaizy" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Kaizy" },
   formatDetection: { telephone: true },
   alternates: {
     canonical: "https://kaizy.in",
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
+    <html lang="en" className="light scroll-smooth" suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/png" href="/kaizy-logo.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />

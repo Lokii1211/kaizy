@@ -207,12 +207,12 @@ function BankSetupContent() {
 
       {/* Sticky CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-4 z-40"
-           style={{ background: "var(--bg-app)", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+           style={{ background: "var(--bg-app)", borderTop: "1px solid var(--border-1)" }}>
         <button onClick={handleSave} disabled={saving || !isValid}
                 className="w-full rounded-[16px] py-4 text-[14px] font-black active:scale-[0.97] disabled:opacity-40 transition-all"
                 style={{
                   background: isValid ? "var(--gradient-cta)" : "var(--bg-elevated)",
-                  color: isValid ? "#FFDBCC" : "var(--text-3)",
+                  color: isValid ? "#FFFFFF" : "var(--text-3)",
                   boxShadow: isValid ? "var(--shadow-brand)" : "none",
                 }}>
           {saving ? "Saving..." : "Continue to Verification →"}

@@ -136,7 +136,7 @@ export default function MyBookingsPage() {
           {tabs.map((tab, i) => (
             <button key={tab} onClick={() => setActiveTab(i)}
                     className="px-4 py-2 rounded-full text-[10px] font-bold transition-all active:scale-95 shrink-0"
-                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-surface)", color: activeTab === i ? "#FFDBCC" : "var(--text-3)" }}>
+                    style={{ background: activeTab === i ? "var(--brand)" : "var(--bg-surface)", color: activeTab === i ? "#FFFFFF" : "var(--text-3)" }}>
               {tab}
               {i === 1 && activeCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full text-[7px] bg-white" style={{ color: "var(--brand)" }}>

@@ -124,7 +124,7 @@ function WithdrawalContent() {
       {/* Actions */}
       <Link href="/earnings"
             className="w-full max-w-sm rounded-[16px] py-4 text-[14px] font-black text-center active:scale-[0.97] transition-transform"
-            style={{ background: "var(--gradient-cta)", color: "#FFDBCC", boxShadow: "var(--shadow-brand)" }}>
+            style={{ background: "var(--gradient-cta)", color: "#FFFFFF", boxShadow: "var(--shadow-brand)" }}>
         View Earnings →
       </Link>
       <Link href="/dashboard/worker"
