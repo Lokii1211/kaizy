@@ -35,12 +35,18 @@ function ReviewContent() {
     try {
       const raw = sessionStorage.getItem("kaizy_booked_worker");
       if (raw) stored = JSON.parse(raw);
-    } catch { /* ignore parse errors */ }
+    } catch {}
+
+    const bid = qBookingId || stored.bookingId || "";
+    if (bid) {
+      window.location.replace(`/hirer/review/${bid}`);
+      return;
+    }
 
     setWorkerName(qWorker || stored.name || "Worker");
     setTrade(qTrade || stored.trade || "Service");
     setAmount(qAmount || stored.amount || "600");
-    setBookingId(qBookingId || stored.bookingId || "");
+    setBookingId(bid);
     setJobId(qJobId || stored.jobId || "");
   }, [searchParams]);
 

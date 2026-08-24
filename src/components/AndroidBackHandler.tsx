@@ -22,6 +22,7 @@ const parentMap: Record<string, string> = {
   "/hirer/booking/matched": "/dashboard/hirer",
   "/hirer/booking/payment": "/dashboard/hirer",
   "/hirer/tracking": "/dashboard/hirer",
+  "/hirer/review": "/",
   "/hirer/chat": "/my-bookings",
   "/tracking": "/my-bookings",
   "/chat": "/my-bookings",
@@ -31,6 +32,7 @@ const parentMap: Record<string, string> = {
 
   // Worker Flows
   "/worker/job": "/dashboard/worker",
+  "/worker/review-hirer": "/dashboard/worker",
   "/worker/payment-received": "/dashboard/worker",
   "/worker/active-job": "/dashboard/worker",
   "/active-job": "/dashboard/worker",
