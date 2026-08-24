@@ -85,7 +85,7 @@ function SosSearchingContent() {
             .eq("job_id", jobId)
             .maybeSingle();
 
-          router.replace(`/hirer/tracking?bookingId=${booking?.id || jobId}`);
+          router.replace(`/hirer/tracking/${booking?.id || jobId}`);
         }
       }
     };
@@ -158,7 +158,7 @@ function SosSearchingContent() {
                 .eq("job_id", jobId)
                 .maybeSingle();
 
-              router.replace(`/hirer/tracking?bookingId=${booking?.id || jobId}`);
+              router.replace(`/hirer/tracking/${booking?.id || jobId}`);
             } else if (updated.status === "no_workers") {
               setNoWorkers(true);
             }

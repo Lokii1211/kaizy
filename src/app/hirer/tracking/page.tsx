@@ -15,7 +15,7 @@ function HirerTrackingRedirectContent() {
 
   useEffect(() => {
     if (bookingId) {
-      router.replace(`/tracking?bookingId=${bookingId}`);
+      router.replace(`/hirer/tracking/${bookingId}`);
     } else {
       router.replace("/my-bookings");
     }
